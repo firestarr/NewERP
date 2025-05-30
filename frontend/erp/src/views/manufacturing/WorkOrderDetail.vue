@@ -11,37 +11,37 @@
           <p class="card-subtitle">{{ workOrder.product_name }}</p>
         </div>
         <div class="actions">
-          <router-link 
+          <router-link
             v-if="workOrder.status === 'Draft'"
-            :to="`/manufacturing/work-orders/${workOrder.wo_id}/edit`" 
+            :to="`/manufacturing/work-orders/${workOrder.wo_id}/edit`"
             class="btn btn-info mr-2"
           >
             <i class="fas fa-edit mr-1"></i> Edit
           </router-link>
-          <button 
+          <button
             v-if="workOrder.status === 'Draft'"
-            @click="confirmRelease" 
+            @click="confirmRelease"
             class="btn btn-success mr-2"
           >
             <i class="fas fa-play-circle mr-1"></i> Release
           </button>
-          <button 
+          <button
             v-if="workOrder.status === 'Released'"
-            @click="confirmStart" 
+            @click="confirmStart"
             class="btn btn-success mr-2"
           >
             <i class="fas fa-tasks mr-1"></i> Start Production
           </button>
-          <button 
+          <button
             v-if="workOrder.status === 'In Progress'"
-            @click="confirmComplete" 
+            @click="confirmComplete"
             class="btn btn-success mr-2"
           >
             <i class="fas fa-check-circle mr-1"></i> Complete
           </button>
-          <button 
+          <button
             v-if="['Draft', 'Planned', 'Released'].includes(workOrder.status)"
-            @click="confirmCancel" 
+            @click="confirmCancel"
             class="btn btn-danger mr-2"
           >
             <i class="fas fa-ban mr-1"></i> Cancel
@@ -51,7 +51,7 @@
           </button>
         </div>
       </div>
-      
+
       <!-- Status progress bar -->
       <div class="work-order-progress">
         <div class="progress-steps">
@@ -81,7 +81,7 @@
           </div>
         </div>
       </div>
-      
+
       <div class="card-body">
         <!-- Details and Tabs -->
         <div class="row">
@@ -147,41 +147,41 @@
               </div>
             </div>
           </div>
-          
+
           <!-- Tabs Column -->
           <div class="col-md-8">
             <div class="tabs-container">
               <div class="tabs-header">
-                <div 
-                  class="tab-item" 
+                <div
+                  class="tab-item"
                   :class="{ 'active': activeTab === 'operations' }"
                   @click="handleTabChange('operations')"
                 >
                   <i class="fas fa-tasks mr-2"></i>Operations
                 </div>
-                <div 
-                  class="tab-item" 
+                <div
+                  class="tab-item"
                   :class="{ 'active': activeTab === 'materials' }"
                   @click="handleTabChange('materials')"
                 >
                   <i class="fas fa-boxes mr-2"></i>Materials
                 </div>
-                <div 
-                  class="tab-item" 
+                <div
+                  class="tab-item"
                   :class="{ 'active': activeTab === 'production' }"
                   @click="handleTabChange('production')"
                 >
                   <i class="fas fa-industry mr-2"></i>Production
                 </div>
-                <div 
-                  class="tab-item" 
+                <div
+                  class="tab-item"
                   :class="{ 'active': activeTab === 'quality' }"
                   @click="handleTabChange('quality')"
                 >
                   <i class="fas fa-check-square mr-2"></i>Quality
                 </div>
               </div>
-              
+
               <div class="tab-content">
                 <!-- Operations Tab -->
                 <div v-if="activeTab === 'operations'" class="tab-pane">
@@ -193,11 +193,11 @@
                       </button>
                     </div>
                   </div>
-                  
+
                   <div v-if="isLoading" class="loading-indicator">
                     <i class="fas fa-spinner fa-spin"></i> Loading operations...
                   </div>
-                  
+
                   <div v-else-if="operations.length === 0" class="empty-state">
                     <div class="empty-icon">
                       <i class="fas fa-tasks"></i>
@@ -205,7 +205,7 @@
                     <h4>No Operations</h4>
                     <p>This work order has no operations defined.</p>
                   </div>
-                  
+
                   <div v-else class="operations-list">
                     <div v-for="operation in operations" :key="operation.operation_id" class="operation-item">
                       <div class="operation-header" @click="toggleOperation(operation.operation_id)">
@@ -221,7 +221,7 @@
                           <i :class="expandedOperations.includes(operation.operation_id) ? 'fas fa-chevron-up' : 'fas fa-chevron-down'" class="ml-2"></i>
                         </div>
                       </div>
-                      
+
                       <div v-if="expandedOperations.includes(operation.operation_id)" class="operation-details">
                         <div class="operation-detail-grid">
                           <div class="detail-group">
@@ -257,24 +257,24 @@
                             <div class="detail-value">{{ operation.actual_end ? formatDate(operation.actual_end) : 'Not completed' }}</div>
                           </div>
                         </div>
-                        
+
                         <div class="operation-actions">
-                          <button 
+                          <button
                             v-if="operation.status === 'Pending' && workOrder.status === 'In Progress'"
-                            @click="startOperation(operation)" 
+                            @click="startOperation(operation)"
                             class="btn btn-sm btn-success"
                           >
                             <i class="fas fa-play mr-1"></i> Start
                           </button>
-                          <button 
+                          <button
                             v-if="operation.status === 'In Progress'"
-                            @click="completeOperation(operation)" 
+                            @click="completeOperation(operation)"
                             class="btn btn-sm btn-success"
                           >
                             <i class="fas fa-check mr-1"></i> Complete
                           </button>
-                          <button 
-                            @click="viewOperationDetails(operation)" 
+                          <button
+                            @click="viewOperationDetails(operation)"
                             class="btn btn-sm btn-primary"
                           >
                             <i class="fas fa-eye mr-1"></i> Details
@@ -284,17 +284,17 @@
                     </div>
                   </div>
                 </div>
-                
+
                 <!-- Materials Tab -->
                 <div v-if="activeTab === 'materials'" class="tab-pane">
                   <div class="tab-pane-header">
                     <h3>Required Materials</h3>
                   </div>
-                  
+
                   <div v-if="isLoading" class="loading-indicator">
                     <i class="fas fa-spinner fa-spin"></i> Loading materials...
                   </div>
-                  
+
                   <div v-else-if="materials.length === 0" class="empty-state">
                     <div class="empty-icon">
                       <i class="fas fa-boxes"></i>
@@ -302,7 +302,7 @@
                     <h4>No Materials</h4>
                     <p>This work order has no materials defined.</p>
                   </div>
-                  
+
                   <div v-else class="table-responsive">
                     <table class="materials-table">
                       <thead>
@@ -329,8 +329,8 @@
                             </span>
                           </td>
                           <td v-if="workOrder.status === 'In Progress'">
-                            <button 
-                              @click="issueMaterial(material)" 
+                            <button
+                              @click="issueMaterial(material)"
                               class="btn btn-sm btn-primary"
                               :disabled="material.issued_quantity >= material.quantity"
                             >
@@ -342,7 +342,7 @@
                     </table>
                   </div>
                 </div>
-                
+
                 <!-- Production Tab -->
                 <div v-if="activeTab === 'production'" class="tab-pane">
                   <div class="tab-pane-header">
@@ -353,11 +353,11 @@
                       </button>
                     </div>
                   </div>
-                  
+
                   <div v-if="isLoading" class="loading-indicator">
                     <i class="fas fa-spinner fa-spin"></i> Loading production orders...
                   </div>
-                  
+
                   <div v-else-if="productionOrders.length === 0" class="empty-state">
                     <div class="empty-icon">
                       <i class="fas fa-industry"></i>
@@ -365,11 +365,11 @@
                     <h4>No Production Orders</h4>
                     <p>There are no production orders for this work order yet.</p>
                   </div>
-                  
+
                   <div v-else class="production-orders-list">
-                    <div 
-                      v-for="order in productionOrders" 
-                      :key="order.production_id" 
+                    <div
+                      v-for="order in productionOrders"
+                      :key="order.production_id"
                       class="production-order-card"
                     >
                       <div class="production-order-header">
@@ -407,7 +407,7 @@
                     </div>
                   </div>
                 </div>
-                
+
                 <!-- Quality Tab -->
                 <div v-if="activeTab === 'quality'" class="tab-pane">
                   <div class="tab-pane-header">
@@ -418,11 +418,11 @@
                       </button>
                     </div>
                   </div>
-                  
+
                   <div v-if="isLoading" class="loading-indicator">
                     <i class="fas fa-spinner fa-spin"></i> Loading quality inspections...
                   </div>
-                  
+
                   <div v-else-if="qualityInspections.length === 0" class="empty-state">
                     <div class="empty-icon">
                       <i class="fas fa-check-square"></i>
@@ -430,11 +430,11 @@
                     <h4>No Quality Inspections</h4>
                     <p>There are no quality inspections for this work order yet.</p>
                   </div>
-                  
+
                   <div v-else class="quality-inspections-list">
-                    <div 
-                      v-for="inspection in qualityInspections" 
-                      :key="inspection.inspection_id" 
+                    <div
+                      v-for="inspection in qualityInspections"
+                      :key="inspection.inspection_id"
                       class="quality-inspection-card"
                     >
                       <div class="quality-inspection-header">
@@ -477,7 +477,7 @@
         </div>
       </div>
     </div>
-    
+
     <!-- Confirmation Modal -->
     <ConfirmationModal
       v-if="showModal"
@@ -488,7 +488,7 @@
       @confirm="handleModalConfirm"
       @close="showModal = false"
     />
-    
+
     <!-- Operation Form Modal -->
     <div v-if="showOperationModal" class="modal">
       <div class="modal-backdrop" @click="showOperationModal = false"></div>
@@ -506,19 +506,19 @@
                 <label>Operation</label>
                 <input type="text" class="form-control" :value="selectedOperation.operation_name" disabled />
               </div>
-              
+
               <div class="form-group">
                 <label>Work Center</label>
                 <input type="text" class="form-control" :value="selectedOperation.work_center_name" disabled />
               </div>
-              
+
               <div class="row">
                 <div class="col-md-6">
                   <div class="form-group">
                     <label>Scheduled Start</label>
-                    <input 
-                      type="date" 
-                      class="form-control" 
+                    <input
+                      type="date"
+                      class="form-control"
                       v-model="selectedOperation.scheduled_start"
                       :disabled="selectedOperation.status !== 'Pending'"
                     />
@@ -527,23 +527,23 @@
                 <div class="col-md-6">
                   <div class="form-group">
                     <label>Scheduled End</label>
-                    <input 
-                      type="date" 
-                      class="form-control" 
+                    <input
+                      type="date"
+                      class="form-control"
                       v-model="selectedOperation.scheduled_end"
                       :disabled="selectedOperation.status !== 'Pending'"
                     />
                   </div>
                 </div>
               </div>
-              
+
               <div class="row">
                 <div class="col-md-6">
                   <div class="form-group">
                     <label>Actual Start</label>
-                    <input 
-                      type="date" 
-                      class="form-control" 
+                    <input
+                      type="date"
+                      class="form-control"
                       v-model="selectedOperation.actual_start"
                       :disabled="!['In Progress', 'Completed'].includes(selectedOperation.status)"
                     />
@@ -552,23 +552,23 @@
                 <div class="col-md-6">
                   <div class="form-group">
                     <label>Actual End</label>
-                    <input 
-                      type="date" 
-                      class="form-control" 
+                    <input
+                      type="date"
+                      class="form-control"
                       v-model="selectedOperation.actual_end"
                       :disabled="selectedOperation.status !== 'Completed'"
                     />
                   </div>
                 </div>
               </div>
-              
+
               <div class="row">
                 <div class="col-md-6">
                   <div class="form-group">
                     <label>Actual Labor Time (min)</label>
-                    <input 
-                      type="number" 
-                      class="form-control" 
+                    <input
+                      type="number"
+                      class="form-control"
                       v-model="selectedOperation.actual_labor_time"
                       :disabled="!['Completed', 'In Progress'].includes(selectedOperation.status)"
                     />
@@ -577,20 +577,20 @@
                 <div class="col-md-6">
                   <div class="form-group">
                     <label>Actual Machine Time (min)</label>
-                    <input 
-                      type="number" 
-                      class="form-control" 
+                    <input
+                      type="number"
+                      class="form-control"
                       v-model="selectedOperation.actual_machine_time"
                       :disabled="!['Completed', 'In Progress'].includes(selectedOperation.status)"
                     />
                   </div>
                 </div>
               </div>
-              
+
               <div class="form-group">
                 <label>Status</label>
-                <select 
-                  class="form-control" 
+                <select
+                  class="form-control"
                   v-model="selectedOperation.status"
                   :disabled="workOrder.status !== 'In Progress'"
                 >
@@ -599,17 +599,17 @@
                   <option value="Completed">Completed</option>
                 </select>
               </div>
-              
+
               <div class="form-actions">
-                <button 
-                  type="button" 
-                  class="btn btn-secondary" 
+                <button
+                  type="button"
+                  class="btn btn-secondary"
                   @click="showOperationModal = false"
                 >
                   Cancel
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   class="btn btn-primary"
                   :disabled="!isOperationEditable"
                 >
@@ -634,7 +634,7 @@ export default {
   setup() {
     const router = useRouter();
     const route = useRoute();
-    
+
     // Data
     const workOrder = ref({
       wo_id: '',
@@ -653,7 +653,7 @@ export default {
       priority: 'Medium',
       notes: ''
     });
-    
+
     const isLoading = ref(true);
     const activeTab = ref('operations');
     const operations = ref([]);
@@ -661,7 +661,7 @@ export default {
     const productionOrders = ref([]);
     const qualityInspections = ref([]);
     const expandedOperations = ref([]);
-    
+
     // Modal state
     const showModal = ref(false);
     const modalTitle = ref('');
@@ -669,11 +669,11 @@ export default {
     const modalConfirmText = ref('');
     const modalConfirmClass = ref('btn btn-primary');
     const modalAction = ref('');
-    
+
     // Operation modal state
     const showOperationModal = ref(false);
     const selectedOperation = ref(null);
-    
+
     const isOperationEditable = computed(() => {
       return workOrder.value.status === 'In Progress' && selectedOperation.value;
     });
@@ -681,11 +681,11 @@ export default {
     // Methods
     const loadWorkOrder = async () => {
       isLoading.value = true;
-      
+
       try {
         const response = await axios.get(`/work-orders/${route.params.id}`);
         const data = response.data.data;
-        
+
         // Format the work order data
         workOrder.value = {
           wo_id: data.wo_id,
@@ -707,7 +707,7 @@ export default {
           priority: data.priority || 'Medium',
           notes: data.notes || ''
         };
-        
+
         // Load operations, materials, production orders based on the active tab
         loadTabData();
       } catch (error) {
@@ -716,7 +716,7 @@ export default {
         isLoading.value = false;
       }
     };
-    
+
     const loadTabData = async () => {
       if (activeTab.value === 'operations') {
         await loadOperations();
@@ -728,10 +728,10 @@ export default {
         await loadQualityInspections();
       }
     };
-    
+
 const loadOperations = async () => {
       isLoading.value = true;
-      
+
       try {
         const response = await axios.get(`/work-orders/${route.params.id}/operations`);
         operations.value = response.data.data.map(op => ({
@@ -744,16 +744,16 @@ const loadOperations = async () => {
         isLoading.value = false;
       }
     };
-    
+
 const loadMaterials = async () => {
       isLoading.value = true;
-      
+
       try {
         // Assuming BOM lines are loaded from /boms/{bom_id}/lines
         const response = await axios.get(`/boms/${workOrder.value.bom_id}/lines`);
         console.log('BOM lines response:', response.data.data);
         console.log('Work order planned quantity:', workOrder.value.planned_quantity);
-        
+
         // Calculate required quantities based on work order planned quantity and yield
         materials.value = response.data.data.map(line => {
 let requiredQty = line.quantity * workOrder.value.planned_quantity;
@@ -777,10 +777,10 @@ requiredQty = Math.ceil(requiredQty);
         isLoading.value = false;
       }
     };
-    
+
     const loadProductionOrders = async () => {
       isLoading.value = true;
-      
+
       try {
         const response = await axios.get(`/production-orders`, {
           params: { wo_id: route.params.id }
@@ -792,17 +792,17 @@ requiredQty = Math.ceil(requiredQty);
         isLoading.value = false;
       }
     };
-    
+
     const loadQualityInspections = async () => {
       isLoading.value = true;
-      
+
       try {
         const response = await axios.get(`/quality-inspections/by-reference/work_order/${route.params.id}`);
         qualityInspections.value = response.data.data.map(inspection => {
           // Calculate summary statistics
           const totalParams = inspection.qualityParameters?.length || 0;
           const passedParams = inspection.qualityParameters?.filter(p => p.is_passed)?.length || 0;
-          
+
           return {
             ...inspection,
             total_parameters: totalParams,
@@ -816,7 +816,7 @@ requiredQty = Math.ceil(requiredQty);
         isLoading.value = false;
       }
     };
-    
+
     const formatDate = (dateString) => {
       if (!dateString) return '-';
       const date = new Date(dateString);
@@ -826,7 +826,7 @@ requiredQty = Math.ceil(requiredQty);
         day: '2-digit'
       });
     };
-    
+
     const getStatusClass = (status) => {
       switch (status) {
         case 'Draft': return 'badge-secondary';
@@ -839,7 +839,7 @@ requiredQty = Math.ceil(requiredQty);
         default: return 'badge-secondary';
       }
     };
-    
+
     const getPriorityClass = (priority) => {
       switch (priority) {
         case 'Low': return 'badge-info';
@@ -849,7 +849,7 @@ requiredQty = Math.ceil(requiredQty);
         default: return 'badge-primary';
       }
     };
-    
+
     const getOperationStatusClass = (status) => {
       switch (status) {
         case 'Pending': return 'badge-secondary';
@@ -858,7 +858,7 @@ requiredQty = Math.ceil(requiredQty);
         default: return 'badge-secondary';
       }
     };
-    
+
     const getQualityStatusClass = (status) => {
       switch (status) {
         case 'Pending': return 'badge-secondary';
@@ -867,43 +867,43 @@ requiredQty = Math.ceil(requiredQty);
         default: return 'badge-secondary';
       }
     };
-    
+
     const getMaterialStatus = (material) => {
       if (!material.issued_quantity) return 'Not Issued';
       if (material.issued_quantity < material.quantity) return 'Partially Issued';
       return 'Fully Issued';
     };
-    
+
     const getMaterialStatusClass = (material) => {
       if (!material.issued_quantity) return 'badge-danger';
       if (material.issued_quantity < material.quantity) return 'badge-warning';
       return 'badge-success';
     };
-    
+
     const getVariance = (productionOrder) => {
       if (!productionOrder.actual_quantity) return 0;
       return productionOrder.actual_quantity - productionOrder.planned_quantity;
     };
-    
+
     const getVarianceClass = (productionOrder) => {
       const variance = getVariance(productionOrder);
       if (variance < 0) return 'text-danger';
       if (variance > 0) return 'text-success';
       return '';
     };
-    
+
     const isStepActive = (step) => {
       return workOrder.value.status === step;
     };
-    
+
     const isStepCompleted = (step) => {
       const statusOrder = ['Draft', 'Released', 'In Progress', 'Completed', 'Closed'];
       const currentIndex = statusOrder.indexOf(workOrder.value.status);
       const stepIndex = statusOrder.indexOf(step);
-      
+
       return currentIndex > stepIndex;
     };
-    
+
     const toggleOperation = (operationId) => {
       const index = expandedOperations.value.indexOf(operationId);
       if (index === -1) {
@@ -912,7 +912,7 @@ requiredQty = Math.ceil(requiredQty);
         expandedOperations.value.splice(index, 1);
       }
     };
-    
+
     // Modal confirmation methods
     const confirmRelease = () => {
       modalTitle.value = 'Release Work Order';
@@ -922,7 +922,7 @@ requiredQty = Math.ceil(requiredQty);
       modalAction.value = 'release';
       showModal.value = true;
     };
-    
+
     const confirmStart = () => {
       modalTitle.value = 'Start Production';
       modalMessage.value = `Are you sure you want to start production for work order <strong>${workOrder.value.wo_number}</strong>?`;
@@ -931,7 +931,7 @@ requiredQty = Math.ceil(requiredQty);
       modalAction.value = 'start';
       showModal.value = true;
     };
-    
+
     const confirmComplete = () => {
       modalTitle.value = 'Complete Work Order';
       modalMessage.value = `Are you sure you want to mark work order <strong>${workOrder.value.wo_number}</strong> as completed?`;
@@ -940,7 +940,7 @@ requiredQty = Math.ceil(requiredQty);
       modalAction.value = 'complete';
       showModal.value = true;
     };
-    
+
     const confirmCancel = () => {
       modalTitle.value = 'Cancel Work Order';
       modalMessage.value = `Are you sure you want to cancel work order <strong>${workOrder.value.wo_number}</strong>?<br>This action cannot be undone.`;
@@ -949,23 +949,23 @@ requiredQty = Math.ceil(requiredQty);
       modalAction.value = 'cancel';
       showModal.value = true;
     };
-    
+
     const handleModalConfirm = async () => {
       try {
         const woId = route.params.id;
-        
+
         if (modalAction.value === 'release') {
           await axios.patch(`/work-orders/${woId}`, { status: 'Released' });
           workOrder.value.status = 'Released';
         } else if (modalAction.value === 'start') {
-          await axios.patch(`/work-orders/${woId}`, { 
+          await axios.patch(`/work-orders/${woId}`, {
             status: 'In Progress',
             actual_start_date: new Date().toISOString().split('T')[0]
           });
           workOrder.value.status = 'In Progress';
           workOrder.value.actual_start_date = new Date().toISOString().split('T')[0];
         } else if (modalAction.value === 'complete') {
-          await axios.patch(`/work-orders/${woId}`, { 
+          await axios.patch(`/work-orders/${woId}`, {
             status: 'Completed',
             actual_end_date: new Date().toISOString().split('T')[0]
           });
@@ -981,7 +981,7 @@ requiredQty = Math.ceil(requiredQty);
         showModal.value = false;
       }
     };
-    
+
     // Operation methods
     const startOperation = async (operation) => {
       try {
@@ -989,42 +989,42 @@ requiredQty = Math.ceil(requiredQty);
           status: 'In Progress',
           actual_start: new Date().toISOString().split('T')[0]
         });
-        
+
         // Reload operations
         await loadOperations();
       } catch (error) {
         console.error('Error starting operation:', error);
       }
     };
-    
+
     const completeOperation = async (operation) => {
       try {
         await axios.patch(`/work-orders/${route.params.id}/operations/${operation.operation_id}`, {
           status: 'Completed',
           actual_end: new Date().toISOString().split('T')[0]
         });
-        
+
         // Reload operations
         await loadOperations();
       } catch (error) {
         console.error('Error completing operation:', error);
       }
     };
-    
+
     const viewOperationDetails = (operation) => {
       selectedOperation.value = { ...operation };
       showOperationModal.value = true;
     };
-    
+
     const updateOperation = async () => {
       if (!selectedOperation.value) return;
-      
+
       try {
         await axios.patch(
-          `/work-orders/${route.params.id}/operations/${selectedOperation.value.operation_id}`, 
+          `/work-orders/${route.params.id}/operations/${selectedOperation.value.operation_id}`,
           selectedOperation.value
         );
-        
+
         // Reload operations
         await loadOperations();
         showOperationModal.value = false;
@@ -1032,57 +1032,60 @@ requiredQty = Math.ceil(requiredQty);
         console.error('Error updating operation:', error);
       }
     };
-    
+
     const scheduleOperations = () => {
       // Logic to auto-schedule operations based on planned start/end dates
       // This could be implemented as a API call to a backend function
       alert('This functionality would call a backend API to auto-schedule operations based on work order dates and operation sequence.');
     };
-    
+
     // Material methods
     const issueMaterial = (material) => {
       // Logic to issue material
       alert(`This functionality would open a form to issue ${material.item_name} from inventory.`);
     };
-    
+
     // Production methods
     const createProductionOrder = () => {
       // Redirect to production order creation page
       router.push(`/manufacturing/production-orders/create?wo_id=${route.params.id}`);
     };
-    
+
     const viewProductionOrder = (productionOrder) => {
       // Redirect to production order detail page
       router.push(`/manufacturing/production-orders/${productionOrder.production_id}`);
     };
-    
+
     // Quality methods
     const createQualityInspection = () => {
       // Redirect to quality inspection creation page
       router.push(`/manufacturing/quality-inspections/create?reference_type=work_order&reference_id=${route.params.id}`);
     };
-    
+
     const viewQualityInspection = (inspection) => {
       // Redirect to quality inspection detail page
       router.push(`/manufacturing/quality-inspections/${inspection.inspection_id}`);
     };
-    
+
     const printWorkOrder = () => {
       // Logic to print the work order
-      window.print();
+    //   window.print();
+     // Legacy function - now redirects to print page
+  const printUrl = `/manufacturing/work-orders/${workOrder.value.wo_id}/print`;
+  window.open(printUrl, '_blank');
     };
-    
+
     // Watch for tab changes to load appropriate data
     const handleTabChange = (newTab) => {
       activeTab.value = newTab;
       loadTabData();
     };
-    
+
     // Lifecycle hooks
     onMounted(async () => {
       await loadWorkOrder();
     });
-    
+
     return {
       workOrder,
       isLoading,
@@ -1245,7 +1248,7 @@ requiredQty = Math.ceil(requiredQty);
   .row {
     flex-direction: column;
   }
-  
+
   .col-md-4, .col-md-8, .col-md-6 {
     flex: 0 0 100%;
     max-width: 100%;
@@ -1775,12 +1778,12 @@ requiredQty = Math.ceil(requiredQty);
   .actions, .tabs-header, .operation-actions, .tab-actions {
     display: none !important;
   }
-  
+
   .col-md-4, .col-md-8 {
     flex: 0 0 100%;
     max-width: 100%;
   }
-  
+
   .card {
     box-shadow: none !important;
     border: 1px solid #ddd;

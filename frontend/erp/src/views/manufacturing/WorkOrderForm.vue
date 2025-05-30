@@ -11,7 +11,7 @@
               <i class="fas fa-info-circle mr-2"></i>
               This work order is already in {{ workOrder.status }} status. Some fields cannot be edited.
             </div>
-            
+
             <!-- Form Errors -->
             <div v-if="formErrors.length > 0" class="alert alert-danger">
               <h5><i class="fas fa-exclamation-triangle mr-2"></i> Please fix the following errors:</h5>
@@ -19,21 +19,21 @@
                 <li v-for="(error, index) in formErrors" :key="index">{{ error }}</li>
               </ul>
             </div>
-            
+
             <!-- Basic Information Section -->
             <div class="section-title">
               <h3>Basic Information</h3>
             </div>
-            
+
             <div class="row">
               <div class="col-md-6">
                 <div class="form-group">
                   <label>Work Order Number <span class="text-danger">*</span></label>
-                  <input 
-                    type="text" 
-                    class="form-control" 
-                    v-model="workOrder.wo_number" 
-                    :disabled="isEditMode" 
+                  <input
+                    type="text"
+                    class="form-control"
+                    v-model="workOrder.wo_number"
+                    :disabled="isEditMode"
                     placeholder="WO-00001"
                     required
                   />
@@ -42,68 +42,81 @@
                   </small>
                 </div>
               </div>
-              
+
               <div class="col-md-6">
                 <div class="form-group">
                   <label>Work Order Date <span class="text-danger">*</span></label>
-                  <input 
-                    type="date" 
-                    class="form-control" 
-                    v-model="workOrder.wo_date" 
+                  <input
+                    type="date"
+                    class="form-control"
+                    v-model="workOrder.wo_date"
                     :disabled="isEditMode && workOrder.status !== 'Draft'"
                     required
                   />
                 </div>
               </div>
             </div>
-            
+
             <div class="row">
               <div class="col-md-6">
                 <div class="form-group">
                   <label>Product <span class="text-danger">*</span></label>
-                  <select 
-                    class="form-control" 
-                    v-model="workOrder.item_id" 
-                    @change="loadBOMsAndRoutings"
-                    :disabled="isEditMode && workOrder.status !== 'Draft'"
-                    required
-                  >
-                    <option value="">Select a product</option>
-                  <option v-for="item in items" :key="item.item_id" :value="item.item_id">
-                    {{ item.name }} ({{ item.item_code }})
-                  </option>
-                  </select>
+                  <div class="dropdown">
+                    <input
+                      type="text"
+                      v-model="productSearch"
+                      class="form-control"
+                      placeholder="Search for a product..."
+                      @focus="showProductDropdown = true"
+                      @blur="hideProductDropdown"
+                      :disabled="isEditMode && workOrder.status !== 'Draft'"
+                      required
+                    />
+                    <div v-if="showProductDropdown" class="dropdown-menu">
+                      <div
+                        v-for="item in filteredProducts"
+                        :key="item.item_id"
+                        @click="selectProduct(item)"
+                        class="dropdown-item"
+                      >
+                        {{ item.name }} ({{ item.item_code }})
+                      </div>
+                      <div v-if="filteredProducts.length === 0" class="dropdown-item text-muted">
+                        No products found
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-              
+
               <div class="col-md-6">
                 <div class="form-group">
                   <label>Planned Quantity <span class="text-danger">*</span></label>
-                  <input 
-                    type="number" 
-                    class="form-control" 
-                    v-model="workOrder.planned_quantity" 
-                    min="1" 
-                    step="1" 
+                  <input
+                    type="number"
+                    class="form-control"
+                    v-model="workOrder.planned_quantity"
+                    min="1"
+                    step="1"
                     :disabled="isEditMode && workOrder.status !== 'Draft'"
                     required
                   />
                 </div>
               </div>
             </div>
-            
+
             <!-- BOM and Routing Selection -->
             <div class="section-title">
               <h3>BOM and Routing Information</h3>
             </div>
-            
+
             <div class="row">
               <div class="col-md-6">
                 <div class="form-group">
                   <label>Bill of Materials <span class="text-danger">*</span></label>
-                  <select 
-                    class="form-control" 
-                    v-model="workOrder.bom_id" 
+                  <select
+                    class="form-control"
+                    v-model="workOrder.bom_id"
                     :disabled="isEditMode && workOrder.status !== 'Draft'"
                     required
                   >
@@ -117,13 +130,13 @@
                   </small>
                 </div>
               </div>
-              
+
               <div class="col-md-6">
                 <div class="form-group">
                   <label>Routing <span class="text-danger">*</span></label>
-                  <select 
-                    class="form-control" 
-                    v-model="workOrder.routing_id" 
+                  <select
+                    class="form-control"
+                    v-model="workOrder.routing_id"
                     :disabled="isEditMode && workOrder.status !== 'Draft'"
                     required
                   >
@@ -138,32 +151,32 @@
                 </div>
               </div>
             </div>
-            
+
             <!-- Scheduling Section -->
             <div class="section-title">
               <h3>Scheduling Information</h3>
             </div>
-            
+
             <div class="row">
               <div class="col-md-6">
                 <div class="form-group">
                   <label>Planned Start Date <span class="text-danger">*</span></label>
-                  <input 
-                    type="date" 
-                    class="form-control" 
-                    v-model="workOrder.planned_start_date" 
+                  <input
+                    type="date"
+                    class="form-control"
+                    v-model="workOrder.planned_start_date"
                     required
                   />
                 </div>
               </div>
-              
+
               <div class="col-md-6">
                 <div class="form-group">
                   <label>Planned End Date <span class="text-danger">*</span></label>
-                  <input 
-                    type="date" 
-                    class="form-control" 
-                    v-model="workOrder.planned_end_date" 
+                  <input
+                    type="date"
+                    class="form-control"
+                    v-model="workOrder.planned_end_date"
                     required
                   />
                   <small v-if="endDateError" class="text-danger">
@@ -172,19 +185,19 @@
                 </div>
               </div>
             </div>
-            
+
             <!-- Additional Information Section -->
             <div class="section-title">
               <h3>Additional Information</h3>
             </div>
-            
+
             <div class="row">
               <div class="col-md-6">
                 <div class="form-group">
                   <label>Status</label>
-                  <select 
-                    class="form-control" 
-                    v-model="workOrder.status" 
+                  <select
+                    class="form-control"
+                    v-model="workOrder.status"
                     :disabled="isEditMode && workOrder.status !== 'Draft'"
                   >
                     <option value="Draft">Draft</option>
@@ -192,7 +205,7 @@
                   </select>
                 </div>
               </div>
-              
+
               <div class="col-md-6">
                 <div class="form-group">
                   <label>Priority</label>
@@ -205,17 +218,17 @@
                 </div>
               </div>
             </div>
-            
+
             <div class="form-group">
               <label>Notes</label>
-              <textarea 
-                class="form-control" 
-                v-model="workOrder.notes" 
-                rows="3" 
+              <textarea
+                class="form-control"
+                v-model="workOrder.notes"
+                rows="3"
                 placeholder="Enter any additional notes or instructions..."
               ></textarea>
             </div>
-            
+
             <!-- Form Actions -->
             <div class="form-actions">
               <button type="button" class="btn btn-secondary mr-2" @click="cancelForm">
@@ -231,21 +244,21 @@
       </div>
     </div>
   </template>
-  
+
   <script>
   import { ref, computed, onMounted } from 'vue';
   import { useRouter, useRoute } from 'vue-router';
   import axios from 'axios';
-  
+
   export default {
     name: 'WorkOrderForm',
     setup() {
       const router = useRouter();
       const route = useRoute();
-      
+
       // Determine if we're in edit or create mode
       const isEditMode = computed(() => !!route.params.id);
-      
+
       // Form data
       const workOrder = ref({
         wo_number: '',
@@ -260,7 +273,7 @@
         priority: 'Medium',
         notes: ''
       });
-      
+
       // Form state
       const isSubmitting = ref(false);
       const formErrors = ref([]);
@@ -268,7 +281,24 @@
       const items = ref([]);
       const boms = ref([]);
       const routings = ref([]);
-      
+
+      // Product search functionality
+      const productSearch = ref('');
+      const showProductDropdown = ref(false);
+
+      // Computed property to filter products based on search input
+      const filteredProducts = computed(() => {
+        if (!productSearch.value) {
+          return items.value.filter(item => item.type === 'manufactureable' || !item.type);
+        }
+        return items.value.filter(item => {
+          const isManufactureable = item.type === 'manufactureable' || !item.type;
+          const matchesSearch = item.name.toLowerCase().includes(productSearch.value.toLowerCase()) ||
+                               item.item_code.toLowerCase().includes(productSearch.value.toLowerCase());
+          return isManufactureable && matchesSearch;
+        });
+      });
+
       // Methods
       const loadItems = async () => {
         try {
@@ -278,32 +308,47 @@
           console.error('Error loading items:', error);
         }
       };
-      
+
+      // Method to select a product from the dropdown
+      const selectProduct = (item) => {
+        workOrder.value.item_id = item.item_id;
+        productSearch.value = `${item.name} (${item.item_code})`;
+        showProductDropdown.value = false;
+        loadBOMsAndRoutings(); // Load BOMs and routings when product is selected
+      };
+
+      // Method to hide product dropdown
+      const hideProductDropdown = () => {
+        setTimeout(() => {
+          showProductDropdown.value = false;
+        }, 200);
+      };
+
       const loadBOMsAndRoutings = async () => {
         if (!workOrder.value.item_id) {
           boms.value = [];
           routings.value = [];
           return;
         }
-        
+
         try {
           // Load BOMs for the selected product
-          const bomsResponse = await axios.get('/boms', { 
-            params: { item_id: workOrder.value.item_id, status: 'Active' } 
+          const bomsResponse = await axios.get('/boms', {
+            params: { item_id: workOrder.value.item_id, status: 'Active' }
           });
           boms.value = bomsResponse.data.data;
-          
+
           // Load routings for the selected product
-          const routingsResponse = await axios.get('/routings', { 
-            params: { item_id: workOrder.value.item_id, status: 'Active' } 
+          const routingsResponse = await axios.get('/routings', {
+            params: { item_id: workOrder.value.item_id, status: 'Active' }
           });
           routings.value = routingsResponse.data.data;
-          
+
           // Auto-select if only one BOM or routing is available
           if (boms.value.length === 1) {
             workOrder.value.bom_id = boms.value[0].bom_id;
           }
-          
+
           if (routings.value.length === 1) {
             workOrder.value.routing_id = routings.value[0].routing_id;
           }
@@ -311,14 +356,14 @@
           console.error('Error loading BOMs and routings:', error);
         }
       };
-      
+
       const loadWorkOrder = async () => {
         if (!isEditMode.value) return;
-        
+
         try {
           const response = await axios.get(`/work-orders/${route.params.id}`);
           const data = response.data.data;
-          
+
           // Update the work order form with the retrieved data
           workOrder.value = {
             wo_id: data.wo_id,
@@ -334,7 +379,13 @@
             priority: data.priority || 'Medium',
             notes: data.notes || ''
           };
-          
+
+          // Set the product search field with the selected item
+          const selectedItem = items.value.find(item => item.item_id === data.item_id);
+          if (selectedItem) {
+            productSearch.value = `${selectedItem.name} (${selectedItem.item_code})`;
+          }
+
           // Load BOMs and routings after setting the item_id
           await loadBOMsAndRoutings();
         } catch (error) {
@@ -342,35 +393,35 @@
           formErrors.value.push('Failed to load work order details.');
         }
       };
-      
+
       const validateForm = () => {
         formErrors.value = [];
         endDateError.value = false;
-        
+
         // Check if end date is after start date
         if (new Date(workOrder.value.planned_end_date) <= new Date(workOrder.value.planned_start_date)) {
           formErrors.value.push('Planned end date must be after the planned start date.');
           endDateError.value = true;
         }
-        
+
         // Check if BOM is selected
         if (!workOrder.value.bom_id) {
           formErrors.value.push('Please select a Bill of Materials (BOM).');
         }
-        
+
         // Check if routing is selected
         if (!workOrder.value.routing_id) {
           formErrors.value.push('Please select a Routing.');
         }
-        
+
         return formErrors.value.length === 0;
       };
-      
+
       const submitForm = async () => {
         if (!validateForm()) return;
-        
+
         isSubmitting.value = true;
-        
+
         try {
           if (isEditMode.value) {
             // Update existing work order
@@ -394,7 +445,7 @@
           isSubmitting.value = false;
         }
       };
-      
+
       const cancelForm = () => {
         if (isEditMode.value) {
           router.push(`/manufacturing/work-orders/${route.params.id}`);
@@ -402,16 +453,16 @@
           router.push('/manufacturing/work-orders');
         }
       };
-      
+
       // Lifecycle hooks
       onMounted(async () => {
         await loadItems();
-        
+
         if (isEditMode.value) {
           await loadWorkOrder();
         }
       });
-      
+
       return {
         workOrder,
         isEditMode,
@@ -421,6 +472,11 @@
         items,
         boms,
         routings,
+        productSearch,
+        showProductDropdown,
+        filteredProducts,
+        selectProduct,
+        hideProductDropdown,
         loadBOMsAndRoutings,
         submitForm,
         cancelForm
@@ -428,7 +484,7 @@
     }
   };
   </script>
-  
+
   <style scoped>
   /* Base container styling */
 .work-order-form-page {
@@ -607,6 +663,50 @@ select.form-control {
   color: #718096;
 }
 
+/* Dropdown styling for product search */
+.dropdown {
+  position: relative;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #cbd5e0;
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+.dropdown-item {
+  padding: 0.75rem 0.85rem;
+  cursor: pointer;
+  border-bottom: 1px solid #f1f3f4;
+  transition: background-color 0.15s ease-in-out;
+}
+
+.dropdown-item:hover {
+  background-color: #f8f9fa;
+}
+
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dropdown-item.text-muted {
+  color: #718096;
+  cursor: default;
+}
+
+.dropdown-item.text-muted:hover {
+  background-color: transparent;
+}
+
 /* Form actions */
 .form-actions {
   display: flex;
@@ -690,25 +790,25 @@ select.form-control {
   .row {
     flex-direction: column;
   }
-  
+
   .col-md-6 {
     flex: 0 0 100%;
     max-width: 100%;
     margin-bottom: 0;
   }
-  
+
   .form-actions {
     flex-direction: column-reverse;
   }
-  
+
   .btn {
     width: 100%;
   }
-  
+
   .form-group {
     margin-bottom: 1.25rem;
   }
-  
+
   .section-title {
     margin-top: 1.5rem;
     margin-bottom: 1rem;
@@ -720,11 +820,11 @@ select.form-control {
   .form-control, .btn {
     padding: 0.75rem 1rem;
   }
-  
+
   .card-body {
     padding: 1.25rem;
   }
-  
+
   .alert {
     padding: 0.75rem 1rem;
   }

@@ -288,21 +288,49 @@ export default {
 
     // Load reference data
     const loadReferenceData = async () => {
-      try {
-        // Load sales orders that can be delivered (Confirmed status)
-        const soResponse = await axios.get('/orders', {
-          params: { status: 'Confirmed' }
-        });
-        salesOrders.value = soResponse.data.data;
+  try {
+    console.log('🔄 Loading outstanding sales orders...');
 
-        // Load warehouses
-        const warehouseResponse = await axios.get('/warehouses');
-        warehouses.value = warehouseResponse.data.data;
-      } catch (err) {
-        console.error('Error loading reference data:', err);
-        error.value = 'Terjadi kesalahan saat memuat data referensi.';
+    // Load sales orders that have outstanding items
+    const soResponse = await axios.get('/deliveries/outstanding-so');
+
+    // ⭐ TRANSFORM: Convert flat structure to nested structure
+    const rawData = soResponse.data.data || [];
+    console.log('📡 Raw response:', rawData);
+
+    salesOrders.value = rawData.map(order => ({
+      so_id: order.so_id,
+      so_number: order.so_number,
+      // Transform flat customer_name to nested customer.name
+      customer: {
+        name: order.customer_name || 'Unknown Customer',
+        customer_code: order.customer_id || ''
       }
-    };
+    }));
+
+    console.log('✨ Transformed orders:', salesOrders.value);
+
+    // Load warehouses
+    const warehouseResponse = await axios.get('/warehouses');
+    warehouses.value = warehouseResponse.data.data || [];
+
+  } catch (err) {
+    console.error('💥 Error loading reference data:', err);
+
+    // Better error message based on error type
+    if (err.response?.status === 404) {
+      error.value = 'Endpoint tidak ditemukan. Pastikan route sudah diperbaiki.';
+    } else if (err.response?.status === 400) {
+      error.value = 'Invalid delivery ID error. Periksa urutan route.';
+    } else {
+      error.value = `Terjadi kesalahan: ${err.response?.data?.message || err.message}`;
+    }
+
+    // Set empty fallbacks
+    salesOrders.value = [];
+    warehouses.value = [];
+  }
+};
 
     // Load delivery data if in edit mode
     const loadDelivery = async () => {
@@ -375,7 +403,7 @@ export default {
         } else {
           console.log('Edit mode: skipping loadSalesOrderDetails to avoid overwriting lines');
           console.log('Current form lines:', form.value.lines);
-          
+
           // Fetch outstanding quantities for existing lines
           if (form.value.so_id) {
             await fetchOutstandingItems(form.value.so_id);
@@ -408,14 +436,14 @@ export default {
       try {
         const response = await axios.get(`/deliveries/outstanding-items/${soId}`);
         const outstandingData = response.data.data;
-        
+
         // Map outstanding data to existing lines or add new lines
         if (outstandingData && outstandingData.outstanding_items) {
           outstandingData.outstanding_items.forEach(outstandingItem => {
-            const existingLine = form.value.lines.find(line => 
+            const existingLine = form.value.lines.find(line =>
               line.so_line_id === outstandingItem.so_line_id
             );
-            
+
             if (existingLine) {
               // Update existing line with outstanding data
               existingLine.ordered_quantity = outstandingItem.ordered_quantity;
@@ -452,11 +480,11 @@ export default {
 
         // Now fetch outstanding items for delivery
         await fetchOutstandingItems(form.value.so_id);
-        
+
         // Create lines based on outstanding items
         const outstandingResponse = await axios.get(`/deliveries/outstanding-items/${form.value.so_id}`);
         const outstandingData = outstandingResponse.data.data;
-        
+
         if (outstandingData && outstandingData.outstanding_items) {
           // If this is a new delivery, set up line items from outstanding items
           if (!isEditMode.value) {
@@ -488,7 +516,7 @@ export default {
       if (line.outstanding_quantity !== undefined) {
         return line.outstanding_quantity;
       }
-      
+
       // Calculate if not directly provided
       const ordered = parseFloat(line.ordered_quantity || 0);
       const delivered = parseFloat(line.previously_delivered_quantity || 0);
@@ -499,7 +527,7 @@ export default {
     const validateDeliveredQuantity = (line) => {
       const delivered = parseFloat(line.delivered_quantity || 0);
       const outstanding = getOutstandingQuantity(line);
-      
+
       if (delivered <= 0) {
         line.quantityError = 'Jumlah harus lebih dari 0';
       } else if (delivered > outstanding) {
@@ -543,12 +571,12 @@ export default {
         if (line.quantityError) {
           hasError = true;
         }
-        
+
         if (line.delivered_quantity <= 0) {
           line.quantityError = `Jumlah pengiriman harus lebih dari 0`;
           hasError = true;
         }
-        
+
         if (!line.warehouse_id) {
           error.value = `Gudang harus dipilih untuk item ke-${index + 1}.`;
           hasError = true;

@@ -5,43 +5,43 @@
         <div class="page-actions">
             <SearchFilter
                 v-model:value="searchQuery"
-                placeholder="Cari order..."
+                placeholder="Search orders..."
                 @search="handleSearch"
                 @clear="clearSearch"
             >
                 <template #filters>
                     <div class="filter-group">
-                        <label>Status</label>
+                        <!-- <label>Status</label> -->
                         <select v-model="statusFilter" @change="applyFilters">
-                            <option value="">Semua Status</option>
+                            <option value="">All Statuses</option>
                             <option value="Draft">Draft</option>
-                            <option value="Confirmed">Dikonfirmasi</option>
-                            <option value="Processing">Diproses</option>
-                            <option value="Shipped">Dikirim</option>
-                            <option value="Delivered">Terkirim</option>
-                            <option value="Invoiced">Difakturkan</option>
-                            <option value="Closed">Selesai</option>
+                            <option value="Confirmed">Confirmed</option>
+                            <option value="Processing">Processed</option>
+                            <option value="Shipped">Shipped</option>
+                            <option value="Delivered">Delivered</option>
+                            <option value="Invoiced">Invoiced</option>
+                            <option value="Closed">Closed</option>
                         </select>
                     </div>
 
                     <div class="filter-group">
-                        <label>Periode</label>
+                        <!-- <label>Periode</label> -->
                         <select
                             v-model="dateRangeFilter"
                             @change="applyFilters"
                         >
-                            <option value="all">Semua Waktu</option>
-                            <option value="today">Hari Ini</option>
-                            <option value="week">Minggu Ini</option>
-                            <option value="month">Bulan Ini</option>
-                            <option value="custom">Kustom</option>
+                            <option value="all">All Time</option>
+                            <option value="today">Today</option>
+                            <option value="week">This Week</option>
+                            <option value="month">This Month</option>
+                            <option value="custom">Custom</option>
                         </select>
                     </div>
                 </template>
 
                 <template #actions>
                     <button class="btn btn-primary" @click="createOrder">
-                        <i class="fas fa-plus"></i> Buat Order
+                        <i class="fas fa-plus"></i> Create Order
                     </button>
                 </template>
             </SearchFilter>
@@ -50,7 +50,7 @@
             <div v-if="dateRangeFilter === 'custom'" class="custom-date-range">
                 <div class="date-range-inputs">
                     <div class="filter-group">
-                        <label for="startDate">Tanggal Mulai</label>
+                        <label for="startDate">Start Date</label>
                         <input
                             type="date"
                             id="startDate"
@@ -60,7 +60,7 @@
                     </div>
 
                     <div class="filter-group">
-                        <label for="endDate">Tanggal Akhir</label>
+                        <label for="endDate">End Date</label>
                         <input
                             type="date"
                             id="endDate"
@@ -79,8 +79,8 @@
             :is-loading="isLoading"
             keyField="so_id"
             emptyIcon="fas fa-file-invoice"
-            emptyTitle="Tidak ada order"
-            emptyMessage="Tidak ada order yang tersedia untuk ditampilkan."
+            emptyTitle="No orders"
+            emptyMessage="No orders available to display."
             @sort="handleSort"
         >
             <!-- Custom cell templates -->
@@ -154,9 +154,9 @@
         <!-- Delete Confirmation Modal -->
         <ConfirmationModal
             v-if="showDeleteModal"
-            title="Konfirmasi Hapus"
-            :message="`Apakah Anda yakin ingin menghapus order <strong>${orderToDelete.so_number}</strong>?<br>Tindakan ini tidak dapat dibatalkan.`"
-            confirm-button-text="Hapus"
+            title="Confirm Delete"
+            :message="`Are you sure you want to delete order <strong>${orderToDelete.so_number}</strong>?<br>This action cannot be undone.`"
+            confirm-button-text="Delete"
             confirm-button-class="btn btn-danger"
             @confirm="deleteOrder"
             @close="closeDeleteModal"
@@ -196,7 +196,7 @@ export default {
         // Filters
         const searchQuery = ref("");
         const statusFilter = ref("");
-        const dateRangeFilter = ref("month");
+        const dateRangeFilter = ref("all");
         const customDateRange = reactive({
             startDate: new Date().toISOString().substr(0, 10),
             endDate: new Date().toISOString().substr(0, 10),
@@ -220,19 +220,19 @@ export default {
             },
             {
                 key: "customer",
-                label: "Pelanggan",
+                label: "Customer",
                 sortable: false,
                 template: "customer",
             },
             {
                 key: "so_date",
-                label: "Tanggal Order",
+                label: "Order Date",
                 sortable: true,
                 template: "date",
             },
             {
                 key: "expected_delivery",
-                label: "Pengiriman",
+                label: "Delivery Date",
                 sortable: true,
                 template: "date",
             },
@@ -258,11 +258,14 @@ export default {
                 // Prepare query parameters
                 const params = {
                     page: currentPage.value,
-                    status: statusFilter.value,
                     search: searchQuery.value,
                     sort_field: sortKey.value,
                     sort_direction: sortOrder.value,
                 };
+
+                if (statusFilter.value !== "") {
+                    params.status = statusFilter.value;
+                }
 
                 // Add date range filters if applicable
                 if (dateRangeFilter.value === "custom") {
@@ -284,7 +287,7 @@ export default {
                     Math.ceil(totalItems.value / itemsPerPage.value);
             } catch (error) {
                 console.error("Error fetching sales orders:", error);
-                alert("Terjadi kesalahan saat memuat data. Silakan coba lagi.");
+                alert("An error occurred while loading data. Please try again.");
             } finally {
                 isLoading.value = false;
             }
@@ -344,13 +347,13 @@ export default {
                 await axios.delete(`/orders/${orderToDelete.value.so_id}`);
                 fetchOrders(); // Refresh list after delete
                 showDeleteModal.value = false;
-                alert("Order berhasil dihapus");
+                alert("Order successfully deleted");
             } catch (error) {
                 console.error("Error deleting order:", error);
                 if (error.response?.data?.message) {
                     alert(error.response.data.message);
                 } else {
-                    alert("Terjadi kesalahan saat menghapus order");
+                    alert("An error occurred while deleting the order");
                 }
             }
         };
@@ -366,30 +369,31 @@ export default {
             });
         };
 
-        const formatCurrency = (value) => {
-            return new Intl.NumberFormat("id-ID", {
-                style: "currency",
-                currency: "IDR",
-                minimumFractionDigits: 0,
-            }).format(value || 0);
-        };
+const formatCurrency = (value) => {
+    return new Intl.NumberFormat("id-ID", {
+        style: "currency",
+        currency: "IDR",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format(value ?? 0);
+};
 
         const getStatusLabel = (status) => {
             switch (status) {
                 case "Draft":
                     return "Draft";
                 case "Confirmed":
-                    return "Dikonfirmasi";
+                    return "Confirmed";
                 case "Processing":
-                    return "Diproses";
+                    return "Processing";
                 case "Shipped":
-                    return "Dikirim";
+                    return "Shipped";
                 case "Delivered":
-                    return "Terkirim";
+                    return "Delivered";
                 case "Invoiced":
-                    return "Difakturkan";
+                    return "Invoiced";
                 case "Closed":
-                    return "Selesai";
+                    return "Closed";
                 default:
                     return status;
             }

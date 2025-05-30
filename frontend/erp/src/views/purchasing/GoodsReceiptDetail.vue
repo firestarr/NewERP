@@ -5,6 +5,12 @@
         <div class="card-header">
           <h2>Goods Receipt Details</h2>
           <div class="actions">
+            <router-link
+              :to="`/purchasing/goods-receipts/${id}/print`"
+              class="btn btn-primary"
+            >
+              <i class="fas fa-print"></i> Print
+            </router-link>
             <router-link to="/purchasing/goods-receipts" class="btn btn-secondary">
               <i class="fas fa-arrow-left"></i> Back to List
             </router-link>
@@ -24,13 +30,13 @@
             </router-link>
           </div>
         </div>
-  
+
         <div class="card-body">
           <!-- Loading indicator -->
           <div v-if="loading" class="loading-container">
             <i class="fas fa-spinner fa-spin"></i> Loading receipt details...
           </div>
-  
+
           <!-- Receipt Data -->
           <div v-else>
             <div v-if="receipt && Object.keys(receipt).length > 0">
@@ -58,7 +64,7 @@
                       </div>
                     </div>
                   </div>
-    
+
                   <div class="info-card">
                     <h3>Vendor Information</h3>
                     <div class="info-grid">
@@ -81,7 +87,7 @@
                     </div>
                   </div>
                 </div>
-    
+
                 <!-- PO Summary Cards -->
                 <div class="po-summary-section">
                   <h3>Related Purchase Orders</h3>
@@ -124,11 +130,11 @@
                   </div>
                 </div>
               </div>
-    
+
               <!-- Receipt Lines -->
               <div class="receipt-lines-section">
                 <h3>Receipt Items</h3>
-                
+
                 <div class="table-responsive">
                   <table class="items-table">
                     <thead>
@@ -162,11 +168,11 @@
                   </table>
                 </div>
               </div>
-    
+
               <!-- Timeline Section (for confirmed receipts) -->
               <div v-if="receipt.status === 'confirmed'" class="timeline-section">
                 <h3>Receipt Timeline</h3>
-                
+
                 <div class="timeline">
                   <div class="timeline-item">
                     <div class="timeline-icon created">
@@ -180,7 +186,7 @@
                       </div>
                     </div>
                   </div>
-                  
+
                   <div class="timeline-item">
                     <div class="timeline-icon confirmed">
                       <i class="fas fa-check-circle"></i>
@@ -201,10 +207,10 @@
       </div>
     </div>
   </template>
-  
+
   <script>
   import axios from 'axios';
-  
+
   export default {
     name: 'GoodsReceiptDetail',
     props: {
@@ -227,7 +233,7 @@
     methods: {
       fetchReceipt() {
         this.loading = true;
-        
+
         axios.get(`/goods-receipts/${this.id}`)
           .then(response => {
             const data = response.data.data;
@@ -247,28 +253,28 @@
       formatDate(dateString) {
         if (!dateString) return 'N/A';
         const date = new Date(dateString);
-        return date.toLocaleDateString('id-ID', { 
-          year: 'numeric', 
-          month: 'short', 
-          day: 'numeric' 
+        return date.toLocaleDateString('id-ID', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
         });
       }
     }
   };
   </script>
-  
+
   <style scoped>
   .goods-receipt-detail {
     max-width: 100%;
   }
-  
+
   .card {
     background-color: white;
     border-radius: 0.5rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     margin-bottom: 2rem;
   }
-  
+
   .card-header {
     padding: 1.5rem;
     border-bottom: 1px solid var(--gray-200);
@@ -276,17 +282,17 @@
     justify-content: space-between;
     align-items: center;
   }
-  
+
   .card-header h2 {
     margin: 0;
     font-size: 1.5rem;
   }
-  
+
   .actions {
     display: flex;
     gap: 0.5rem;
   }
-  
+
   .btn {
     display: inline-flex;
     align-items: center;
@@ -300,41 +306,41 @@
     text-decoration: none;
     border: 1px solid transparent;
   }
-  
+
   .btn-primary {
     background-color: var(--primary-color);
     color: white;
     border-color: var(--primary-color);
   }
-  
+
   .btn-primary:hover {
     background-color: var(--primary-dark);
   }
-  
+
   .btn-secondary {
     background-color: var(--gray-200);
     color: var(--gray-700);
     border-color: var(--gray-300);
   }
-  
+
   .btn-secondary:hover {
     background-color: var(--gray-300);
   }
-  
+
   .btn-success {
     background-color: #059669;
     color: white;
     border-color: #059669;
   }
-  
+
   .btn-success:hover {
     background-color: #047857;
   }
-  
+
   .card-body {
     padding: 1.5rem;
   }
-  
+
   .loading-container {
     display: flex;
     justify-content: center;
@@ -343,58 +349,58 @@
     font-size: 1rem;
     color: var(--gray-500);
   }
-  
+
   .loading-container i {
     margin-right: 0.5rem;
   }
-  
+
   .receipt-header {
     margin-bottom: 2rem;
   }
-  
+
   .receipt-info {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 1.5rem;
     margin-bottom: 1.5rem;
   }
-  
+
   .info-card {
     padding: 1.5rem;
     border: 1px solid var(--gray-200);
     border-radius: 0.5rem;
     background-color: var(--gray-50);
   }
-  
+
   .info-card h3 {
     margin-top: 0;
     margin-bottom: 1rem;
     font-size: 1.125rem;
     color: var(--gray-800);
   }
-  
+
   .info-grid {
     display: grid;
     gap: 0.75rem;
   }
-  
+
   .info-item {
     display: flex;
     flex-direction: column;
   }
-  
+
   .info-item .label {
     font-size: 0.75rem;
     color: var(--gray-500);
     margin-bottom: 0.25rem;
   }
-  
+
   .info-item .value {
     font-size: 0.875rem;
     color: var(--gray-800);
     font-weight: 500;
   }
-  
+
   .status-badge {
     display: inline-block;
     padding: 0.25rem 0.5rem;
@@ -403,75 +409,75 @@
     font-weight: 500;
     text-transform: capitalize;
   }
-  
+
   .status-badge.pending {
     background-color: #fef3c7;
     color: #92400e;
   }
-  
+
   .status-badge.confirmed {
     background-color: #d1fae5;
     color: #065f46;
   }
-  
+
   .status-badge.sent {
     background-color: #dbeafe;
     color: #1e40af;
   }
-  
+
   .status-badge.partial {
     background-color: #fef3c7;
     color: #92400e;
   }
-  
+
   .status-badge.received {
     background-color: #d1fae5;
     color: #065f46;
   }
-  
+
   .po-summary-section {
     margin-top: 2rem;
   }
-  
+
   .po-summary-section h3 {
     margin-top: 0;
     margin-bottom: 1rem;
     font-size: 1.125rem;
     color: var(--gray-800);
   }
-  
+
   .po-cards {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 1rem;
   }
-  
+
   .po-card {
     padding: 1rem;
     border: 1px solid var(--gray-200);
     border-radius: 0.5rem;
     background-color: white;
   }
-  
+
   .po-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     margin-bottom: 0.75rem;
   }
-  
+
   .po-title {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
   }
-  
+
   .po-title h4 {
     margin: 0;
     font-size: 0.875rem;
     color: var(--gray-800);
   }
-  
+
   .btn-icon {
     display: flex;
     align-items: center;
@@ -485,45 +491,45 @@
     text-decoration: none;
     transition: all 0.2s;
   }
-  
+
   .btn-icon:hover {
     background-color: var(--gray-200);
   }
-  
+
   .btn-icon.view {
     color: var(--primary-color);
     background-color: var(--gray-100);
     border-color: var(--primary-color);
   }
-  
+
   .btn-icon.view:hover {
     background-color: #dbeafe;
   }
-  
+
   .po-body {
     margin-bottom: 0.75rem;
   }
-  
+
   .po-info-item {
     display: flex;
     justify-content: space-between;
     font-size: 0.75rem;
     margin-bottom: 0.25rem;
   }
-  
+
   .po-info-item .label {
     color: var(--gray-500);
   }
-  
+
   .po-info-item .value {
     color: var(--gray-800);
     font-weight: 500;
   }
-  
+
   .po-footer {
     margin-top: 0.5rem;
   }
-  
+
   .progress-bar {
     height: 0.5rem;
     background-color: var(--gray-200);
@@ -531,41 +537,41 @@
     overflow: hidden;
     margin-bottom: 0.25rem;
   }
-  
+
   .progress-fill {
     height: 100%;
     background-color: #10b981;
     border-radius: 0.25rem;
   }
-  
+
   .progress-text {
     font-size: 0.75rem;
     color: var(--gray-600);
     text-align: right;
   }
-  
+
   .receipt-lines-section {
     margin-top: 2rem;
     margin-bottom: 2rem;
   }
-  
+
   .receipt-lines-section h3 {
     margin-top: 0;
     margin-bottom: 1rem;
     font-size: 1.125rem;
     color: var(--gray-800);
   }
-  
+
   .table-responsive {
     overflow-x: auto;
     margin-bottom: 1rem;
   }
-  
+
   .items-table {
     width: 100%;
     border-collapse: collapse;
   }
-  
+
   .items-table th {
     background-color: var(--gray-50);
     padding: 0.75rem 1rem;
@@ -575,35 +581,35 @@
     border-bottom: 1px solid var(--gray-200);
     white-space: nowrap;
   }
-  
+
   .items-table td {
     padding: 0.75rem 1rem;
     border-bottom: 1px solid var(--gray-200);
     color: var(--gray-800);
   }
-  
+
   .highlight {
     font-weight: 600;
     color: var(--primary-color);
   }
-  
+
   .timeline-section {
     margin-top: 2rem;
   }
-  
+
   .timeline-section h3 {
     margin-top: 0;
     margin-bottom: 1rem;
     font-size: 1.125rem;
     color: var(--gray-800);
   }
-  
+
   .timeline {
     position: relative;
     padding-left: 2rem;
     margin-left: 1rem;
   }
-  
+
   .timeline:before {
     content: '';
     position: absolute;
@@ -613,16 +619,16 @@
     width: 2px;
     background-color: var(--gray-200);
   }
-  
+
   .timeline-item {
     position: relative;
     padding-bottom: 1.5rem;
   }
-  
+
   .timeline-item:last-child {
     padding-bottom: 0;
   }
-  
+
   .timeline-icon {
     position: absolute;
     left: -1.5rem;
@@ -635,61 +641,61 @@
     color: white;
     font-size: 0.75rem;
   }
-  
+
   .timeline-icon.created {
     background-color: var(--primary-color);
   }
-  
+
   .timeline-icon.confirmed {
     background-color: #10b981;
   }
-  
+
   .timeline-content {
     position: relative;
     padding: 0.5rem;
   }
-  
+
   .timeline-content h4 {
     margin: 0 0 0.5rem 0;
     font-size: 0.875rem;
     color: var(--gray-800);
   }
-  
+
   .timeline-info {
     font-size: 0.75rem;
     color: var(--gray-600);
   }
-  
+
   .timeline-info p {
     margin: 0 0 0.25rem 0;
   }
-  
+
   .timeline-date {
     font-size: 0.75rem;
     color: var(--gray-500);
   }
-  
+
   @media (max-width: 768px) {
     .card-header {
       flex-direction: column;
       align-items: flex-start;
       gap: 1rem;
     }
-    
+
     .actions {
       width: 100%;
       flex-wrap: wrap;
     }
-    
+
     .actions .btn {
       flex: 1;
       justify-content: center;
     }
-    
+
     .receipt-info {
       grid-template-columns: 1fr;
     }
-    
+
     .po-cards {
       grid-template-columns: 1fr;
     }

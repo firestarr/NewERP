@@ -3,13 +3,13 @@
     <div class="routing-form-container">
       <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-          <h2 class="card-title">{{ isEditMode ? 'Edit Routing' : 'Buat Routing Baru' }}</h2>
+          <h2 class="card-title">{{ isEditMode ? 'Edit Routing' : 'Create New Routing' }}</h2>
           <div>
             <button @click="goBack" class="btn btn-secondary mr-2">
-              <i class="fas fa-arrow-left mr-1"></i> Kembali
+              <i class="fas fa-arrow-left mr-1"></i> Back
             </button>
             <button @click="saveRouting" class="btn btn-primary" :disabled="isSaving">
-              <i class="fas fa-save mr-1"></i> {{ isSaving ? 'Menyimpan...' : 'Simpan' }}
+              <i class="fas fa-save mr-1"></i> {{ isSaving ? 'saving...' : 'Save' }}
             </button>
           </div>
         </div>
@@ -18,12 +18,12 @@
             <div class="row">
               <div class="col-md-6">
                 <div class="form-group">
-                  <label for="item_id">Produk <span class="text-danger">*</span></label>
+                  <label for="item_id">Product <span class="text-danger">*</span></label>
                   <div class="form-group position-relative" style="z-index: 1000;">
                     <input
                       type="text"
                       class="form-control"
-                      placeholder="Cari dan pilih produk..."
+                      placeholder="Search and select products..."
                       v-model="searchQuery"
                       :disabled="isEditMode"
                       ref="inputRef"
@@ -58,7 +58,7 @@
               </div>
               <div class="col-md-6">
                 <div class="form-group">
-                  <label for="routing_code">Kode Routing <span class="text-danger">*</span></label>
+                  <label for="routing_code">Routing Code<span class="text-danger">*</span></label>
                   <input
                     id="routing_code"
                     v-model="routing.routing_code"
@@ -66,17 +66,17 @@
                     class="form-control"
                     required
                     maxlength="50"
-                    placeholder="Kode unik untuk routing ini"
+                    placeholder="Unique code for this routing"
                   />
                   <small v-if="errors.routing_code" class="text-danger">{{ errors.routing_code[0] }}</small>
                 </div>
               </div>
             </div>
-  
+
             <div class="row mt-3">
               <div class="col-md-4">
                 <div class="form-group">
-                  <label for="revision">Revisi <span class="text-danger">*</span></label>
+                  <label for="revision">Revised <span class="text-danger">*</span></label>
                   <input
                     id="revision"
                     v-model="routing.revision"
@@ -91,7 +91,7 @@
               </div>
               <div class="col-md-4">
                 <div class="form-group">
-                  <label for="effective_date">Tanggal Efektif <span class="text-danger">*</span></label>
+                  <label for="effective_date">Effective Date<span class="text-danger">*</span></label>
                   <input
                     id="effective_date"
                     v-model="routing.effective_date"
@@ -107,20 +107,20 @@
                   <label for="status">Status <span class="text-danger">*</span></label>
                   <select id="status" v-model="routing.status" class="form-control" required>
                     <option value="Draft">Draft</option>
-                    <option value="Active">Aktif</option>
-                    <option value="Obsolete">Tidak Berlaku</option>
+                    <option value="Active">Active</option>
+                    <option value="Obsolete">Not Applicable</option>
                   </select>
                   <small v-if="errors.status" class="text-danger">{{ errors.status[0] }}</small>
                 </div>
               </div>
             </div>
-  
+
             <div class="mt-4">
               <h3>Operasi Routing</h3>
               <p class="text-muted">
-                {{ isEditMode ? 
-                  'Operasi dapat ditambahkan setelah routing disimpan di halaman detail.' : 
-                  'Operasi dapat ditambahkan setelah routing disimpan.' }}
+                {{ isEditMode ?
+                  'Operations can be added after the routing is saved in the details page.' :
+                  'Operations can be added after the routing is saved.' }}
               </p>
             </div>
           </form>
@@ -128,12 +128,12 @@
       </div>
     </div>
   </template>
-  
+
   <script>
 import { ref, reactive, computed, onMounted, watch } from 'vue';
   import { useRouter, useRoute } from 'vue-router';
   import axios from 'axios';
-  
+
   export default {
     name: 'RoutingForm',
   setup() {
@@ -235,11 +235,11 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
     // Load existing routing data if in edit mode
     const loadRoutingData = async () => {
       if (!isEditMode.value) return;
-      
+
       try {
         const response = await axios.get(`/routings/${routingId.value}`);
         const data = response.data.data;
-        
+
         // Update reactive object with fetched data
         routing.item_id = data.item_id;
         routing.routing_code = data.routing_code;
@@ -263,22 +263,22 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
     const saveRouting = async () => {
       isSaving.value = true;
       errors.value = {};
-      
+
       try {
         let response;
-        
+
         if (isEditMode.value) {
           response = await axios.put(`/routings/${routingId.value}`, routing);
         } else {
           response = await axios.post('/routings', routing);
         }
-        
+
         // Navigate to detail page after successful save
         const savedRouting = response.data.data;
         router.push(`/manufacturing/routings/${savedRouting.routing_id}`);
       } catch (error) {
         console.error('Error saving routing:', error);
-        
+
         if (error.response && error.response.data && error.response.data.errors) {
           errors.value = error.response.data.errors;
         } else {
@@ -327,7 +327,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
   },
 };
   </script>
-  
+
   <style scoped>
   /* Main container styling */
 .routing-form-container {
@@ -463,7 +463,7 @@ label {
   border-bottom: none;
 }
 
-.dropdown-item:hover, 
+.dropdown-item:hover,
 .dropdown-item.active {
   background-color: #eff6ff;
   color: #1e40af;
@@ -556,22 +556,22 @@ small.text-danger {
     flex-direction: column;
     align-items: flex-start;
   }
-  
+
   .card-header div {
     margin-top: 1rem;
     display: flex;
     width: 100%;
   }
-  
+
   .btn {
     flex: 1;
   }
-  
+
   .col-md-6, .col-md-4 {
     flex: 0 0 100%;
     max-width: 100%;
   }
-  
+
   .form-group {
     margin-bottom: 1.25rem;
   }
@@ -588,11 +588,11 @@ small.text-danger {
   .btn {
     padding: 0.75rem 1rem;
   }
-  
+
   .form-control {
     padding: 0.75rem 0.8rem;
   }
-  
+
   .dropdown-item {
     padding: 0.75rem 1rem;
   }

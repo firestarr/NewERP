@@ -6,16 +6,17 @@
       <p class="text-muted">Upload customer forecasts or generate system forecasts</p>
     </div>
 
-    <div class="row">
-      <!-- CSV Import Section -->
-      <div class="col-lg-6">
-        <div class="card mb-4">
-          <div class="card-header">
-            <h5 class="mb-0">Import Customer Forecasts</h5>
-          </div>
-          <div class="card-body">
-            <form @submit.prevent="importForecast" class="mb-3">
-              <div class="mb-3">
+    <div class="forms-container">
+      <div class="forms-row">
+        <!-- CSV Import Section -->
+        <div class="form-column">
+          <div class="card h-100">
+            <div class="card-header">
+              <h5 class="mb-0">Import Customer Forecasts</h5>
+            </div>
+            <div class="card-body d-flex flex-column">
+            <form @submit.prevent="importForecast" class="mb-4">
+              <div class="form-group">
                 <label class="form-label">Customer</label>
                 <select
                   class="form-select"
@@ -36,7 +37,7 @@
                 </div>
               </div>
 
-              <div class="mb-3">
+              <div class="form-group">
                 <label class="form-label">Forecast Issue Date</label>
                 <input
                   type="date"
@@ -49,7 +50,7 @@
                 </div>
               </div>
 
-              <div class="mb-3">
+              <div class="form-group">
                 <label class="form-label">CSV File</label>
                 <input
                   type="file"
@@ -63,16 +64,18 @@
                 </div>
               </div>
 
-              <div class="mb-3 form-check">
-                <input 
-                  type="checkbox" 
-                  class="form-check-input" 
-                  id="fillMissingPeriods" 
-                  v-model="importForm.fill_missing_periods"
-                />
-                <label class="form-check-label" for="fillMissingPeriods">
-                  Fill missing periods with system forecasts
-                </label>
+              <div class="form-group checkbox-group">
+                <div class="form-check">
+                  <input
+                    type="checkbox"
+                    class="form-check-input"
+                    id="fillMissingPeriods"
+                    v-model="importForm.fill_missing_periods"
+                  />
+                  <label class="form-check-label" for="fillMissingPeriods">
+                    Fill missing periods with system forecasts
+                  </label>
+                </div>
               </div>
 
               <div v-if="importError" class="alert alert-danger" role="alert">
@@ -80,7 +83,7 @@
                 {{ importError }}
               </div>
 
-              <div class="d-flex">
+              <div class="button-group">
                 <button
                   type="submit"
                   class="btn btn-primary"
@@ -92,7 +95,7 @@
                 </button>
                 <button
                   type="button"
-                  class="btn btn-outline-secondary ms-2"
+                  class="btn btn-outline-secondary"
                   @click="resetImportForm"
                 >
                   Reset
@@ -105,42 +108,44 @@
               {{ importSuccess }}
             </div>
 
-            <div v-if="importResponse && importResponse.errors && importResponse.errors.length > 0">
-              <h6 class="mt-4 mb-2">Import Errors</h6>
-              <table class="table table-sm table-bordered">
-                <thead>
-                  <tr>
-                    <th>Row</th>
-                    <th>Item Code</th>
-                    <th>Month</th>
-                    <th>Error</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(error, index) in importResponse.errors" :key="index">
-                    <td>{{ error.row }}</td>
-                    <td>{{ error.item_code }}</td>
-                    <td>{{ error.month || 'N/A' }}</td>
-                    <td>{{ error.error }}</td>
-                  </tr>
-                </tbody>
-              </table>
+            <div v-if="importResponse && importResponse.errors && importResponse.errors.length > 0" class="error-section">
+              <h6 class="error-title">Import Errors</h6>
+              <div class="table-wrapper">
+                <table class="table table-sm table-bordered">
+                  <thead>
+                    <tr>
+                      <th>Row</th>
+                      <th>Item Code</th>
+                      <th>Month</th>
+                      <th>Error</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(error, index) in importResponse.errors" :key="index">
+                      <td>{{ error.row }}</td>
+                      <td>{{ error.item_code }}</td>
+                      <td>{{ error.month || 'N/A' }}</td>
+                      <td>{{ error.error }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- System Generate Section -->
-      <div class="col-lg-6">
-        <div class="card mb-4">
-          <div class="card-header">
-            <h5 class="mb-0">Generate System Forecasts</h5>
-          </div>
-          <div class="card-body">
-            <form @submit.prevent="generateForecast" class="mb-3">
+        <!-- System Generate Section -->
+        <div class="form-column">
+          <div class="card h-100">
+            <div class="card-header">
+              <h5 class="mb-0">Generate System Forecasts</h5>
+            </div>
+            <div class="card-body d-flex flex-column">
+            <form @submit.prevent="generateForecast" class="mb-4">
               <div class="row">
                 <div class="col-md-6">
-                  <div class="mb-3">
+                  <div class="form-group">
                     <label class="form-label">Start Period</label>
                     <input
                       type="month"
@@ -151,7 +156,7 @@
                   </div>
                 </div>
                 <div class="col-md-6">
-                  <div class="mb-3">
+                  <div class="form-group">
                     <label class="form-label">End Period</label>
                     <input
                       type="month"
@@ -163,7 +168,7 @@
                 </div>
               </div>
 
-              <div class="mb-3">
+              <div class="form-group">
                 <label class="form-label">Customer (Optional)</label>
                 <select
                   class="form-select"
@@ -180,7 +185,7 @@
                 </select>
               </div>
 
-              <div class="mb-3">
+              <div class="form-group">
                 <label class="form-label">Item (Optional)</label>
                 <select
                   class="form-select"
@@ -197,7 +202,7 @@
                 </select>
               </div>
 
-              <div class="mb-3">
+              <div class="form-group">
                 <label class="form-label">Forecast Method</label>
                 <select
                   class="form-select"
@@ -208,14 +213,14 @@
                   <option value="weighted">Weighted Average</option>
                   <option value="average">Simple Average</option>
                 </select>
-                <div class="form-text">
+                <div class="form-text method-description">
                   <strong>Trend:</strong> Uses linear regression based on historical data<br>
                   <strong>Weighted Average:</strong> Gives more weight to recent periods<br>
                   <strong>Simple Average:</strong> Calculates the average of historical quantities
                 </div>
               </div>
 
-              <div class="mb-3">
+              <div class="form-group">
                 <label class="form-label">Forecast Issue Date (Optional)</label>
                 <input
                   type="date"
@@ -232,7 +237,7 @@
                 {{ generateError }}
               </div>
 
-              <div class="d-flex">
+              <div class="button-group">
                 <button
                   type="submit"
                   class="btn btn-primary"
@@ -244,7 +249,7 @@
                 </button>
                 <button
                   type="button"
-                  class="btn btn-outline-secondary ms-2"
+                  class="btn btn-outline-secondary"
                   @click="resetGenerateForm"
                 >
                   Reset
@@ -256,57 +261,67 @@
               <i class="fas fa-check-circle me-2"></i>
               {{ generateSuccess }}
             </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="card mb-4">
-      <div class="card-header">
-        <h5 class="mb-0">CSV Import Format</h5>
-      </div>
-      <div class="card-body">
-        <h6>Required Format</h6>
-        <p>
-          The CSV file must contain an <code>item_code</code> column and at least one month column in <code>YYYY-MM</code> format (e.g., <code>2025-05</code>).
-        </p>
-
-        <h6>Example</h6>
-        <div class="table-responsive">
-          <table class="table table-sm table-bordered">
-            <thead>
-              <tr>
-                <th>item_code</th>
-                <th>2025-05</th>
-                <th>2025-06</th>
-                <th>2025-07</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>ITEM001</td>
-                <td>100</td>
-                <td>120</td>
-                <td>140</td>
-              </tr>
-              <tr>
-                <td>ITEM002</td>
-                <td>50</td>
-                <td>60</td>
-                <td>70</td>
-              </tr>
-            </tbody>
-          </table>
+    <!-- Documentation Section -->
+    <div class="section-container">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">CSV Import Format</h5>
         </div>
+        <div class="card-body">
+          <div class="format-section">
+            <h6>Required Format</h6>
+            <p class="format-description">
+              The CSV file must contain an <code>item_code</code> column and at least one month column in <code>YYYY-MM</code> format (e.g., <code>2025-05</code>).
+            </p>
+          </div>
 
-        <h6 class="mt-3">Notes</h6>
-        <ul>
-          <li>Each row represents one item's forecast</li>
-          <li>Month columns (YYYY-MM) represent forecast quantities for that period</li>
-          <li>Empty cells will be ignored</li>
-          <li>Negative values are not allowed</li>
-          <li>Commas in numbers (e.g., 1,000) will be automatically handled</li>
-        </ul>
+          <div class="example-section">
+            <h6>Example</h6>
+            <div class="table-wrapper">
+              <table class="table table-sm table-bordered">
+                <thead>
+                  <tr>
+                    <th>item_code</th>
+                    <th>2025-05</th>
+                    <th>2025-06</th>
+                    <th>2025-07</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>ITEM001</td>
+                    <td>100</td>
+                    <td>120</td>
+                    <td>140</td>
+                  </tr>
+                  <tr>
+                    <td>ITEM002</td>
+                    <td>50</td>
+                    <td>60</td>
+                    <td>70</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="notes-section">
+            <h6>Notes</h6>
+            <ul class="notes-list">
+              <li>Each row represents one item's forecast</li>
+              <li>Month columns (YYYY-MM) represent forecast quantities for that period</li>
+              <li>Empty cells will be ignored</li>
+              <li>Negative values are not allowed</li>
+              <li>Commas in numbers (e.g., 1,000) will be automatically handled</li>
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -330,7 +345,7 @@ export default {
       importError: null,
       importSuccess: null,
       importResponse: null,
-      
+
       // Generate form data
       generateForm: {
         start_period: this.getCurrentMonth(),
@@ -343,7 +358,7 @@ export default {
       generating: false,
       generateError: null,
       generateSuccess: null,
-      
+
       // Lists for dropdowns
       customers: [],
       items: []
@@ -375,7 +390,7 @@ export default {
       const month = (date.getMonth() + 1).toString().padStart(2, '0');
       return `${year}-${month}`;
     },
-    
+
     // Data fetching methods
     async fetchCustomers() {
       try {
@@ -395,7 +410,7 @@ export default {
         console.error('Error fetching items:', error);
       }
     },
-    
+
     // Import methods
     handleFileUpload(event) {
       this.importForm.csv_file = event.target.files[0];
@@ -425,7 +440,7 @@ export default {
         });
 
         this.importResponse = response.data;
-        
+
         if (response.data.message) {
           this.importSuccess = response.data.message;
         }
@@ -446,14 +461,14 @@ export default {
       this.importError = null;
       this.importSuccess = null;
       this.importResponse = null;
-      
+
       // Reset file input
       const fileInput = document.querySelector('input[type="file"]');
       if (fileInput) {
         fileInput.value = '';
       }
     },
-    
+
     // Generate methods
     async generateForecast() {
       if (!this.generateForm.start_period || !this.generateForm.end_period || !this.generateForm.method) {
@@ -492,7 +507,7 @@ export default {
         }
 
         const response = await axios.post('/forecasts/generate', payload);
-        
+
         if (response.data.message) {
           this.generateSuccess = response.data.message;
         }
@@ -520,132 +535,233 @@ export default {
 </script>
 
 <style scoped>
-/* Styling yang disempurnakan untuk ImportForecastForm.vue */
-
+/* Base Container Styling */
 .page-container {
-  padding: 2rem;
+  padding: 2.5rem;
   max-width: 1600px;
   margin: 0 auto;
+  background-color: #f8fafc;
+  min-height: 100vh;
 }
 
+/* Page Header */
 .page-header {
-  margin-bottom: 2.5rem;
-  border-bottom: 1px solid #eaeaea;
-  padding-bottom: 1.5rem;
+  margin-bottom: 3rem;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 2rem;
   position: relative;
+  background-color: white;
+  border-radius: 12px;
+  padding: 2rem 2.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .page-header:after {
   content: "";
   position: absolute;
-  bottom: -1px;
-  left: 0;
-  height: 3px;
-  width: 100px;
+  bottom: 0;
+  left: 2.5rem;
+  height: 4px;
+  width: 120px;
   background: linear-gradient(to right, #4361ee, #7048e8);
-  border-radius: 3px;
+  border-radius: 2px;
 }
 
 .page-header h2 {
-  font-size: 1.8rem;
-  margin-bottom: 0.5rem;
-  color: #2d3748;
-  font-weight: 600;
+  font-size: 2rem;
+  margin-bottom: 0.75rem;
+  color: #1a202c;
+  font-weight: 700;
+  letter-spacing: -0.025em;
 }
 
 .page-header .text-muted {
-  font-size: 1rem;
-  color: #718096;
+  font-size: 1.1rem;
+  color: #64748b;
+  margin: 0;
 }
 
-/* Card styling */
-.card {
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.1);
-  border: none;
-  margin-bottom: 1.5rem;
-  transition: all 0.3s ease;
-  height: 100%;
+/* Forms Container Layout */
+.forms-container {
+  margin-bottom: 3rem;
 }
 
-.card:hover {
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
-  transform: translateY(-2px);
+.forms-row {
+  display: flex;
+  gap: 2rem;
+  align-items: stretch;
 }
 
-.card-body {
-  padding: 1.5rem;
+.form-column {
+  flex: 1;
+  min-width: 0; /* Prevents flex items from overflowing */
 }
 
-.card-header {
-  background-color: #fff;
-  border-bottom: 1px solid #eef0f2;
-  padding: 1.25rem 1.5rem;
+/* Equal Height Cards */
+.h-100 {
+  height: 100% !important;
 }
 
-.card-header h5 {
-  font-weight: 600;
-  color: #2d3748;
-  margin-bottom: 0;
-  font-size: 1.2rem;
+.card-body.d-flex {
+  flex: 1;
+  display: flex !important;
+  flex-direction: column;
 }
 
-/* Form styling */
-.form-label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-  color: #2d3748;
-  font-size: 0.9rem;
+.card-body.d-flex form {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
+.card-body.d-flex .button-group {
+  margin-top: auto;
+  padding-top: 1rem;
+}
+
+/* Consistent Input Sizing */
 .form-control,
 .form-select {
-  border-radius: 6px;
-  padding: 0.65rem 1rem;
-  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  border: 2px solid #e2e8f0;
   transition: all 0.3s ease;
-  font-size: 0.95rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  font-size: 1rem;
+  background-color: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  width: 100%;
+  max-width: 100%;
+  min-height: 48px; /* Consistent minimum height */
 }
 
-.form-control:focus,
-.form-select:focus {
-  border-color: #4361ee;
-  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.15);
+/* Month input specific styling */
+input[type="month"].form-control {
+  min-height: 48px;
 }
 
-.form-text {
-  margin-top: 0.4rem;
-  font-size: 0.85rem;
-  color: #718096;
+/* Date input specific styling */
+input[type="date"].form-control {
+  min-height: 48px;
 }
 
-/* Custom file input styling */
+/* File input specific styling */
 input[type="file"].form-control {
-  padding: 0.5rem;
+  padding: 0.75rem;
   background-color: #f8fafc;
-  font-size: 0.9rem;
-}
-
-/* Proper spacing for form groups */
-.mb-3 {
-  margin-bottom: 1.25rem !important;
-}
-
-/* Checkbox styling */
-.form-check {
-  padding-left: 1.8rem;
-  margin-bottom: 1rem;
+  border: 2px dashed #cbd5e0;
+  cursor: pointer;
+  min-height: 48px;
   display: flex;
   align-items: center;
 }
 
-.form-check-input {
-  margin-left: -1.8rem;
-  width: 1.1rem;
-  height: 1.1rem;
+/* Section Container */
+.section-container {
+  margin-bottom: 2rem;
+}
+
+/* Card Styling */
+.card {
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(0, 0, 0, 0.05);
+  border: none;
+  background-color: white;
+  transition: all 0.3s ease;
+  margin-bottom: 2rem;
+}
+
+.card:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08), 0 4px 8px rgba(0, 0, 0, 0.05);
+  transform: translateY(-2px);
+}
+
+.card-header {
+  background-color: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 1.75rem 2rem;
+  border-radius: 12px 12px 0 0;
+}
+
+.card-header h5 {
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0;
+  font-size: 1.25rem;
+  letter-spacing: -0.025em;
+}
+
+.card-body {
+  padding: 2rem;
+}
+
+/* Form Styling */
+.form-group {
+  margin-bottom: 2rem;
+}
+
+.form-group:last-child {
+  margin-bottom: 0;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  color: #1a202c;
+  font-size: 0.95rem;
+  letter-spacing: 0.025em;
+}
+
+/* Form Styling - Override previous styles */
+.form-control:focus,
+.form-select:focus {
+  border-color: #4361ee;
+  box-shadow: 0 0 0 4px rgba(67, 97, 238, 0.1);
+  outline: none;
+  background-color: #fafafb;
+}
+
+.form-text {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+/* Special styling for method description */
+.method-description {
+  margin-top: 0.75rem;
+  padding: 1rem;
+  background-color: #f1f5f9;
+  border-radius: 6px;
+  border-left: 4px solid #4361ee;
+}
+
+/* File Input Hover Effect */
+input[type="file"].form-control:hover {
+  border-color: #4361ee;
+  background-color: #f1f5f9;
+}
+
+/* Checkbox Styling */
+.checkbox-group {
+  margin-bottom: 2rem;
+}
+
+.form-check {
+  padding: 1rem;
+  background-color: #f8fafc;
+  border-radius: 8px;
   border: 1px solid #e2e8f0;
+  margin-bottom: 0;
+}
+
+.form-check-input {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: 0;
+  border: 2px solid #cbd5e0;
+  border-radius: 4px;
   transition: all 0.3s ease;
 }
 
@@ -655,85 +771,111 @@ input[type="file"].form-control {
 }
 
 .form-check-label {
-  color: #2d3748;
-  font-size: 0.95rem;
+  color: #1a202c;
+  font-size: 1rem;
+  font-weight: 500;
+  margin-left: 0.75rem;
+  cursor: pointer;
 }
 
-/* Button styling */
+/* Button Styling */
+.button-group {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+}
+
 .btn {
-  border-radius: 6px;
-  font-weight: 500;
-  padding: 0.65rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
   transition: all 0.3s ease;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  font-size: 0.95rem;
+  border: 2px solid transparent;
+  min-width: 140px;
 }
 
 .btn i {
   margin-right: 0.5rem;
+  font-size: 0.9rem;
 }
 
 .btn-primary {
-  background-color: #4361ee;
+  background: linear-gradient(135deg, #4361ee, #3a56d4);
   border-color: #4361ee;
+  color: white;
 }
 
 .btn-primary:hover,
 .btn-primary:active {
-  background-color: #3a56d4;
+  background: linear-gradient(135deg, #3a56d4, #2f4bc4);
   border-color: #3a56d4;
-  box-shadow: 0 4px 8px rgba(67, 97, 238, 0.3);
+  box-shadow: 0 4px 12px rgba(67, 97, 238, 0.25);
+  transform: translateY(-1px);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .btn-outline-secondary {
-  color: #718096;
-  border-color: #e2e8f0;
+  color: #64748b;
+  border-color: #cbd5e0;
   background-color: white;
 }
 
 .btn-outline-secondary:hover {
-  color: #2d3748;
-  background-color: #f8fafc;
-  border-color: #718096;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  color: #1a202c;
+  background-color: #f1f5f9;
+  border-color: #94a3b8;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
 }
 
-/* Alert styling */
+/* Alert Styling */
 .alert {
   border: none;
-  border-radius: 6px;
-  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
   margin-top: 1.5rem;
   font-size: 0.95rem;
   display: flex;
   align-items: center;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-left: 4px solid;
 }
 
 .alert i {
   font-size: 1.1rem;
+  margin-right: 0.75rem;
 }
 
 .alert-success {
-  background-color: rgba(46, 204, 113, 0.15);
-  color: #1e8449;
-  border-left: 4px solid #2ecc71;
+  background-color: rgba(34, 197, 94, 0.1);
+  color: #166534;
+  border-left-color: #22c55e;
 }
 
 .alert-danger {
-  background-color: rgba(231, 76, 60, 0.15);
-  color: #a93226;
-  border-left: 4px solid #e74c3c;
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #991b1b;
+  border-left-color: #ef4444;
 }
 
-/* Table styling */
-.table-responsive {
-  border-radius: 6px;
+/* Table Styling */
+.table-wrapper {
+  border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   margin-top: 1rem;
+  border: 1px solid #e2e8f0;
 }
 
 .table {
@@ -742,18 +884,21 @@ input[type="file"].form-control {
 }
 
 .table th {
-  background-color: #f8fafc;
-  font-weight: 600;
-  color: #2d3748;
-  border-top: none;
-  border-bottom: 2px solid #e2e8f0;
-  padding: 0.75rem 1rem;
+  background-color: #f1f5f9;
+  font-weight: 700;
+  color: #1a202c;
+  border: none;
+  padding: 1rem 1.25rem;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
 }
 
 .table td {
-  padding: 0.75rem 1rem;
+  padding: 1rem 1.25rem;
   vertical-align: middle;
-  border-color: #e2e8f0;
+  border-color: #f1f5f9;
+  color: #374151;
 }
 
 .table-bordered,
@@ -762,56 +907,92 @@ input[type="file"].form-control {
   border-color: #e2e8f0;
 }
 
-.table-sm td,
-.table-sm th {
-  padding: 0.5rem 0.75rem;
+/* Error Section */
+.error-section {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid #e2e8f0;
 }
 
-/* Code styling */
-code {
-  font-size: 0.9em;
-  background-color: #f8fafc;
-  padding: 0.2em 0.4em;
-  border-radius: 4px;
-  color: #e83e8c;
-  font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+.error-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: #dc2626;
 }
 
-/* Documentation section styling */
+/* Format, Example, and Notes Sections */
+.format-section,
+.example-section,
+.notes-section {
+  margin-bottom: 2.5rem;
+}
+
+.format-section:last-child,
+.example-section:last-child,
+.notes-section:last-child {
+  margin-bottom: 0;
+}
+
+.format-description {
+  margin-bottom: 0;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #374151;
+}
+
 .card h6 {
   font-size: 1.1rem;
-  font-weight: 600;
-  margin-top: 1.5rem;
-  margin-bottom: 0.75rem;
-  color: #2d3748;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: #1a202c;
+  letter-spacing: -0.025em;
 }
 
-.card h6:first-child {
-  margin-top: 0;
-}
-
-.card ul {
+.notes-list {
   padding-left: 1.5rem;
+  margin: 0;
 }
 
-.card ul li {
-  margin-bottom: 0.5rem;
+.notes-list li {
+  margin-bottom: 0.75rem;
   font-size: 0.95rem;
-  color: #2d3748;
+  color: #374151;
+  line-height: 1.6;
 }
 
-/* Row styling */
+.notes-list li:last-child {
+  margin-bottom: 0;
+}
+
+/* Code Styling */
+code {
+  font-size: 0.875em;
+  background-color: #f1f5f9;
+  padding: 0.25em 0.5em;
+  border-radius: 4px;
+  color: #c7254e;
+  font-family: 'SFMono-Regular', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+  font-weight: 600;
+}
+
+/* Row Spacing */
 .row {
-  margin-left: -0.75rem;
-  margin-right: -0.75rem;
+  margin-left: -1rem;
+  margin-right: -1rem;
 }
 
 .row > [class*="col-"] {
-  padding-left: 0.75rem;
-  padding-right: 0.75rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
 }
 
-/* Spinner animation */
+/* Column Spacing */
+.col-md-6 .form-group {
+  margin-bottom: 1.5rem;
+}
+
+/* Spinner Animation */
 .fa-spinner {
   animation: spin 1s linear infinite;
 }
@@ -821,55 +1002,127 @@ code {
   to { transform: rotate(360deg); }
 }
 
-/* Responsive adjustments */
+/* Responsive Design */
 @media (max-width: 991.98px) {
   .page-container {
+    padding: 2rem;
+  }
+
+  .page-header {
+    padding: 1.5rem 2rem;
+    margin-bottom: 2rem;
+  }
+
+  .page-header h2 {
+    font-size: 1.75rem;
+  }
+
+  .card-body {
     padding: 1.5rem;
   }
-  
-  .card-body {
-    padding: 1.25rem;
+
+  .card-header {
+    padding: 1.5rem;
   }
-  
-  .row .col-lg-6 {
+
+  .section-container {
     margin-bottom: 1.5rem;
   }
-  
-  .row .col-lg-6:last-child {
-    margin-bottom: 0;
+
+  .forms-row {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .form-column {
+    width: 100%;
   }
 }
 
 @media (max-width: 767.98px) {
   .page-container {
-    padding: 1rem;
+    padding: 1.5rem;
   }
-  
+
+  .page-header {
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
   .page-header h2 {
     font-size: 1.5rem;
   }
-  
-  .d-flex {
+
+  .forms-row {
     flex-direction: column;
+    gap: 1.5rem;
   }
-  
+
+  .form-column {
+    width: 100%;
+  }
+
+  .col-md-6 {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+
+  .button-group {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
   .btn {
     width: 100%;
-    margin-bottom: 0.75rem;
+    min-width: auto;
   }
-  
-  .ms-2 {
-    margin-left: 0 !important;
+
+  .card-header,
+  .card-body {
+    padding: 1.25rem;
   }
-  
+
+  .form-group {
+    margin-bottom: 1.5rem;
+  }
+
+  .table td,
+  .table th {
+    padding: 0.75rem;
+    font-size: 0.85rem;
+  }
+
+  .col-md-6 .form-group {
+    margin-bottom: 1.25rem;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .page-container {
+    padding: 1rem;
+  }
+
+  .page-header {
+    padding: 1rem;
+  }
+
+  .forms-row {
+    gap: 1.25rem;
+  }
+
   .card-header,
   .card-body {
     padding: 1rem;
   }
-  
-  .table td,
-  .table th {
-    padding: 0.5rem 0.75rem;
+
+  .section-container {
+    margin-bottom: 1.5rem;
+  }
+
+  .format-section,
+  .example-section,
+  .notes-section {
+    margin-bottom: 2rem;
   }
 }
 </style>

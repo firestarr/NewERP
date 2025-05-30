@@ -116,9 +116,9 @@
                     <div class="search-container">
                         <div class="search-box" :class="{ active: searchFocused }">
                             <i class="fas fa-search search-icon"></i>
-                            <input 
-                                type="text" 
-                                class="search-input" 
+                            <input
+                                type="text"
+                                class="search-input"
                                 placeholder="Search anything..."
                                 v-model="searchQuery"
                                 @focus="searchFocused = true"
@@ -609,6 +609,20 @@
                                         <small>Forecast analytics</small>
                                     </div>
                                 </router-link>
+                                <router-link to="/sales/forecasts/volatility-dashboard" class="menu-link">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <div>
+                                        <span>Volatility Monitor</span>
+                                        <small>Monitor forecast changes</small>
+                                    </div>
+                                </router-link>
+                                <router-link to="/sales/forecasts/trend-analysis" class="menu-link">
+                                    <i class="fas fa-chart-area"></i>
+                                    <div>
+                                        <span>Trend Analysis</span>
+                                        <small>Detailed trend analysis</small>
+                                    </div>
+                                </router-link>
                                 <router-link to="/sales/forecasts/consolidated" class="menu-link">
                                     <i class="fas fa-table"></i>
                                     <div>
@@ -911,7 +925,7 @@
                     <h1 class="page-title">{{ pageTitle }}</h1>
                     <p class="page-subtitle">Manage your {{ pageTitle.toLowerCase() }} efficiently</p>
                 </div>
-                
+
                 <!-- Quick Stats Cards -->
                 <div class="quick-stats" v-if="$route.name === 'Dashboard'">
                     <div class="stat-card" v-for="(stat, index) in quickStats" :key="index">
@@ -941,7 +955,7 @@
             <button class="fab-main" @click="showQuickActions = !showQuickActions">
                 <i class="fas fa-plus" :class="{ rotated: showQuickActions }"></i>
             </button>
-            
+
             <Transition name="scale-stagger">
                 <div v-if="showQuickActions" class="fab-menu">
                     <button class="fab-item" @click="quickCreateItem" title="Add Item">
@@ -986,7 +1000,7 @@ export default {
     setup() {
         const router = useRouter();
         const route = useRoute();
-        
+
         // Reactive states
         const user = ref(JSON.parse(localStorage.getItem("user") || "{}"));
         const searchQuery = ref("");
@@ -998,7 +1012,7 @@ export default {
         const userMenuOpen = ref(false);
         const activeMegaMenu = ref(null);
         const megaMenuTimeout = ref(null);
-        
+
         // Sample data
         const notificationCount = ref(3);
         const notifications = ref([
@@ -1061,22 +1075,242 @@ export default {
         ]);
 
         const pageTitle = computed(() => {
-            const titleMap = {
-                "Dashboard": "Dashboard",
-                "Items": "Items Management",
-                "ItemCategories": "Item Categories", 
-                "UnitOfMeasures": "Units of Measure",
-                "Warehouses": "Warehouses",
-                "ItemPrices": "Item Prices",
-                "PriceComparison": "Price Comparison",
-                "ItemPriceManagement": "Item Prices Management",
-                "Customers": "Customers",
-                "SalesQuotations": "Sales Quotations",
-                "SalesOrders": "Sales Orders",
-                "Users": "User Management"
-            };
-            return titleMap[route.name] || "Dashboard";
-        });
+    const titleMap = {
+        // Dashboard
+        "Dashboard": "Dashboard",
+
+        // Inventory Management
+        "Items": "Items Management",
+        "ItemDetail": "Item Details",
+        "ItemCategories": "Item Categories",
+        "ItemCategoriesEnhanced": "Enhanced Item Categories",
+        "UnitOfMeasures": "Units of Measure",
+        "UnitOfMeasureDetail": "Unit of Measure Details",
+        "ItemPriceManagement": "Item Prices Management",
+
+        // Stock Management
+        "StockTransactions": "Stock Transactions",
+        "CreateStockTransaction": "Create Stock Transaction",
+        "StockTransactionDetail": "Stock Transaction Details",
+        "ItemMovementHistory": "Item Movement History",
+        "StockTransfer": "Stock Transfer",
+        "ItemStocks": "Inventory Stock",
+        "ItemStockDetail": "Item Stock Details",
+        "WarehouseStock": "Warehouse Stock",
+        "StockAdjustment": "Stock Adjustment",
+        "StockReservation": "Stock Reservation",
+        "NegativeStocks": "Negative Stocks",
+        "StockAdjustments": "Stock Adjustments",
+        "CreateStockAdjustment": "Create Stock Adjustment",
+        "StockAdjustmentDetail": "Stock Adjustment Details",
+        "EditStockAdjustment": "Edit Stock Adjustment",
+        "ApproveStockAdjustment": "Approve Stock Adjustment",
+
+        // Cycle Counting
+        "CycleCountList": "Cycle Counting",
+        "CreateCycleCount": "Create Cycle Count",
+        "GenerateCycleCounts": "Generate Count Tasks",
+        "CycleCountDetail": "Cycle Count Details",
+        "EditCycleCount": "Edit Cycle Count",
+        "CycleCountApproval": "Cycle Count Approval",
+
+        // Batch Management
+        "ItemBatches": "Item Batches",
+        "CreateBatch": "Create Batch",
+        "BatchDetail": "Batch Details",
+        "EditBatch": "Edit Batch",
+        "ExpiryDashboard": "Expiry Management",
+
+        // Customers
+        "customers.index": "Customer Management",
+        "customers.create": "Add New Customer",
+        "customers.show": "Customer Details",
+        "customers.edit": "Edit Customer",
+
+        // Sales Quotations
+        "SalesQuotations": "Sales Quotations",
+        "CreateSalesQuotation": "Create Sales Quotation",
+        "SalesQuotationDetail": "Sales Quotation Details",
+        "EditSalesQuotation": "Edit Sales Quotation",
+        "PrintSalesQuotation": "Print Sales Quotation",
+
+        // Sales Forecasts
+        "SalesForecastsList": "Sales Forecasts",
+        "SalesForecastDetail": "Sales Forecast Details",
+        "SalesForecastAnalytics": "Sales Forecast Analytics",
+        "CreateSalesForecast": "Create Sales Forecast",
+        "EditSalesForecast": "Edit Sales Forecast",
+        "ConsolidatedForecastView": "Consolidated Forecast View",
+        "ImportForecastForm": "Import Forecast",
+        "ForecastAccuracyAnalysis": "Forecast Accuracy Analysis",
+        "ForecastDashboard": "Forecast Dashboard",
+        "UpdateActualsPage": "Update Actuals",
+        "ForecastHistoryView": "Forecast Version History",
+        "ForecastVolatilityDashboard": "Forecast Volatility Monitor",
+        "ForecastTrendAnalysis": "Forecast Trend Analysis",
+
+        // Sales Orders
+        "SalesOrders": "Sales Orders",
+        "CreateSalesOrder": "Create Sales Order",
+        "SalesOrderDetail": "Sales Order Details",
+        "EditSalesOrder": "Edit Sales Order",
+        "CreateOrderFromQuotation": "Create Order from Quotation",
+        "PrintSalesOrder": "Print Sales Order",
+
+        // Sales Invoices
+        "SalesInvoices": "Sales Invoices",
+        "CreateSalesInvoice": "Create Sales Invoice",
+        "CreateInvoiceFromDelivery": "Create Invoice from Delivery",
+        "SalesInvoiceDetail": "Sales Invoice Details",
+        "EditSalesInvoice": "Edit Sales Invoice",
+        "SalesInvoicePayment": "Sales Invoice Payment",
+        "PrintSalesInvoice": "Print Sales Invoice",
+
+        // Sales Deliveries
+        "DeliveryList": "Deliveries",
+        "CreateDelivery": "Create Delivery",
+        "DeliveryDetail": "Delivery Details",
+        "EditDelivery": "Edit Delivery",
+        "PrintDeliveryOrder": "Print Delivery Order",
+
+        // Sales Returns
+        "SalesReturns": "Sales Returns",
+        "CreateSalesReturn": "Create Sales Return",
+        "SalesReturnDetail": "Sales Return Details",
+        "EditSalesReturn": "Edit Sales Return",
+
+        // Manufacturing - BOM
+        "BOMList": "Bill of Materials",
+        "CreateBOM": "Create BOM",
+        "BOMDetail": "BOM Details",
+        "EditBOM": "Edit BOM",
+
+        // Manufacturing - Routing
+        "RoutingList": "Routing",
+        "CreateRouting": "Create Routing",
+        "RoutingDetail": "Routing Details",
+        "EditRouting": "Edit Routing",
+
+        // Manufacturing - Work Centers
+        "WorkCentersList": "Work Centers",
+        "CreateWorkCenter": "Create Work Center",
+        "WorkCenterDetail": "Work Center Details",
+        "EditWorkCenter": "Edit Work Center",
+        "WorkCenterSchedule": "Work Center Schedule",
+
+        // Manufacturing - Work Orders
+        "WorkOrders": "Work Orders",
+        "CreateWorkOrder": "Create Work Order",
+        "WorkOrderDetail": "Work Order Details",
+        "EditWorkOrder": "Edit Work Order",
+        "WorkOrderOperation": "Work Order Operation",
+        "ManufacturingDashboard": "Manufacturing Dashboard",
+
+        // Manufacturing - Production Orders
+        "ProductionOrders": "Production Orders",
+        "CreateProductionOrder": "Create Production Order",
+        "ProductionOrderDetail": "Production Order Details",
+        "EditProductionOrder": "Edit Production Order",
+        "AddProductionConsumption": "Add Production Consumption",
+        "EditProductionConsumption": "Edit Production Consumption",
+        "CompleteProductionOrder": "Complete Production Order",
+
+        // Purchasing - Vendors
+        "VendorList": "Vendor Management",
+        "VendorCreate": "Add New Vendor",
+        "VendorDetail": "Vendor Details",
+        "VendorEdit": "Edit Vendor",
+
+        // Purchasing - Requisitions
+        "PurchaseRequisitionList": "Purchase Requisitions",
+        "CreatePurchaseRequisition": "Create Purchase Requisition",
+        "PurchaseRequisitionDetail": "Purchase Requisition Details",
+        "EditPurchaseRequisition": "Edit Purchase Requisition",
+        "ApprovePurchaseRequisition": "Approve Purchase Requisition",
+        "ConvertToRFQ": "Convert to RFQ",
+        "PRApprovalList": "PR Approvals",
+        "PRToRFQList": "PR to RFQ",
+
+        // Purchasing - RFQ
+        "RFQList": "Request for Quotations",
+        "CreateRFQ": "Create RFQ",
+        "RFQDetail": "RFQ Details",
+        "EditRFQ": "Edit RFQ",
+        "SendRFQ": "Send RFQ",
+        "CompareRFQ": "Compare RFQ",
+
+        // Purchasing - Vendor Quotations
+        "VendorQuotations": "Vendor Quotations",
+        "CreateVendorQuotation": "Create Vendor Quotation",
+        "VendorQuotationDetail": "Vendor Quotation Details",
+        "EditVendorQuotation": "Edit Vendor Quotation",
+        "CompareVendorQuotations": "Compare Quotations",
+        "CreatePOFromQuotation": "Create PO from Quotation",
+
+        // Purchasing - Purchase Orders
+        "PurchaseOrders": "Purchase Orders",
+        "CreatePurchaseOrder": "Create Purchase Order",
+        "PurchaseOrderDetail": "Purchase Order Details",
+        "EditPurchaseOrder": "Edit Purchase Order",
+        "PurchaseOrderTrack": "Track Purchase Order",
+
+        // Purchasing - Goods Receipts
+        "GoodsReceiptList": "Goods Receipts",
+        "CreateGoodsReceipt": "Create Goods Receipt",
+        "PendingReceiptsDashboard": "Receipts Dashboard",
+        "GoodsReceiptDetail": "Goods Receipt Details",
+        "EditGoodsReceipt": "Edit Goods Receipt",
+        "ConfirmGoodsReceipt": "Confirm Goods Receipt",
+
+        // Purchasing - Vendor Invoices
+        "VendorInvoiceList": "Vendor Invoices",
+        "VendorInvoiceCreate": "Create Vendor Invoice",
+        "VendorInvoiceDetail": "Vendor Invoice Details",
+        "VendorInvoiceEdit": "Edit Vendor Invoice",
+        "VendorInvoiceApproval": "Vendor Invoice Approval",
+        "VendorInvoicePayment": "Vendor Invoice Payment",
+
+        // Warehouses
+        "Warehouses": "Warehouses",
+        "WarehouseDetail": "Warehouse Details",
+        "WarehouseZones": "Warehouse Zones",
+        "WarehouseLocations": "Warehouse Locations",
+        "LocationInventory": "Location Inventory",
+
+        // Material Planning
+        "MaterialPlans": "Material Planning",
+        "MaterialPlanDetail": "Material Plan Details",
+        "MaterialPlanGeneration": "Generate Material Plans",
+        "PRGenerationFromMaterialPlan": "Generate PR from Material Plan",
+
+        // Accounting
+        "CurrencyRates": "Exchange Rates",
+        "CreateCurrencyRate": "Create Exchange Rate",
+        "CurrencyRateDetail": "Exchange Rate Details",
+        "EditCurrencyRate": "Edit Exchange Rate",
+        "CurrencyConverter": "Currency Converter",
+
+        // Quality Management
+        "quality-inspections": "Quality Inspections",
+        "quality-inspections-create": "Create Quality Inspection",
+        "quality-inspection-detail": "Quality Inspection Details",
+        "quality-inspection-edit": "Edit Quality Inspection",
+        "quality-parameters-create": "Create Quality Parameters",
+        "quality-parameters-edit": "Edit Quality Parameters",
+        "quality-dashboard": "Quality Dashboard",
+
+        // Administration
+        "AdminDashboard": "Admin Dashboard",
+        "SystemSettings": "System Settings",
+        "UserList": "User Management",
+
+        // Legacy routes yang sudah ada sebelumnya
+        "Customers": "Customers",
+        "Users": "User Management"
+    };
+
+    return titleMap[route.name] || "Dashboard";
+});
 
         // Methods
         const showMegaMenu = (menu) => {
@@ -1167,17 +1401,17 @@ export default {
                 const megaMenu = document.querySelector(".mega-menu");
                 const notifications = document.querySelector(".notifications-dropdown");
                 const userDropdown = document.querySelector(".user-dropdown");
-                
-                if (navContainer && !navContainer.contains(event.target) && 
+
+                if (navContainer && !navContainer.contains(event.target) &&
                     megaMenu && !megaMenu.contains(event.target)) {
                     activeMegaMenu.value = null;
                 }
-                
+
                 if (notifications && !notifications.contains(event.target) &&
                     !event.target.closest('.action-btn')) {
                     showNotifications.value = false;
                 }
-                
+
                 if (userDropdown && !userDropdown.contains(event.target) &&
                     !event.target.closest('.user-section')) {
                     userMenuOpen.value = false;
@@ -1237,7 +1471,7 @@ export default {
     --box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
     --box-shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.15);
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    
+
     /* Light theme colors */
     --bg-primary: #ffffff;
     --bg-secondary: #f8fafc;
@@ -1357,21 +1591,21 @@ body {
 }
 
 @keyframes float {
-    0%, 100% { 
-        transform: translateY(0px) translateX(0px) rotate(0deg); 
-        opacity: 0.3; 
+    0%, 100% {
+        transform: translateY(0px) translateX(0px) rotate(0deg);
+        opacity: 0.3;
     }
-    25% { 
-        transform: translateY(-30px) translateX(20px) rotate(90deg); 
-        opacity: 0.1; 
+    25% {
+        transform: translateY(-30px) translateX(20px) rotate(90deg);
+        opacity: 0.1;
     }
-    50% { 
-        transform: translateY(-20px) translateX(-20px) rotate(180deg); 
-        opacity: 0.2; 
+    50% {
+        transform: translateY(-20px) translateX(-20px) rotate(180deg);
+        opacity: 0.2;
     }
-    75% { 
-        transform: translateY(20px) translateX(30px) rotate(270deg); 
-        opacity: 0.15; 
+    75% {
+        transform: translateY(20px) translateX(30px) rotate(270deg);
+        opacity: 0.15;
     }
 }
 
@@ -1454,7 +1688,7 @@ body {
     display: flex;
     gap: 0.25rem;
     flex: 1;
-    justify-content: center;
+    justify-content: flex-start;
     max-width: 800px;
     overflow-x: auto;
     padding: 0 1rem;
@@ -2493,23 +2727,23 @@ body {
         padding: 0 1rem;
         gap: 1.5rem;
     }
-    
+
     .main-nav {
         margin-left: 0.5rem;
     }
-    
+
     .brand-text h2 {
         font-size: 1rem;
     }
-    
+
     .brand-text p {
         font-size: 0.65rem;
     }
-    
+
     .search-input {
         width: 200px;
     }
-    
+
     .search-input:focus {
         width: 240px;
     }
@@ -2521,40 +2755,40 @@ body {
         padding: 0 1rem;
         gap: 1rem;
     }
-    
+
     .main-nav {
         margin-left: 0;
         gap: 0.25rem;
     }
-    
+
     .logo-icon {
         width: 38px;
         height: 38px;
         font-size: 1rem;
     }
-    
+
     .breadcrumb-section {
         padding: 1.5rem 1.5rem 1rem 1.5rem;
     }
-    
+
     .page-header,
     .content-area {
         padding: 0 1.5rem 2rem 1.5rem;
     }
-    
+
     .nav-link {
         padding: 0.5rem 0.75rem;
         font-size: 0.8rem;
     }
-    
+
     .search-input {
         width: 180px;
     }
-    
+
     .search-input:focus {
         width: 220px;
     }
-    
+
     .nav-right {
         gap: 0.5rem;
     }
@@ -2566,28 +2800,28 @@ body {
         gap: 1rem;
         justify-content: space-between;
     }
-    
+
     .main-nav {
         display: none;
     }
-    
+
     .brand-text p {
         display: none;
     }
-    
+
     .search-input {
         width: 160px;
     }
-    
+
     .search-input:focus {
         width: 200px;
     }
-    
+
     .breadcrumb-section {
         padding: 1.5rem 1rem 1rem 1rem;
         margin-top: 0.5rem;
     }
-    
+
     .mega-menu-content {
         grid-template-columns: 1fr;
         padding: 1.5rem;
@@ -2600,53 +2834,53 @@ body {
         padding: 0 0.75rem;
         gap: 0.5rem;
     }
-    
+
     .brand-text {
         display: none;
     }
-    
+
     .logo-icon {
         width: 36px;
         height: 36px;
         font-size: 0.95rem;
     }
-    
+
     .user-info {
         display: none;
     }
-    
+
     .search-input {
         width: 120px;
     }
-    
+
     .search-input:focus {
         width: 160px;
     }
-    
+
     .quick-actions {
         gap: 0.25rem;
     }
-    
+
     .action-btn {
         width: 38px;
         height: 38px;
         font-size: 0.9rem;
     }
-    
+
     .user-avatar {
         width: 36px;
         height: 36px;
         font-size: 0.9rem;
     }
-    
+
     .page-title {
         font-size: 2rem;
     }
-    
+
     .quick-stats {
         grid-template-columns: 1fr;
     }
-    
+
     .breadcrumb-section {
         flex-direction: column;
         gap: 1rem;
@@ -2654,23 +2888,23 @@ body {
         padding: 1.5rem 1rem 1rem 1rem;
         margin-top: 0.5rem;
     }
-    
+
     .page-header,
     .content-area {
         padding: 0 1rem 2rem 1rem;
     }
-    
+
     .floating-actions {
         bottom: 1rem;
         right: 1rem;
     }
-    
+
     .fab-main {
         width: 56px;
         height: 56px;
         font-size: 1.3rem;
     }
-    
+
     .notifications-dropdown,
     .user-dropdown {
         min-width: 280px;
@@ -2684,47 +2918,47 @@ body {
         padding: 0 0.5rem;
         gap: 0.25rem;
     }
-    
+
     .search-input {
         width: 100px;
     }
-    
+
     .search-input:focus {
         width: 140px;
     }
-    
+
     .user-section {
         padding: 0.375rem 0.75rem;
         gap: 0.5rem;
     }
-    
+
     .user-avatar {
         width: 32px;
         height: 32px;
         font-size: 0.8rem;
     }
-    
+
     .action-btn {
         width: 36px;
         height: 36px;
         font-size: 0.85rem;
     }
-    
+
     .breadcrumb-section {
         padding: 1rem 0.5rem;
         margin-top: 0.5rem;
     }
-    
+
     .page-header,
     .content-area {
         padding: 0 1rem 2rem 1rem;
     }
-    
+
     .fab-item {
         min-width: 150px;
         padding: 0.75rem 1rem;
     }
-    
+
     .notifications-dropdown,
     .user-dropdown {
         min-width: 260px;

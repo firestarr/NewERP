@@ -6,28 +6,28 @@
         <h1 class="page-title">Detail Routing</h1>
         <div class="action-buttons">
           <router-link to="/manufacturing/routings" class="btn btn-secondary mr-2">
-            <i class="fas fa-list mr-1"></i> Daftar Routing
+            <i class="fas fa-list mr-1"></i> Routing List
           </router-link>
           <router-link :to="`/manufacturing/routings/${routingId}/edit`" class="btn btn-primary mr-2">
             <i class="fas fa-edit mr-1"></i> Edit Routing
           </router-link>
           <button @click="confirmDelete" class="btn btn-danger">
-            <i class="fas fa-trash-alt mr-1"></i> Hapus
+            <i class="fas fa-trash-alt mr-1"></i> Delete
           </button>
         </div>
       </div>
-  
+
       <!-- Loading indicator -->
       <div v-if="isLoading" class="text-center py-5">
         <i class="fas fa-spinner fa-spin fa-2x"></i>
-        <p class="mt-2">Memuat data routing...</p>
+        <p class="mt-2">Loading routing data...</p>
       </div>
-  
+
       <div v-else>
         <!-- Routing Information Card -->
         <div class="card mb-4">
           <div class="card-header">
-            <h2 class="card-title">Informasi Routing</h2>
+            <h2 class="card-title">Routing Information</h2>
           </div>
           <div class="card-body">
             <div class="row">
@@ -35,11 +35,11 @@
                 <table class="table table-borderless detail-table">
                   <tbody>
                     <tr>
-                      <th width="40%">Kode Routing:</th>
+                      <th width="40%">Routing Code:</th>
                       <td>{{ routing.routing_code }}</td>
                     </tr>
                     <tr>
-                      <th>Revisi:</th>
+                      <th>Revised:</th>
                       <td>{{ routing.revision }}</td>
                     </tr>
                     <tr>
@@ -64,17 +64,17 @@
                 <table class="table table-borderless detail-table">
                   <tbody>
                     <tr>
-                      <th width="40%">Produk:</th>
+                      <th width="40%">Product:</th>
                       <td>
                         {{ routing.item ? `${routing.item.name} (${routing.item.item_code})` : '-' }}
                       </td>
                     </tr>
                     <tr>
-                      <th>Tanggal Efektif:</th>
+                      <th>Effective Date:</th>
                       <td>{{ formatDate(routing.effective_date) }}</td>
                     </tr>
                     <tr>
-                      <th>Total Operasi:</th>
+                      <th>Total Operation:</th>
                       <td>{{ operations.length }}</td>
                     </tr>
                   </tbody>
@@ -83,13 +83,13 @@
             </div>
           </div>
         </div>
-  
+
         <!-- Operations Card -->
         <div class="card">
           <div class="card-header d-flex justify-content-between align-items-center">
-            <h2 class="card-title">Operasi Routing</h2>
+            <h2 class="card-title">Routing Operation</h2>
             <button @click="showOperationModal = true" class="btn btn-primary">
-              <i class="fas fa-plus mr-1"></i> Tambah Operasi
+              <i class="fas fa-plus mr-1"></i> Add Operasi
             </button>
           </div>
           <div class="card-body p-0">
@@ -104,26 +104,26 @@
           >
             <!-- Work Center column -->
             <!-- Removed scoped slot to allow default rendering of string -->
-  
+
               <!-- Run Time column -->
               <template #run_time="{ value }">
                 {{ value }} {{ getUnitName(value, item) }}
               </template>
-  
+
               <!-- Setup Time column -->
               <template #setup_time="{ value, item }">
                 {{ value }} {{ getUnitName(value, item) }}
               </template>
-  
+
               <!-- Cost columns -->
               <template #labor_cost="{ value }">
                 {{ formatCurrency(value) }}
               </template>
-  
+
               <template #overhead_cost="{ value }">
                 {{ formatCurrency(value) }}
               </template>
-  
+
               <!-- Actions column -->
               <template #actions="{ item }">
                 <div class="d-flex gap-2 justify-content-end">
@@ -147,7 +147,7 @@
           </div>
         </div>
       </div>
-  
+
       <!-- Operation Form Modal -->
       <div v-if="showOperationModal" class="modal">
         <div class="modal-backdrop" @click="cancelOperationForm"></div>
@@ -186,7 +186,7 @@
                 </div>
                 <div class="col-md-6">
                   <div class="form-group">
-                    <label for="operation_name">Nama Operasi <span class="text-danger">*</span></label>
+                    <label for="operation_name">Operation Name <span class="text-danger">*</span></label>
                     <input
                       id="operation_name"
                       v-model="operationForm.operation_name"
@@ -201,11 +201,11 @@
                   </div>
                 </div>
               </div>
-  
+
               <div class="row mt-3">
                 <div class="col-md-3">
                   <div class="form-group">
-                    <label for="sequence">Urutan <span class="text-danger">*</span></label>
+                    <label for="sequence">Sequence <span class="text-danger">*</span></label>
                     <input
                       id="sequence"
                       v-model.number="operationForm.sequence"
@@ -239,7 +239,7 @@
                 </div>
                 <div class="col-md-3">
                   <div class="form-group">
-                    <label for="setup_time">Waktu Setup <span class="text-danger">*</span></label>
+                    <label for="setup_time">Setup Time<span class="text-danger">*</span></label>
                     <input
                       id="setup_time"
                       v-model.number="operationForm.setup_time"
@@ -256,7 +256,7 @@
                 </div>
                 <div class="col-md-3">
                   <div class="form-group">
-                    <label for="run_time">Waktu Proses <span class="text-danger">*</span></label>
+                    <label for="run_time">Labour cost<span class="text-danger">*</span></label>
                     <input
                       id="run_time"
                       v-model.number="operationForm.run_time"
@@ -272,11 +272,11 @@
                   </div>
                 </div>
               </div>
-  
+
               <div class="row mt-3">
                 <div class="col-md-6">
                   <div class="form-group">
-                    <label for="labor_cost">Biaya Tenaga Kerja <span class="text-danger">*</span></label>
+                    <label for="labor_cost">Labour Cost <span class="text-danger">*</span></label>
                     <input
                       id="labor_cost"
                       v-model.number="operationForm.labor_cost"
@@ -309,7 +309,7 @@
                   </div>
                 </div>
               </div>
-  
+
               <div class="form-actions mt-4">
                 <button type="button" class="btn btn-secondary mr-2" @click="cancelOperationForm">
                   Batal
@@ -322,7 +322,7 @@
           </div>
         </div>
       </div>
-  
+
       <!-- Confirmation Modal for Delete Routing -->
       <ConfirmationModal
         v-if="showDeleteModal"
@@ -333,7 +333,7 @@
         @confirm="deleteRouting"
         @close="showDeleteModal = false"
       />
-  
+
       <!-- Confirmation Modal for Delete Operation -->
       <ConfirmationModal
         v-if="showDeleteOperationModal"
@@ -346,34 +346,34 @@
       />
     </div>
   </template>
-  
+
   <script>
   import { ref, reactive, computed, onMounted } from 'vue';
   import { useRouter, useRoute } from 'vue-router';
   import axios from 'axios';
-  
+
   export default {
     name: 'RoutingDetail',
     setup() {
       const router = useRouter();
       const route = useRoute();
       const routingId = computed(() => route.params.id);
-      
+
       const isLoading = ref(true);
       const isLoadingOperations = ref(true);
       const routing = ref({});
       const operations = ref([]);
       const workCenters = ref([]);
       const unitOfMeasures = ref([]);
-      
+
       const selectedOperation = ref(null);
       const showOperationModal = ref(false);
       const isSavingOperation = ref(false);
       const operationErrors = ref({});
-      
+
       const showDeleteModal = ref(false);
       const showDeleteOperationModal = ref(false);
-  
+
       // Initial operation form values
       const operationForm = reactive({
         workcenter_id: '',
@@ -385,23 +385,23 @@
         labor_cost: 0,
         overhead_cost: 0,
       });
-  
+
       // Operation table columns
       const operationColumns = [
-        { key: 'sequence', label: 'Urutan', sortable: true },
-        { key: 'operation_name', label: 'Nama Operasi', sortable: true },
+        { key: 'sequence', label: 'Sequence', sortable: true },
+        { key: 'operation_name', label: 'Operation Name', sortable: true },
         { key: 'work_center_name', label: 'Work Center' },
-        { key: 'setup_time', label: 'Waktu Setup' },
-        { key: 'run_time', label: 'Waktu Proses' },
-        { key: 'labor_cost', label: 'Biaya Tenaga Kerja' },
-        { key: 'overhead_cost', label: 'Biaya Overhead' },
+        { key: 'setup_time', label: 'Setup Time' },
+        { key: 'run_time', label: 'Procces Time' },
+        { key: 'labor_cost', label: 'Labor Cost' },
+        { key: 'overhead_cost', label: 'Overhead Cost' },
       ];
-  
+
       // Sort operations by sequence
       const sortedOperations = computed(() => {
         return [...operations.value].sort((a, b) => a.sequence - b.sequence);
       });
-  
+
       // Format date
       const formatDate = (dateString) => {
         if (!dateString) return '-';
@@ -412,7 +412,7 @@
           year: 'numeric',
         });
       };
-  
+
       // Format currency
       const formatCurrency = (value) => {
         if (value === null || value === undefined) return '-';
@@ -423,13 +423,13 @@
           maximumFractionDigits: 0,
         }).format(value);
       };
-  
+
       // Get unit of measure name based on ID
       const getUnitName = (value, item) => {
         if (!item || !item.unitOfMeasure) return '';
         return item.unitOfMeasure.symbol || '';
       };
-  
+
       // Load routing data
       const loadRouting = async () => {
         isLoading.value = true;
@@ -438,12 +438,12 @@
           routing.value = response.data.data;
         } catch (error) {
           console.error('Error loading routing:', error);
-          alert('Gagal memuat data routing. Silakan coba lagi.');
+          alert('Failed to load routing data. Please try again.');
         } finally {
           isLoading.value = false;
         }
       };
-  
+
       // Load operations
       const loadOperations = async () => {
         isLoadingOperations.value = true;
@@ -461,7 +461,7 @@
           isLoadingOperations.value = false;
         }
       };
-  
+
       // Load work centers for dropdown
       const loadWorkCenters = async () => {
         try {
@@ -471,7 +471,7 @@
           console.error('Error loading work centers:', error);
         }
       };
-  
+
       // Load units of measure for dropdown
       const loadUnitOfMeasures = async () => {
         try {
@@ -481,11 +481,11 @@
           console.error('Error loading units of measure:', error);
         }
       };
-  
+
       // Edit operation
       const editOperation = (operation) => {
         selectedOperation.value = operation;
-        
+
         // Copy operation data to form
         operationForm.workcenter_id = operation.workcenter_id;
         operationForm.operation_name = operation.operation_name;
@@ -495,17 +495,17 @@
         operationForm.uom_id = operation.uom_id;
         operationForm.labor_cost = operation.labor_cost;
         operationForm.overhead_cost = operation.overhead_cost;
-        
+
         showOperationModal.value = true;
       };
-  
+
       // Reset operation form
       const resetOperationForm = () => {
         selectedOperation.value = null;
         operationForm.workcenter_id = '';
         operationForm.operation_name = '';
-        operationForm.sequence = operations.value.length > 0 
-          ? Math.max(...operations.value.map(o => o.sequence)) + 10 
+        operationForm.sequence = operations.value.length > 0
+          ? Math.max(...operations.value.map(o => o.sequence)) + 10
           : 10;
         operationForm.setup_time = 0;
         operationForm.run_time = 0;
@@ -514,18 +514,18 @@
         operationForm.overhead_cost = 0;
         operationErrors.value = {};
       };
-  
+
       // Cancel operation form
       const cancelOperationForm = () => {
         showOperationModal.value = false;
         resetOperationForm();
       };
-  
+
       // Save operation
       const saveOperation = async () => {
         isSavingOperation.value = true;
         operationErrors.value = {};
-        
+
         try {
             if (selectedOperation.value) {
             // Update existing operation
@@ -540,13 +540,13 @@
                 operationForm
             );
             }
-          
+
             await loadOperations(); // Reload operations
             showOperationModal.value = false;
             resetOperationForm();
         } catch (error) {
             console.error('Error saving operation:', error);
-            
+
             if (error.response && error.response.data && error.response.data.errors) {
             operationErrors.value = error.response.data.errors;
             } else {
@@ -556,12 +556,12 @@
             isSavingOperation.value = false;
         }
         };
-  
+
       // Confirm delete routing
       const confirmDelete = () => {
         showDeleteModal.value = true;
       };
-  
+
       // Delete routing
       const deleteRouting = async () => {
         try {
@@ -569,23 +569,23 @@
           router.push('/manufacturing/routings');
         } catch (error) {
           console.error('Error deleting routing:', error);
-          
+
           if (error.response && error.response.data && error.response.data.message) {
             alert(error.response.data.message);
           } else {
             alert('Gagal menghapus routing. Silakan coba lagi.');
           }
-          
+
           showDeleteModal.value = false;
         }
       };
-  
+
       // Confirm delete operation
       const confirmDeleteOperation = (operation) => {
         selectedOperation.value = operation;
         showDeleteOperationModal.value = true;
       };
-  
+
       // Delete operation
       const deleteOperation = async () => {
         try {
@@ -596,17 +596,17 @@
           showDeleteOperationModal.value = false;
         } catch (error) {
           console.error('Error deleting operation:', error);
-          
+
           if (error.response && error.response.data && error.response.data.message) {
             alert(error.response.data.message);
           } else {
             alert('Gagal menghapus operasi. Silakan coba lagi.');
           }
-          
+
           showDeleteOperationModal.value = false;
         }
       };
-  
+
       // Load data on component mount
       onMounted(() => {
         loadRouting();
@@ -614,7 +614,7 @@
         loadWorkCenters();
         loadUnitOfMeasures();
       });
-  
+
       return {
         routingId,
         isLoading,
@@ -646,7 +646,7 @@
     },
   };
   </script>
-  
+
   <style scoped>
   /* Container styling */
 .routing-detail-container {
@@ -1065,35 +1065,35 @@ small.text-danger {
     flex-direction: column;
     align-items: flex-start;
   }
-  
+
   .action-buttons {
     margin-top: 1rem;
     width: 100%;
   }
-  
+
   .btn {
     flex: 1;
   }
-  
+
   .row {
     flex-direction: column;
   }
-  
+
   .col-md-6, .col-md-3 {
     flex: 0 0 100%;
     max-width: 100%;
     margin-bottom: 0.5rem;
   }
-  
+
   .modal-content {
     width: 95%;
     max-height: 85vh;
   }
-  
+
   .form-actions {
     flex-direction: column;
   }
-  
+
   .form-actions .btn {
     width: 100%;
   }
@@ -1104,23 +1104,23 @@ small.text-danger {
   .routing-detail-container {
     padding: 1rem;
   }
-  
+
   .page-title {
     font-size: 1.5rem;
   }
-  
+
   .btn {
     padding: 0.75rem 1rem;
   }
-  
+
   .card-header {
     padding: 1rem;
   }
-  
+
   .card-body {
     padding: 1rem;
   }
-  
+
   .modal-header, .modal-body {
     padding: 1rem;
   }

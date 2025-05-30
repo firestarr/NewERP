@@ -3,7 +3,7 @@
     <div class="routing-list-container">
       <SearchFilter
         v-model:value="searchQuery"
-        placeholder="Cari kode routing, item, atau status..."
+        placeholder="Search Routing Code, Item, Or Status..."
         @search="handleSearch"
         @clear="resetFilter"
       >
@@ -11,16 +11,16 @@
           <div class="filter-group">
             <label>Status</label>
             <select v-model="filters.status" @change="filterData">
-              <option value="">Semua Status</option>
-              <option value="Active">Aktif</option>
+              <option value="">All Status</option>
+              <option value="Active">Active</option>
               <option value="Draft">Draft</option>
-              <option value="Obsolete">Tidak Berlaku</option>
+              <option value="Obsolete">Not Applicable</option>
             </select>
           </div>
           <div class="filter-group">
             <label>Item</label>
             <select v-model="filters.itemId" @change="filterData">
-              <option value="">Semua Item</option>
+              <option value="">All Item</option>
               <option v-for="item in items" :key="item.item_id" :value="item.item_id">
                 {{ item.name }}
               </option>
@@ -29,19 +29,19 @@
         </template>
         <template #actions>
           <router-link to="/manufacturing/routings/create" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Tambah Routing
+            <i class="fas fa-plus"></i> Create Routing
           </router-link>
         </template>
       </SearchFilter>
-  
+
       <div class="card">
         <div class="card-body p-0">
           <DataTable
             :columns="columns"
             :items="filteredRoutings"
             :is-loading="isLoading"
-            empty-title="Tidak ada data routing"
-            empty-message="Tidak ada routing yang sesuai dengan filter Anda."
+            empty-title="No routing data"
+            empty-message="There is no routing that matches your filter."
             initial-sort-key="routing_code"
             initial-sort-order="asc"
             @sort="handleSort"
@@ -50,7 +50,7 @@
             <template #effective_date="{ value }">
               {{ formatDate(value) }}
             </template>
-  
+
             <!-- Status column with badge -->
             <template #status="{ value }">
               <span
@@ -64,7 +64,7 @@
                 {{ value }}
               </span>
             </template>
-  
+
             <!-- Actions column -->
             <template #actions="{ item }">
               <div class="d-flex gap-2 justify-content-end">
@@ -94,7 +94,7 @@
           </DataTable>
         </div>
       </div>
-  
+
       <div class="card-footer">
         <PaginationComponent
           :current-page="pagination.currentPage"
@@ -105,7 +105,7 @@
           @page-changed="handlePageChange"
         />
       </div>
-  
+
       <!-- Confirmation Modal for Delete -->
       <ConfirmationModal
         v-if="showDeleteModal"
@@ -118,12 +118,12 @@
       />
     </div>
   </template>
-  
+
   <script>
   import { ref, reactive, onMounted } from 'vue';
   import axios from 'axios';
-  
-  
+
+
   export default {
     name: 'RoutingList',
     setup() {
@@ -134,19 +134,19 @@
       const searchQuery = ref('');
       const selectedRouting = ref(null);
       const showDeleteModal = ref(false);
-  
+
       // Filters
       const filters = reactive({
         status: '',
         itemId: '',
       });
-  
+
       // Sorting
       const sorting = reactive({
         field: 'routing_code',
         order: 'asc',
       });
-  
+
       // Pagination
       const pagination = reactive({
         currentPage: 1,
@@ -156,17 +156,17 @@
         total: 0,
         perPage: 10,
       });
-  
+
       // Table columns definition
       const columns = [
-        { key: 'routing_code', label: 'Kode Routing', sortable: true },
-        { key: 'item_name', label: 'Produk', sortable: true },
-        { key: 'revision', label: 'Revisi', sortable: true },
-        { key: 'effective_date', label: 'Tanggal Efektif', sortable: true },
+        { key: 'routing_code', label: 'Routing Code', sortable: true },
+        { key: 'item_name', label: 'Product', sortable: true },
+        { key: 'revision', label: 'Revised', sortable: true },
+        { key: 'effective_date', label: 'Effective Date', sortable: true },
         { key: 'status', label: 'Status', sortable: true },
-        { key: 'actions', label: 'Aksi', sortable: false, width: '120px' }
+        { key: 'actions', label: 'Action', sortable: false, width: '120px' }
       ];
-  
+
       // Format date to local format
       const formatDate = (dateString) => {
         if (!dateString) return '';
@@ -177,7 +177,7 @@
           year: 'numeric',
         });
       };
-  
+
       // Load routings data from API
       const loadRoutings = async () => {
         isLoading.value = true;
@@ -232,7 +232,7 @@
           isLoading.value = false;
         }
       };
-  
+
       // Load all available items for the filter dropdown
       const loadItems = async () => {
         try {
@@ -243,20 +243,20 @@
         }
       };
 
-      
-  
+
+
       // Handler for search
       const handleSearch = () => {
         pagination.currentPage = 1;
         loadRoutings();
       };
-  
+
       // Handler for filtering
       const filterData = () => {
         pagination.currentPage = 1;
         loadRoutings();
       };
-  
+
       // Reset all filters
       const resetFilter = () => {
         searchQuery.value = '';
@@ -265,26 +265,26 @@
         pagination.currentPage = 1;
         loadRoutings();
       };
-  
+
       // Handler for sorting
       const handleSort = ({ key, order }) => {
         sorting.field = key;
         sorting.order = order;
         loadRoutings();
       };
-  
+
       // Handler for pagination
       const handlePageChange = (page) => {
         pagination.currentPage = page;
         loadRoutings();
       };
-  
+
       // Confirm delete
       const confirmDelete = (routing) => {
         selectedRouting.value = routing;
         showDeleteModal.value = true;
       };
-  
+
       // Delete routing
       const deleteRouting = async () => {
         try {
@@ -301,13 +301,13 @@
           }
         }
       };
-  
+
       // Load data on component mount
       onMounted(() => {
         loadRoutings();
         loadItems();
       });
-  
+
       return {
         routings,
         filteredRoutings,
@@ -331,14 +331,14 @@
     },
   };
   </script>
-  
+
   <style scoped>
   .routing-list-container {
     display: flex;
     flex-direction: column;
     gap: 1rem;
   }
-  
+
   .card-footer {
     background-color: white;
     border-top: 1px solid var(--gray-200);

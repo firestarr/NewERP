@@ -12,35 +12,38 @@
             <i class="fas fa-ellipsis-v"></i> Actions
           </button>
           <div v-if="showActionMenu" class="dropdown-menu">
-            <router-link v-if="invoice?.status === 'pending'" 
-              :to="`/purchasing/vendor-invoices/${invoice?.invoice_id}/edit`" 
+            <router-link v-if="invoice?.status === 'pending'"
+              :to="`/purchasing/vendor-invoices/${invoice?.invoice_id}/edit`"
               class="dropdown-item">
               <i class="fas fa-edit"></i> Edit Invoice
             </router-link>
-            <router-link v-if="invoice?.status === 'pending'" 
-              :to="`/purchasing/vendor-invoices/${invoice?.invoice_id}/approve`" 
+            <router-link v-if="invoice?.status === 'pending'"
+              :to="`/purchasing/vendor-invoices/${invoice?.invoice_id}/approve`"
               class="dropdown-item">
               <i class="fas fa-check-circle"></i> Approve Invoice
             </router-link>
-            <router-link v-if="invoice?.status === 'approved'" 
-              :to="`/purchasing/vendor-invoices/${invoice?.invoice_id}/payment`" 
+            <router-link v-if="invoice?.status === 'approved'"
+              :to="`/purchasing/vendor-invoices/${invoice?.invoice_id}/payment`"
               class="dropdown-item">
               <i class="fas fa-money-bill-wave"></i> Process Payment
             </router-link>
-            <button v-if="invoice?.status !== 'paid'" 
-              @click="confirmStatusChange('cancelled')" 
+            <button v-if="invoice?.status !== 'paid'"
+              @click="confirmStatusChange('cancelled')"
               class="dropdown-item">
               <i class="fas fa-ban"></i> Cancel Invoice
             </button>
-            <button v-if="invoice?.status === 'pending' || invoice?.status === 'cancelled'" 
-              @click="confirmDelete" 
+            <button v-if="invoice?.status === 'pending' || invoice?.status === 'cancelled'"
+              @click="confirmDelete"
               class="dropdown-item">
               <i class="fas fa-trash"></i> Delete Invoice
             </button>
             <div class="dropdown-divider"></div>
-            <button @click="printInvoice" class="dropdown-item">
+            <!-- <button @click="printInvoice" class="dropdown-item">
               <i class="fas fa-print"></i> Print Invoice
-            </button>
+            </button> -->
+            <router-link :to="`/purchasing/vendor-invoices/${invoice?.invoice_id}/print`" class="dropdown-item">
+            <i class="fas fa-print"></i> Print Invoice
+            </router-link>
           </div>
         </div>
       </div>
@@ -118,27 +121,27 @@
 
       <div class="tab-container">
         <div class="tab-header">
-          <button 
-            @click="currentTab = 'lines'" 
-            :class="{ active: currentTab === 'lines' }" 
+          <button
+            @click="currentTab = 'lines'"
+            :class="{ active: currentTab === 'lines' }"
             class="tab-button">
             Invoice Lines
           </button>
-          <button 
-            @click="currentTab = 'receipts'" 
-            :class="{ active: currentTab === 'receipts' }" 
+          <button
+            @click="currentTab = 'receipts'"
+            :class="{ active: currentTab === 'receipts' }"
             class="tab-button">
             Related Receipts
           </button>
-          <button 
-            @click="currentTab = 'journal'" 
-            :class="{ active: currentTab === 'journal' }" 
+          <button
+            @click="currentTab = 'journal'"
+            :class="{ active: currentTab === 'journal' }"
             class="tab-button">
             Journal Entry
           </button>
-          <button 
-            @click="currentTab = 'payments'" 
-            :class="{ active: currentTab === 'payments' }" 
+          <button
+            @click="currentTab = 'payments'"
+            :class="{ active: currentTab === 'payments' }"
             class="tab-button">
             Payments
           </button>
@@ -254,8 +257,8 @@
               <i class="fas fa-money-bill-wave"></i>
               <h3>No Payments</h3>
               <p>This invoice has not been paid yet.</p>
-              <button v-if="invoice.status === 'approved'" 
-                @click="$router.push(`/purchasing/vendor-invoices/${invoice.invoice_id}/payment`)" 
+              <button v-if="invoice.status === 'approved'"
+                @click="$router.push(`/purchasing/vendor-invoices/${invoice.invoice_id}/payment`)"
                 class="btn btn-primary">
                 <i class="fas fa-plus"></i> Process Payment
               </button>
@@ -280,15 +283,15 @@
         <div class="modal-body">
           <p>Are you sure you want to change the status to <strong>{{ capitalizeFirst(newStatus) }}</strong>?</p>
           <p v-if="newStatus === 'cancelled'" class="text-warning">
-            <i class="fas fa-exclamation-triangle"></i> 
+            <i class="fas fa-exclamation-triangle"></i>
             This will release all allocations and free up receipt lines for other invoices.
           </p>
           <div class="form-actions">
             <button type="button" class="btn btn-secondary" @click="showStatusModal = false">
               Cancel
             </button>
-            <button type="button" 
-              :class="newStatus === 'cancelled' ? 'btn btn-danger' : 'btn btn-primary'" 
+            <button type="button"
+              :class="newStatus === 'cancelled' ? 'btn btn-danger' : 'btn btn-primary'"
               @click="updateStatus">
               Confirm
             </button>
@@ -310,7 +313,7 @@
         <div class="modal-body">
           <p>Are you sure you want to delete invoice <strong>{{ invoice?.invoice_number }}</strong>?</p>
           <p class="text-warning">
-            <i class="fas fa-exclamation-triangle"></i> 
+            <i class="fas fa-exclamation-triangle"></i>
             This action cannot be undone.
           </p>
           <div class="form-actions">
@@ -346,7 +349,7 @@ export default {
   },
   created() {
     this.loadInvoice();
-    
+
     // Close action menu when clicking outside
     document.addEventListener('click', this.closeActionMenu);
   },
@@ -358,7 +361,7 @@ export default {
       try {
         const invoiceId = this.$route.params.id;
         const response = await axios.get(`/vendor-invoices/${invoiceId}`);
-        
+
         if (response.data.status === 'success') {
           this.invoice = response.data.data.invoice;
           this.receiptDetails = response.data.data.receipt_details || [];
@@ -387,7 +390,7 @@ export default {
         const response = await axios.patch(`/vendor-invoices/${this.invoice.invoice_id}/status`, {
           status: this.newStatus
         });
-        
+
         if (response.data.status === 'success') {
           this.showStatusModal = false;
           await this.loadInvoice();
@@ -421,7 +424,7 @@ export default {
     },
     formatCurrency(amount, currency) {
       if (amount === null || amount === undefined) return 'N/A';
-      
+
       return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: currency || 'USD',
@@ -435,7 +438,7 @@ export default {
         paid: 'status-paid',
         cancelled: 'status-cancelled'
       };
-      
+
       return statusClasses[status] || '';
     },
     capitalizeFirst(str) {
@@ -444,10 +447,10 @@ export default {
     },
     getDueStatus(dueDate) {
       if (!dueDate) return 'No due date';
-      
+
       const today = new Date();
       const due = new Date(dueDate);
-      
+
       if (today > due) {
         const days = Math.floor((today - due) / (1000 * 60 * 60 * 24));
         return `Overdue by ${days} day${days === 1 ? '' : 's'}`;
@@ -949,51 +952,51 @@ export default {
     align-items: flex-start;
     gap: 1rem;
   }
-  
+
   .invoice-header {
     flex-direction: column;
     gap: 1rem;
   }
-  
+
   .invoice-amount {
     text-align: left;
   }
-  
+
   .tab-header {
     overflow-x: auto;
   }
-  
+
   .form-actions {
     flex-direction: column;
   }
-  
+
   .btn {
     width: 100%;
   }
 }
 
 @media print {
-  .page-header, 
-  .tab-header, 
-  .actions, 
+  .page-header,
+  .tab-header,
+  .actions,
   .status-actions {
     display: none !important;
   }
-  
+
   .vendor-invoice-detail {
     padding: 0;
   }
-  
+
   .invoice-header-card,
   .tab-container {
     box-shadow: none;
     margin-bottom: 2rem;
   }
-  
+
   .tab-content {
     display: block !important;
   }
-  
+
   .tab-pane {
     display: block !important;
     page-break-after: always;

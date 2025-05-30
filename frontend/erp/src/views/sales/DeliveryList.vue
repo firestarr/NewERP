@@ -9,7 +9,7 @@
             <input
               type="text"
               v-model="searchQuery"
-              placeholder="Cari pengiriman..."
+              placeholder="Search Delivery..."
               @input="handleSearch"
             />
             <button v-if="searchQuery" @click="clearSearch" class="clear-search">
@@ -19,29 +19,29 @@
 
           <div class="filters">
             <select v-model="statusFilter" @change="applyFilters">
-              <option value="">Semua Status</option>
-              <option value="Pending">Menunggu</option>
-              <option value="In Transit">Dalam Pengiriman</option>
-              <option value="Completed">Selesai</option>
-              <option value="Cancelled">Dibatalkan</option>
+              <option value="">All Status</option>
+              <option value="Pending">Pending</option>
+              <option value="In Transit">In Transit</option>
+              <option value="Completed">Completed</option>
+              <option value="Cancelled">Cancelled</option>
             </select>
 
             <select v-model="dateRangeFilter" @change="applyFilters">
-              <option value="all">Semua Waktu</option>
-              <option value="today">Hari Ini</option>
-              <option value="week">Minggu Ini</option>
-              <option value="month">Bulan Ini</option>
-              <option value="custom">Kustom</option>
+              <option value="all">All Time</option>
+              <option value="today">Today</option>
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+              <option value="custom">Custom</option>
             </select>
           </div>
         </div>
 
         <div class="btn-group">
           <button class="btn btn-primary" @click="createDelivery">
-            <i class="fas fa-plus"></i> Buat Pengiriman
+            <i class="fas fa-plus"></i> Create Delivery
           </button>
           <button class="btn btn-info" @click="createFromOutstanding">
-            <i class="fas fa-list-check"></i> Buat dari Outstanding
+            <i class="fas fa-list-check"></i> Create From Outstanding
           </button>
         </div>
       </div>
@@ -50,7 +50,7 @@
       <div v-if="dateRangeFilter === 'custom'" class="custom-date-range">
         <div class="date-range-inputs">
           <div class="filter-group">
-            <label for="startDate">Tanggal Mulai</label>
+            <label for="startDate">Start Date</label>
             <input
               type="date"
               id="startDate"
@@ -60,7 +60,7 @@
           </div>
 
           <div class="filter-group">
-            <label for="endDate">Tanggal Akhir</label>
+            <label for="endDate">End Date</label>
             <input
               type="date"
               id="endDate"
@@ -74,36 +74,36 @@
       <!-- Deliveries Table -->
       <div class="card table-container">
         <div v-if="isLoading" class="loading-indicator">
-          <i class="fas fa-spinner fa-spin"></i> Memuat data pengiriman...
+          <i class="fas fa-spinner fa-spin"></i> Loading Delivery Data...
         </div>
 
         <div v-else-if="filteredDeliveries.length === 0" class="empty-state">
           <div class="empty-icon">
             <i class="fas fa-truck"></i>
           </div>
-          <h3>Tidak ada pengiriman ditemukan</h3>
-          <p>Coba sesuaikan pencarian atau filter, atau buat pengiriman baru.</p>
+          <h3>No delivery found</h3>
+          <p>Try customizing the search or filters, or create a new submission.</p>
         </div>
 
         <table v-else class="data-table">
           <thead>
             <tr>
               <th @click="sortBy('delivery_number')" :class="{ sortable: true, active: sortKey === 'delivery_number' }">
-                No. Pengiriman
+                Delivery No.
                 <i v-if="sortKey === 'delivery_number'" :class="sortOrder === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down'"></i>
               </th>
               <th @click="sortBy('delivery_date')" :class="{ sortable: true, active: sortKey === 'delivery_date' }">
-                Tanggal
+                Date
                 <i v-if="sortKey === 'delivery_date'" :class="sortOrder === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down'"></i>
               </th>
-              <th>No. SO</th>
-              <th>Pelanggan</th>
+              <th>SO No.</th>
+              <th>Customer</th>
               <th @click="sortBy('status')" :class="{ sortable: true, active: sortKey === 'status' }">
                 Status
                 <i v-if="sortKey === 'status'" :class="sortOrder === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down'"></i>
               </th>
-              <th>Metode Pengiriman</th>
-              <th>Aksi</th>
+              <th>Shipping Method</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -119,13 +119,13 @@
               </td>
               <td>{{ delivery.shipping_method || '-' }}</td>
               <td class="actions-cell">
-                <button class="btn-icon view-btn" title="Lihat Detail" @click="viewDelivery(delivery)">
+                <button class="btn-icon view-btn" title="View Details" @click="viewDelivery(delivery)">
                   <i class="fas fa-eye"></i>
                 </button>
                 <button
                   v-if="canEdit(delivery)"
                   class="btn-icon edit-btn"
-                  title="Edit Pengiriman"
+                  title="Edit Delivery"
                   @click="editDelivery(delivery)"
                 >
                   <i class="fas fa-edit"></i>
@@ -133,7 +133,7 @@
                 <button
                   v-if="canComplete(delivery)"
                   class="btn-icon complete-btn"
-                  title="Selesaikan Pengiriman"
+                  title="Complete Delivery"
                   @click="completeDelivery(delivery)"
                 >
                   <i class="fas fa-check"></i>
@@ -141,7 +141,7 @@
                 <button
                   v-if="canCancel(delivery)"
                   class="btn-icon delete-btn"
-                  title="Batalkan Pengiriman"
+                  title="Cancel Delivery"
                   @click="confirmCancel(delivery)"
                 >
                   <i class="fas fa-times"></i>
@@ -167,9 +167,9 @@
       <!-- Cancel Confirmation Modal -->
       <ConfirmationModal
         v-if="showCancelModal"
-        title="Konfirmasi Pembatalan"
-        :message="`Apakah Anda yakin ingin membatalkan pengiriman <strong>${deliveryToCancel.delivery_number}</strong>?`"
-        confirm-button-text="Batalkan"
+        title="Cancel Confirmation"
+        :message="`Are you sure you want to cancel delivery <strong>${deliveryToCancel.delivery_number}</strong>?`"
+        confirm-button-text="Cancel"
         confirm-button-class="btn btn-danger"
         @confirm="cancelDelivery"
         @close="showCancelModal = false"
@@ -178,9 +178,9 @@
       <!-- Complete Confirmation Modal -->
       <ConfirmationModal
         v-if="showCompleteModal"
-        title="Konfirmasi Selesai"
-        :message="`Apakah Anda yakin ingin menyelesaikan pengiriman <strong>${deliveryToComplete.delivery_number}</strong>?`"
-        confirm-button-text="Selesaikan"
+        title="Complete Confirmation"
+        :message="`Are you sure you want to complete delivery <strong>${deliveryToComplete.delivery_number}</strong>?`"
+        confirm-button-text="Complete"
         confirm-button-class="btn btn-success"
         @confirm="confirmCompleteDelivery"
         @close="showCompleteModal = false"
@@ -203,7 +203,7 @@
       // Search and filtering
       const searchQuery = ref('');
       const statusFilter = ref('');
-      const dateRangeFilter = ref('month');
+      const dateRangeFilter = ref('all');
       const customDateRange = ref({
         startDate: new Date().toISOString().substr(0, 10),
         endDate: new Date().toISOString().substr(0, 10)
@@ -357,10 +357,10 @@
 
       const getStatusLabel = (status) => {
         switch (status) {
-          case 'Pending': return 'Menunggu';
-          case 'In Transit': return 'Dalam Pengiriman';
-          case 'Completed': return 'Selesai';
-          case 'Cancelled': return 'Dibatalkan';
+          case 'Pending': return 'Pending';
+          case 'In Transit': return 'In Transit';
+          case 'Completed': return 'Completed';
+          case 'Cancelled': return 'Cancelled';
           default: return status;
         }
       };

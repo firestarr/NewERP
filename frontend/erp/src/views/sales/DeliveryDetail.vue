@@ -4,10 +4,10 @@
 <template>
     <div class="delivery-detail">
       <div class="page-header">
-        <h1>Detail Pengiriman</h1>
+        <h1>Delivery Details</h1>
         <div class="page-actions">
           <button class="btn btn-secondary" @click="goBack">
-            <i class="fas fa-arrow-left"></i> Kembali
+            <i class="fas fa-arrow-left"></i> Back
           </button>
           <div class="btn-group" v-if="delivery">
             <button
@@ -23,7 +23,7 @@
               class="btn btn-info"
               @click="markAsInTransit"
             >
-              <i class="fas fa-truck"></i> Mulai Pengiriman
+              <i class="fas fa-truck"></i> Start Delivery
             </button>
 
             <button
@@ -31,7 +31,7 @@
               class="btn btn-success"
               @click="completeDelivery"
             >
-              <i class="fas fa-check"></i> Selesaikan
+              <i class="fas fa-check"></i> Complete
             </button>
 
             <button
@@ -39,31 +39,31 @@
               class="btn btn-danger"
               @click="confirmCancel"
             >
-              <i class="fas fa-times"></i> Batalkan
+              <i class="fas fa-times"></i> Cancel
             </button>
 
             <button
               class="btn btn-secondary"
               @click="printDeliveryNote"
             >
-              <i class="fas fa-print"></i> Cetak
+              <i class="fas fa-print"></i> Print
             </button>
           </div>
         </div>
       </div>
 
       <div v-if="isLoading" class="loading-indicator">
-        <i class="fas fa-spinner fa-spin"></i> Memuat data pengiriman...
+        <i class="fas fa-spinner fa-spin"></i> Loading delivery data...
       </div>
 
       <div v-else-if="!delivery" class="empty-state">
         <div class="empty-icon">
           <i class="fas fa-exclamation-circle"></i>
         </div>
-        <h3>Pengiriman tidak ditemukan</h3>
-        <p>Pengiriman yang Anda cari mungkin telah dihapus atau tidak ada.</p>
+        <h3>Delivery not found</h3>
+        <p>The delivery you are looking for may have been deleted or does not exist.</p>
         <button class="btn btn-primary" @click="goBack">
-          Kembali ke daftar pengiriman
+          Back to delivery list
         </button>
       </div>
 
@@ -71,7 +71,7 @@
         <!-- Delivery Header -->
         <div class="detail-card">
           <div class="card-header">
-            <h2>Informasi Pengiriman</h2>
+            <h2>Delivery Information</h2>
             <div class="delivery-status" :class="getStatusClass(delivery.status)">
               {{ getStatusLabel(delivery.status) }}
             </div>
@@ -79,17 +79,17 @@
           <div class="card-body">
             <div class="info-grid">
               <div class="info-group">
-                <label>Nomor Pengiriman</label>
+                <label>Delivery Number</label>
                 <div class="info-value">{{ delivery.delivery_number }}</div>
               </div>
 
               <div class="info-group">
-                <label>Tanggal Pengiriman</label>
+                <label>Delivery Date</label>
                 <div class="info-value">{{ formatDate(delivery.delivery_date) }}</div>
               </div>
 
               <div class="info-group">
-                <label>Nomor Sales Order</label>
+                <label>Sales Order Number</label>
                 <div class="info-value">
                   <router-link :to="`/sales/orders/${delivery.so_id}`">
                     {{ delivery.salesOrder?.so_number || '-' }}
@@ -98,12 +98,12 @@
               </div>
 
               <div class="info-group">
-                <label>Metode Pengiriman</label>
+                <label>Shipping Method</label>
                 <div class="info-value">{{ delivery.shipping_method || '-' }}</div>
               </div>
 
               <div class="info-group">
-                <label>Nomor Pelacakan</label>
+                <label>Tracking Number</label>
                 <div class="info-value">{{ delivery.tracking_number || '-' }}</div>
               </div>
             </div>
@@ -113,22 +113,22 @@
         <!-- Customer Information -->
         <div class="detail-card">
           <div class="card-header">
-            <h2>Informasi Pelanggan</h2>
+            <h2>Customer Information</h2>
           </div>
           <div class="card-body">
             <div class="customer-info">
               <div class="info-group">
-                <label>Nama Pelanggan</label>
+                <label>Customer Name</label>
                 <div class="info-value">{{ delivery.customer.name }}</div>
               </div>
 
               <div class="info-group">
-                <label>Kode Pelanggan</label>
+                <label>Customer Code</label>
                 <div class="info-value">{{ delivery.customer.customer_code }}</div>
               </div>
 
               <div class="info-group">
-                <label>Alamat</label>
+                <label>Address</label>
                 <div class="info-value">{{ delivery.customer.address || '-' }}</div>
               </div>
 
@@ -138,7 +138,7 @@
               </div>
 
               <div class="info-group">
-                <label>Telepon</label>
+                <label>Phone</label>
                 <div class="info-value">{{ delivery.customer.phone || '-' }}</div>
               </div>
             </div>
@@ -148,7 +148,7 @@
         <!-- Delivery Items -->
         <div class="detail-card">
           <div class="card-header">
-            <h2>Item Pengiriman</h2>
+            <h2>Delivery Items</h2>
           </div>
           <div class="card-body">
             <div class="delivery-items">
@@ -156,8 +156,8 @@
                 <thead>
                   <tr>
                     <th>Item</th>
-                    <th>Jumlah Dikirim</th>
-                    <th>Gudang</th>
+                    <th>Quantity Delivered</th>
+                    <th>Warehouse</th>
                     <th>Batch Number</th>
                   </tr>
                 </thead>
@@ -182,7 +182,7 @@
         <!-- Delivery Timeline -->
         <div class="detail-card">
           <div class="card-header">
-            <h2>Timeline Pengiriman</h2>
+            <h2>Delivery Timeline</h2>
           </div>
           <div class="card-body">
             <div class="delivery-timeline">
@@ -191,7 +191,7 @@
                   <i class="fas fa-clipboard-check"></i>
                 </div>
                 <div class="timeline-content">
-                  <h3>Pengiriman Dibuat</h3>
+                  <h3>Delivery Created</h3>
                   <p>{{ formatDate(delivery.delivery_date) }}</p>
                 </div>
               </div>
@@ -201,8 +201,8 @@
                   <i class="fas fa-truck"></i>
                 </div>
                 <div class="timeline-content">
-                  <h3>Dalam Perjalanan</h3>
-                  <p>Item sedang dalam proses pengiriman</p>
+                  <h3>In Transit</h3>
+                  <p>Items are in the delivery process</p>
                 </div>
               </div>
 
@@ -211,8 +211,8 @@
                   <i class="fas fa-check-circle"></i>
                 </div>
                 <div class="timeline-content">
-                  <h3>Pengiriman Selesai</h3>
-                  <p>Item telah diterima oleh pelanggan</p>
+                  <h3>Delivery Completed</h3>
+                  <p>Items have been received by the customer</p>
                 </div>
               </div>
 
@@ -221,8 +221,8 @@
                   <i class="fas fa-times-circle"></i>
                 </div>
                 <div class="timeline-content">
-                  <h3>Pengiriman Dibatalkan</h3>
-                  <p>Pengiriman telah dibatalkan</p>
+                  <h3>Delivery Cancelled</h3>
+                  <p>Delivery has been cancelled</p>
                 </div>
               </div>
             </div>
@@ -233,9 +233,9 @@
       <!-- Cancel Confirmation Modal -->
       <ConfirmationModal
         v-if="showCancelModal"
-        title="Konfirmasi Pembatalan"
-        :message="`Apakah Anda yakin ingin membatalkan pengiriman <strong>${delivery.delivery_number}</strong>?`"
-        confirm-button-text="Batalkan"
+        title="Cancel Confirmation"
+        :message="`Are you sure you want to cancel delivery <strong>${delivery.delivery_number}</strong>?`"
+        confirm-button-text="Cancel"
         confirm-button-class="btn btn-danger"
         @confirm="cancelDelivery"
         @close="showCancelModal = false"
@@ -244,16 +244,15 @@
       <!-- Complete Confirmation Modal -->
       <ConfirmationModal
         v-if="showCompleteModal"
-        title="Konfirmasi Selesai"
-        :message="`Apakah Anda yakin ingin menyelesaikan pengiriman <strong>${delivery.delivery_number}</strong>?`"
-        confirm-button-text="Selesaikan"
+        title="Complete Confirmation"
+        :message="`Are you sure you want to complete delivery <strong>${delivery.delivery_number}</strong>?`"
+        confirm-button-text="Complete"
         confirm-button-class="btn btn-success"
         @confirm="confirmCompleteDelivery"
         @close="showCompleteModal = false"
       />
     </div>
   </template>
-
   <!-- ==================== SCRIPT SECTION ==================== -->
   <script>
   import { ref, computed, onMounted } from 'vue';

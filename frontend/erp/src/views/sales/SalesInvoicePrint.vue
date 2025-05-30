@@ -1,737 +1,702 @@
 <!-- src/views/sales/SalesInvoicePrint.vue -->
 <template>
-    <div class="print-container">
-        <div class="print-actions" v-if="!isPrinting">
-            <button class="btn btn-primary" @click="printInvoice">
-                <i class="fas fa-print"></i> Print
-            </button>
-            <button class="btn btn-secondary" @click="goBack">
-                <i class="fas fa-arrow-left"></i> Back
-            </button>
-        </div>
-
-        <div v-if="isLoading" class="loading-indicator">
-            <i class="fas fa-spinner fa-spin"></i> Loading invoice...
-        </div>
-
-        <div v-else-if="!invoice" class="empty-state">
-            <div class="empty-icon">
-                <i class="fas fa-exclamation-circle"></i>
-            </div>
-            <h3>Invoice not found</h3>
-            <p>
-                The invoice you're looking for doesn't exist or may have been
-                deleted.
-            </p>
-            <button class="btn btn-primary" @click="goBack">
-                Back to invoices list
-            </button>
-        </div>
-
-        <div v-else class="invoice-document">
-            <!-- Company Header -->
-            <div class="company-header">
-                <div class="company-logo">
-                    <img src="/images/company-logo.png" alt="Company Logo" />
-                </div>
-                <div class="company-info">
-                    <h1>PT. Company Name</h1>
-                    <p>123 Main Street Address, City</p>
-                    <p>Phone: (021) 123-4567 | Email: info@example.com</p>
-                    <p>Website: www.example.com</p>
-                </div>
-            </div>
-
-            <!-- Document Title -->
-            <div class="document-title">
-                <h2>INVOICE</h2>
-                <div class="doc-number">No: {{ invoice.invoice_number }}</div>
-            </div>
-
-            <!-- Customer & Invoice Info -->
-            <div class="info-section">
-                <div class="customer-section">
-                    <h3>Bill To:</h3>
-                    <div class="info-box">
-                        <p class="customer-name">{{ invoice.customer.name }}</p>
-                        <p>{{ invoice.customer.address || "No address" }}</p>
-                        <p v-if="invoice.customer.phone">
-                            Phone: {{ invoice.customer.phone }}
-                        </p>
-                        <p v-if="invoice.customer.email">
-                            Email: {{ invoice.customer.email }}
-                        </p>
-                        <p v-if="invoice.customer.contact_person">
-                            <strong>Attn:</strong>
-                            {{ invoice.customer.contact_person }}
-                        </p>
-                    </div>
-                </div>
-
-                <div class="invoice-meta">
-                    <table class="meta-table">
-                        <tr>
-                            <td>Invoice Date</td>
-                            <td>:</td>
-                            <td>{{ formatDate(invoice.invoice_date) }}</td>
-                        </tr>
-                        <tr>
-                            <td>Due Date</td>
-                            <td>:</td>
-                            <td>{{ formatDate(invoice.due_date) }}</td>
-                        </tr>
-                        <tr v-if="invoice.reference">
-                            <td>Reference</td>
-                            <td>:</td>
-                            <td>{{ invoice.reference }}</td>
-                        </tr>
-                        <tr v-if="invoice.sales_order">
-                            <td>Sales Order</td>
-                            <td>:</td>
-                            <td>{{ invoice.sales_order.so_number }}</td>
-                        </tr>
-                        <tr v-if="invoice.payment_terms">
-                            <td>Payment Terms</td>
-                            <td>:</td>
-                            <td>{{ invoice.payment_terms }}</td>
-                        </tr>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Items Table -->
-            <div class="items-section">
-                <table class="items-table">
-                    <thead>
-                        <tr>
-                            <th class="no-column">No</th>
-                            <th class="desc-column">Description</th>
-                            <th class="qty-column">Quantity</th>
-                            <th class="uom-column">Unit</th>
-                            <th class="price-column">Unit Price</th>
-                            <th class="discount-column">Discount</th>
-                            <th class="total-column">Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr
-                            v-for="(line, index) in invoice.invoiceLines"
-                            :key="line.line_id"
-                        >
-                            <td class="center">{{ index + 1 }}</td>
-                            <td>
-                                <div class="item-description">
-                                    <div class="item-name">
-                                        {{ line.item.name }}
-                                    </div>
-                                    <div class="item-code">
-                                        {{ line.item.item_code }}
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="right">
-                                {{ formatNumber(line.quantity) }}
-                            </td>
-                            <td class="center">
-                                {{ getUomSymbol(line.uom_id) }}
-                            </td>
-                            <td class="right">
-                                {{ formatCurrency(line.unit_price) }}
-                            </td>
-                            <td class="right">
-                                {{
-                                    line.discount
-                                        ? formatCurrency(line.discount)
-                                        : "-"
-                                }}
-                            </td>
-                            <td class="right">
-                                {{ formatCurrency(line.total) }}
-                            </td>
-                        </tr>
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <td colspan="5" rowspan="3"></td>
-                            <td class="right">Subtotal:</td>
-                            <td class="right">
-                                {{ formatCurrency(calculateSubtotal()) }}
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="right">Tax:</td>
-                            <td class="right">
-                                {{ formatCurrency(calculateTotalTax()) }}
-                            </td>
-                        </tr>
-                        <tr class="grand-total">
-                            <td class="right">Total:</td>
-                            <td class="right">
-                                {{ formatCurrency(invoice.total_amount) }}
-                            </td>
-                        </tr>
-                        <tr v-if="invoice.paid_amount > 0">
-                            <td colspan="5"></td>
-                            <td class="right">Paid:</td>
-                            <td class="right">
-                                {{ formatCurrency(invoice.paid_amount) }}
-                            </td>
-                        </tr>
-                        <tr v-if="invoice.paid_amount > 0" class="balance-due">
-                            <td colspan="5"></td>
-                            <td class="right">Balance Due:</td>
-                            <td class="right">
-                                {{ formatCurrency(calculateBalanceDue()) }}
-                            </td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-
-            <!-- Payment Information -->
-            <div
-                v-if="invoice.payment_instructions"
-                class="payment-instructions"
-            >
-                <h3>Payment Instructions</h3>
-                <p>{{ invoice.payment_instructions }}</p>
-            </div>
-
-            <!-- Notes Section -->
-            <div class="notes-section">
-                <h3>Notes & Terms:</h3>
-                <ol>
-                    <li>Please make payment by the due date.</li>
-                    <li>
-                        Include the invoice number in your payment reference.
-                    </li>
-                    <li v-if="invoice.payment_terms">
-                        Payment terms: {{ invoice.payment_terms }}.
-                    </li>
-                    <li>
-                        For any inquiry about this invoice, please contact our
-                        accounting department.
-                    </li>
-                </ol>
-            </div>
-
-            <!-- Signature Section -->
-            <div class="signature-section">
-                <div class="signature-box">
-                    <p>Issued by,</p>
-                    <p>PT. Company Name</p>
-                    <div class="signature-placeholder"></div>
-                    <p class="signatory">(Authorized Signature)</p>
-                    <p>Finance & Accounting</p>
-                </div>
-            </div>
-
-            <!-- Footer -->
-            <div class="document-footer">
-                <p>Thank you for your business!</p>
-            </div>
-        </div>
+  <div class="print-container">
+    <!-- Print Controls (visible on screen only) -->
+    <div class="print-controls no-print">
+      <button @click="goBack" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back
+      </button>
+      <div class="print-actions">
+        <button @click="printInvoice" class="btn btn-primary">
+          <i class="fas fa-print"></i> Print Invoice
+        </button>
+        <button @click="downloadPDF" class="btn btn-danger">
+          <i class="fas fa-file-pdf"></i> Save as PDF
+        </button>
+      </div>
     </div>
+
+    <!-- Loading Indicator -->
+    <div v-if="loading" class="loading-indicator no-print">
+      <i class="fas fa-spinner fa-spin"></i> Loading invoice data...
+    </div>
+
+    <!-- Invoice Content (for printing) -->
+    <div v-else ref="invoiceDoc" class="invoice-document">
+      <!-- Invoice Header -->
+      <div class="header">
+        <div class="company-info">
+          <h1 class="company-name">PT. ARMSTRONG INDUSTRI INDONESIA</h1>
+          <p>EJIP INDUSTRIAL PARK PLOT 1 A-3 LIPPO CIKARANG</p>
+          <p>SUKARESMI, CIKARANG SELATAN, BEKASI 17857</p>
+          <p>Phone: (021) 8974-7566</p>
+        </div>
+        <div class="invoice-info">
+          <div class="info-row">
+            <span>Page : 1 of 1</span>
+          </div>
+          <div class="info-row">
+            <span>No. Inv. : <strong>{{ invoice.invoice_number }}</strong></span>
+          </div>
+          <div class="info-row">
+            <span>Date. Inv. : {{ formatDateSimple(invoice.invoice_date) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Customer Information - Modified to be side by side -->
+      <div class="customer-section">
+        <div class="customer-block">
+          <div class="customer-title">SOLD TO :</div>
+          <div v-if="invoice.customer" class="customer-details">
+            <strong>{{ invoice.customer.name }}</strong><br>
+            {{ invoice.customer.address }}<br>
+            {{ invoice.customer.city }} {{ invoice.customer.country }} {{ invoice.customer.postal_code }}
+          </div>
+          <div v-else class="customer-details">
+            <strong>PT. INDONESIA EPSON INDUSTRY</strong><br>
+            EJIP INDUSTRIAL PARK PLOT 4E<br>
+            CIKARANG SELATAN<br>
+            BEKASI INDONESIA 17550
+          </div>
+        </div>
+        <div class="customer-block">
+          <div class="customer-title">GOOD DELIVERY TO :</div>
+          <div v-if="invoice.customer" class="customer-details">
+            <strong>{{ invoice.customer.name }}</strong><br>
+            {{ invoice.customer.address }}<br>
+            {{ invoice.customer.city }} {{ invoice.customer.country }} {{ invoice.customer.postal_code }}
+          </div>
+          <div v-else class="customer-details">
+            <strong>PT. INDONESIA EPSON INDUSTRY</strong><br>
+            EJIP INDUSTRIAL PARK PLOT 4E<br>
+            CIKARANG SELATAN<br>
+            BEKASI INDONESIA 17550
+          </div>
+        </div>
+      </div>
+
+      <!-- Order Information -->
+      <div class="order-info">
+        <table class="order-table">
+          <tbody>
+            <tr>
+              <th>PO No.</th>
+              <th>PO Date</th>
+              <th>SALES PERSON</th>
+              <th>DO No.</th>
+              <th>SHIP VIA</th>
+              <th>TERMS</th>
+            </tr>
+            <tr>
+              <td>{{ invoice.reference || 'N/A' }}</td>
+              <td>{{ formatDateSimple(invoice.invoice_date) }}</td>
+              <td>SALES</td>
+              <td>{{ invoice.delivery ? invoice.delivery.delivery_number : 'N/A' }}</td>
+              <td>{{ invoice.delivery ? invoice.delivery.shipping_method : '' }}</td>
+              <td>{{ invoice.payment_terms || 'Net 30 days' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- CO Number -->
+      <!-- <div class="co-number">
+        <span>CO-NUM : {{ invoice.delivery ? invoice.delivery.sales_order_id : 'N/A' }}</span>
+        <div class="part-number-col">PART NUMBER</div>
+        <div class="do-remarks-col">DO REMARKS</div>
+      </div> -->
+
+      <!-- Invoice Items -->
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th class="no-col">NO.</th>
+            <th class="part-col">PART NUMBER</th>
+            <th class="do-col">DO No.</th>
+            <th class="qty-col right">QTY SHIPPED</th>
+            <th class="uom-col">UOM</th>
+            <th class="desc-col">DESCRIPTION</th>
+            <th class="unit-price-col right">UNIT PRICE</th>
+            <th class="amount-col right">AMOUNT</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(line, index) in invoiceLines" :key="line.line_id || index">
+            <td class="no-col center">{{ index + 1 }}</td>
+            <td class="part-col">{{ line.item ? line.item.item_code : 'N/A' }}</td>
+            <td class="do-col">{{ invoice.delivery ? invoice.delivery.delivery_number : 'N/A' }}</td>
+            <td class="qty-col right">{{ line.quantity }}</td>
+            <td class="uom-col">{{ getUomSymbol(line) }}</td>
+            <td class="desc-col">{{ line.item ? line.item.name : 'Unknown Item' }}</td>
+            <td class="unit-price-col right">{{ formatNumberWithCommas(line.unit_price) }}</td>
+            <td class="amount-col right">{{ formatNumberTwoDecimals(line.total) }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Invoice Summary -->
+      <div class="invoice-summary">
+        <div class="summary-row">
+          <div class="summary-label">Harga jual</div>
+          <div class="summary-colon">:</div>
+          <div class="summary-value">{{ formatNumberTwoDecimals(calculateSubtotal()) }}</div>
+        </div>
+        <div v-if="calculateTotalDiscount() > 0" class="summary-row">
+          <div class="summary-label">Diskon</div>
+          <div class="summary-colon">:</div>
+          <div class="summary-value">{{ formatNumberTwoDecimals(calculateTotalDiscount()) }}</div>
+        </div>
+        <div class="summary-row">
+          <div class="summary-label">Tax</div>
+          <div class="summary-colon">:</div>
+          <div class="summary-value">{{ invoice.tax_amount > 0 ? (getTaxRate() + '%') : '0 %' }} {{ formatNumberTwoDecimals(invoice.tax_amount || 0) }}</div>
+        </div>
+        <div class="summary-row">
+          <div class="summary-label">TOTAL</div>
+          <div class="summary-colon">:</div>
+          <div class="summary-value">{{ formatNumberTwoDecimals(invoice.total_amount) }}</div>
+        </div>
+      </div>
+
+      <!-- Payment Terms -->
+      <div class="payment-terms">
+        <h3>Terms of Payment :</h3>
+        <ol>
+          <li>Payment through bank is treated as settled only after clearing</li>
+          <li>Interest for late payment rate 5% per month</li>
+          <li>Bank DBS Indonesia<br>
+              DBS Tower, 35 th floor Ciputra Word I Jakarta,<br>
+              Jl. Prof Dr. Satrio Kav. 3-5 Karet Kuningan<br>
+              Account No. : 030-16069-48 (IDR)<br>
+              PT. ARMSTRONG INDUSTRI INDONESIA<br>
+              Account No. : 030-16068-47 (USD)<br>
+              Jakarta Selatan (12940)
+          </li>
+        </ol>
+      </div>
+
+      <!-- Signature Area -->
+      <div class="signature-area">
+        <div class="signature-box">
+          <p>Issued By</p>
+          <div class="signature-line"></div>
+          <p>PT. ARMSTRONG INDUSTRI INDONESIA</p>
+        </div>
+        <div class="signature-box">
+          <p>Received By</p>
+          <div class="signature-line"></div>
+          <p>{{ invoice.customer ? invoice.customer.name : 'Customer' }}</p>
+        </div>
+      </div>
+
+      <!-- Invoice Footer -->
+      <div class="invoice-footer">
+        <p>Thank you for your business!</p>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script>
-import { ref, onMounted } from "vue";
-import { useRouter, useRoute } from "vue-router";
-import SalesInvoiceService from "@/services/SalesInvoiceService";
-import UnitOfMeasureService from "@/services/UnitOfMeasureService";
+import axios from 'axios';
+import html2pdf from 'html2pdf.js';
 
 export default {
-    name: "SalesInvoicePrint",
-    setup() {
-        const router = useRouter();
-        const route = useRoute();
-
-        // Data
-        const invoice = ref(null);
-        const unitOfMeasures = ref([]);
-        const isLoading = ref(true);
-        const isPrinting = ref(false);
-
-        // Load invoice and reference data
-        const loadData = async () => {
-            isLoading.value = true;
-
-            try {
-                // Load unit of measures for reference
-                const uomResponse = await UnitOfMeasureService.getAll();
-                unitOfMeasures.value = uomResponse.data || [];
-
-                // Load invoice details
-                const invoiceResponse =
-                    await SalesInvoiceService.getInvoiceById(route.params.id);
-                invoice.value = invoiceResponse.data;
-            } catch (error) {
-                console.error("Error loading invoice:", error);
-                invoice.value = null;
-            } finally {
-                isLoading.value = false;
-            }
-        };
-
-        // Format date
-        const formatDate = (dateString) => {
-            if (!dateString) return "-";
-            const date = new Date(dateString);
-            return date.toLocaleDateString("id-ID", {
-                day: "2-digit",
-                month: "long",
-                year: "numeric",
-            });
-        };
-
-        // Format number
-        const formatNumber = (value) => {
-            return new Intl.NumberFormat("id-ID").format(value || 0);
-        };
-
-        // Format currency
-        const formatCurrency = (value) => {
-            return new Intl.NumberFormat("id-ID", {
-                style: "currency",
-                currency: "IDR",
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 0,
-            }).format(value || 0);
-        };
-
-        // Get UOM symbol
-        const getUomSymbol = (uomId) => {
-            const uom = unitOfMeasures.value.find((u) => u.uom_id === uomId);
-            return uom ? uom.symbol : "-";
-        };
-
-        // Calculate subtotal of all lines
-        const calculateSubtotal = () => {
-            if (!invoice.value || !invoice.value.invoiceLines) return 0;
-            return invoice.value.invoiceLines.reduce(
-                (sum, line) => sum + (line.subtotal || 0),
-                0
-            );
-        };
-
-        // Calculate total tax of all lines
-        const calculateTotalTax = () => {
-            if (!invoice.value || !invoice.value.invoiceLines) return 0;
-            return invoice.value.invoiceLines.reduce(
-                (sum, line) => sum + (line.tax || 0),
-                0
-            );
-        };
-
-        // Calculate balance due
-        const calculateBalanceDue = () => {
-            if (!invoice.value) return 0;
-            return (
-                invoice.value.total_amount - (invoice.value.paid_amount || 0)
-            );
-        };
-
-        // Navigation methods
-        const goBack = () => {
-            router.push(`/sales/invoices/${route.params.id}`);
-        };
-
-        // Print the invoice
-        const printInvoice = () => {
-            isPrinting.value = true;
-            setTimeout(() => {
-                window.print();
-                isPrinting.value = false;
-            }, 300);
-        };
-
-        // Handle print event
-        const handlePrintEvent = () => {
-            isPrinting.value = true;
-            setTimeout(() => {
-                isPrinting.value = false;
-            }, 300);
-        };
-
-        onMounted(() => {
-            loadData();
-            window.addEventListener("beforeprint", handlePrintEvent);
-            window.addEventListener("afterprint", () => {
-                isPrinting.value = false;
-            });
-        });
-
-        return {
-            invoice,
-            isLoading,
-            isPrinting,
-            formatDate,
-            formatNumber,
-            formatCurrency,
-            getUomSymbol,
-            calculateSubtotal,
-            calculateTotalTax,
-            calculateBalanceDue,
-            goBack,
-            printInvoice,
-        };
+  name: 'SalesInvoicePrint',
+  props: {
+    id: {
+      type: [Number, String],
+      required: true
+    }
+  },
+  data() {
+    return {
+      invoice: {},
+      loading: true
+    };
+  },
+  computed: {
+    invoiceLines() {
+      return this.invoice.sales_invoice_lines || [];
+    }
+  },
+  mounted() {
+    this.fetchInvoice();
+  },
+  methods: {
+    async fetchInvoice() {
+      this.loading = true;
+      try {
+        const response = await axios.get(`/invoices/${this.id}`);
+        this.invoice = response.data.data;
+      } catch (error) {
+        console.error('Error fetching invoice:', error);
+        this.$toast.error('Failed to load invoice details');
+      } finally {
+        this.loading = false;
+      }
     },
+    formatDateSimple(dateString) {
+      if (!dateString) return 'DD/MM/YYYY';
+      const date = new Date(dateString);
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    },
+    formatNumberWithCommas(value) {
+      if (value === undefined || value === null) return '0';
+      const number = parseFloat(value);
+      return number.toLocaleString('en-US', { minimumFractionDigits: 5, maximumFractionDigits: 5 });
+    },
+    formatNumberTwoDecimals(value) {
+      if (value === undefined || value === null) return '0.00';
+      const number = parseFloat(value);
+      return number.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    },
+    calculateSubtotal() {
+      return this.invoiceLines.reduce((total, line) => total + (line.subtotal || 0), 0);
+    },
+    calculateTotalDiscount() {
+      return this.invoiceLines.reduce((total, line) => total + (line.discount || 0), 0);
+    },
+    getTaxRate() {
+      // Calculate the tax rate as a percentage of the subtotal
+      const subtotal = this.calculateSubtotal();
+      if (subtotal === 0 || !this.invoice.tax_amount) return 0;
+      return Math.round((this.invoice.tax_amount / subtotal) * 100);
+    },
+    getUomSymbol(line) {
+      if (line.item && line.item.unitOfMeasure) {
+        return line.item.unitOfMeasure.symbol || 'PCS';
+      }
+      return line.uom_id || 'PCS';
+    },
+    printInvoice() {
+      const printContents = this.$refs.invoiceDoc.innerHTML;
+      const printWindow = window.open('', '', 'width=800,height=600');
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Print Invoice</title>
+            <style>
+              body {
+                font-family: Arial, sans-serif;
+                font-size: 12px;
+                line-height: 1.4;
+                background: white;
+                margin: 10mm;
+              }
+              .header, .company-info, .invoice-info, .customer-section, .order-info, .items-table, .invoice-summary, .payment-terms, .signature-area, .invoice-footer {
+                width: 100%;
+              }
+              table {
+                width: 100%;
+                border-collapse: collapse;
+              }
+              th, td {
+                border: 1px solid #94a3b8;
+                padding: 0.5rem;
+                font-size: 11px;
+                text-align: left;
+              }
+              th {
+                background-color: #f1f5f9;
+                font-weight: bold;
+              }
+              .right {
+                text-align: right;
+              }
+              .center {
+                text-align: center;
+              }
+            </style>
+          </head>
+          <body>
+            ${printContents}
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+    },
+    downloadPDF() {
+      if (html2pdf) {
+        const element = this.$refs.invoiceDoc;
+        const opt = {
+          margin: 10,
+          filename: `Invoice-${this.invoice.invoice_number}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2 },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        html2pdf().from(element).set(opt).save();
+      } else {
+        if (this.$toast && typeof this.$toast.error === 'function') {
+          this.$toast.error('PDF generation library not available. Please include html2pdf.js');
+        } else {
+          alert('PDF generation library not available. Please include html2pdf.js');
+        }
+      }
+    },
+    goBack() {
+      this.$router.go(-1);
+    }
+  }
 };
 </script>
 
 <style>
-/* General styles */
+/* Reset and general styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.4;
+  background: #f5f5f5;
+}
+
 .print-container {
-    max-width: 210mm; /* A4 width */
-    margin: 0 auto;
-    padding: 20px;
-    font-family: Arial, sans-serif;
-    color: #333;
+  max-width: 210mm; /* A4 width */
+  margin: 0 auto;
+  padding: 1rem;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Print controls */
+.print-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
 }
 
 .print-actions {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 20px;
+  display: flex;
+  gap: 0.5rem;
 }
 
 .btn {
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: bold;
-    border: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  font-weight: bold;
+  border: none;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.btn i {
+  margin-right: 0.5rem;
 }
 
 .btn-primary {
-    background-color: var(--primary-color);
-    color: white;
+  background: #2563eb;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #1d4ed8;
 }
 
 .btn-secondary {
-    background-color: var(--gray-200);
-    color: var(--gray-800);
+  background: #e5e7eb;
+  color: #1f2937;
+}
+
+.btn-secondary:hover {
+  background: #d1d5db;
+}
+
+.btn-info {
+  background: #0ea5e9;
+  color: white;
+}
+
+.btn-info:hover {
+  background: #0284c7;
 }
 
 .loading-indicator {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 50px 0;
-    color: var(--gray-500);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
 }
 
 .loading-indicator i {
-    margin-right: 10px;
+  margin-right: 0.5rem;
 }
 
-.empty-state {
-    text-align: center;
-    padding: 50px 0;
-}
-
-.empty-icon {
-    font-size: 48px;
-    color: var(--gray-300);
-    margin-bottom: 20px;
-}
-
-/* Invoice Document Styles */
+/* Invoice document */
 .invoice-document {
-    background-color: white;
-    padding: 20px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: white;
+  padding: 2rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
 }
 
-.company-header {
-    display: flex;
-    margin-bottom: 30px;
-    border-bottom: 2px solid var(--primary-color);
-    padding-bottom: 15px;
+/* Header section */
+.header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 1rem;
 }
 
-.company-logo {
-    width: 150px;
-    margin-right: 20px;
-}
-
-.company-logo img {
-    max-width: 100%;
-    height: auto;
-}
-
-.company-info h1 {
-    font-size: 18px;
-    margin: 0 0 5px 0;
-    color: var(--gray-800);
+.company-name {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  color: #1e40af;
 }
 
 .company-info p {
-    margin: 3px 0;
-    font-size: 12px;
-    color: var(--gray-600);
+  font-size: 11px;
+  margin: 0;
+  line-height: 1.3;
 }
 
-.document-title {
-    text-align: center;
-    margin-bottom: 20px;
+.invoice-info {
+  text-align: right;
+  font-size: 11px;
 }
 
-.document-title h2 {
-    font-size: 24px;
-    font-weight: bold;
-    margin: 0 0 5px 0;
-    color: var(--gray-800);
+.info-row {
+  margin-bottom: 0.25rem;
 }
 
-.doc-number {
-    font-size: 14px;
-    color: var(--gray-600);
-}
-
-.info-section {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 30px;
-}
-
+/* Customer section - Updated to remove all borders */
 .customer-section {
-    width: 48%;
+  display: flex;
+  border: none;
+  margin-bottom: 1rem;
+  flex-wrap: nowrap;
+  width: 100%;
 }
 
-.customer-section h3,
-.invoice-meta h3 {
-    font-size: 14px;
-    margin: 0 0 5px 0;
+.customer-block {
+  flex: 1; /* Each block takes equal width */
+  padding: 0.5rem 0.75rem;
+  font-size: 11px;
 }
 
-.info-box {
-    border: 1px solid var(--gray-200);
-    padding: 10px;
-    border-radius: 4px;
+.customer-title {
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  font-size: 12px;
 }
 
-.customer-name {
-    font-weight: bold;
-    font-size: 14px;
-    margin-bottom: 5px;
+.customer-details {
+  font-size: 11px;
+  line-height: 1.4;
 }
 
-.info-box p {
-    margin: 3px 0;
-    font-size: 12px;
+/* Order info section */
+.order-info {
+  margin-bottom: 0.5rem;
 }
 
-.invoice-meta {
-    width: 48%;
+.order-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #94a3b8;
 }
 
-.meta-table {
-    width: 100%;
-    border-collapse: collapse;
+.order-table th, .order-table td {
+  border: 1px solid #94a3b8;
+  padding: 0.5rem;
+  font-size: 11px;
+  text-align: center;
 }
 
-.meta-table td {
-    padding: 5px;
-    font-size: 12px;
-    vertical-align: top;
+.order-table th {
+  font-weight: bold;
+  background-color: #f1f5f9;
 }
 
-.meta-table td:first-child {
-    width: 120px;
+/* Horizontal info line with items side by side */
+.info-horizontal-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 0.5rem 0;
+  font-size: 11px;
+  font-weight: bold;
 }
 
-.meta-table td:nth-child(2) {
-    width: 10px;
+.info-item {
+  flex: 1;
+  margin: 0 0.5rem;
 }
 
-.items-section {
-    margin-bottom: 30px;
+.info-separator {
+  color: #94a3b8;
+  margin: 0 0.5rem;
+  font-weight: normal;
 }
 
+/* Items table - Modified to have only top border for headers */
 .items-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12px;
-}
-
-.items-table th,
-.items-table td {
-    border: 1px solid var(--gray-200);
-    padding: 8px;
+  width: 100%;
+  border-collapse: collapse;
+  border: none;
+  margin-top: 1rem;
 }
 
 .items-table th {
-    background-color: var(--gray-50);
-    font-weight: bold;
-    text-align: left;
-    color: var(--gray-800);
+  border-top: 1px solid #94a3b8;
+  border-bottom: 1px solid #94a3b8;
+  border-left: none;
+  border-right: none;
+  padding: 0.5rem;
+  font-size: 11px;
+  background-color: #f1f5f9;
+  font-weight: bold;
 }
 
-.no-column {
-    width: 40px;
+.items-table td {
+  border: none;
+  border-bottom: 1px solid #f1f5f9;
+  padding: 0.5rem;
+  font-size: 11px;
 }
 
-.desc-column {
-    width: 30%;
+.no-col { width: 5%; }
+.part-col { width: 12%; }
+.do-col { width: 12%; }
+.qty-col { width: 10%; }
+.uom-col { width: 8%; }
+.desc-col { width: 25%; }
+.unit-price-col { width: 14%; }
+.amount-col { width: 14%; }
+
+.center { text-align: center; }
+.right { text-align: right; }
+
+/* Invoice summary */
+.invoice-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin-top: 1rem;
+  width: 100%;
 }
 
-.qty-column,
-.uom-column {
-    width: 80px;
+.summary-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  width: 300px;
 }
 
-.price-column,
-.discount-column,
-.total-column {
-    width: 120px;
+.summary-label {
+  width: 100px;
+  font-weight: bold;
+  font-size: 12px;
 }
 
-.center {
-    text-align: center;
+.summary-colon {
+  width: 20px;
+  text-align: center;
 }
 
-.right {
-    text-align: right;
+.summary-value {
+  flex: 1;
+  text-align: right;
+  font-size: 12px;
 }
 
-.item-description {
-    margin-bottom: 5px;
+/* Payment terms */
+.payment-terms {
+  margin-top: 1.5rem;
 }
 
-.item-name {
-    font-weight: bold;
+.payment-terms h3 {
+  font-size: 13px;
+  font-weight: bold;
+  margin-bottom: 0.75rem;
 }
 
-.item-code {
-    font-size: 10px;
-    color: var(--gray-500);
+.payment-terms ol {
+  padding-left: 1.5rem;
 }
 
-.items-table tfoot tr {
-    background-color: var(--gray-50);
+.payment-terms li {
+  margin-bottom: 0.5rem;
+  font-size: 11px;
 }
 
-.items-table tfoot td {
-    padding: 8px;
-    font-weight: bold;
-}
-
-.grand-total td {
-    background-color: #dbeafe;
-    color: #1e40af;
-    font-size: 14px;
-}
-
-.balance-due td {
-    background-color: #fee2e2;
-    color: #dc2626;
-    font-size: 14px;
-}
-
-.payment-instructions {
-    margin-bottom: 20px;
-    padding: 10px;
-    background-color: var(--gray-50);
-    border: 1px solid var(--gray-200);
-    border-radius: 4px;
-}
-
-.payment-instructions h3 {
-    font-size: 14px;
-    margin: 0 0 10px 0;
-}
-
-.payment-instructions p {
-    margin: 0;
-    font-size: 12px;
-}
-
-.notes-section {
-    margin-bottom: 30px;
-}
-
-.notes-section h3 {
-    font-size: 14px;
-    margin: 0 0 10px 0;
-}
-
-.notes-section ol {
-    margin: 0;
-    padding-left: 20px;
-    font-size: 12px;
-}
-
-.notes-section li {
-    margin-bottom: 5px;
-}
-
-.signature-section {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 30px;
+/* Signature area */
+.signature-area {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 3rem;
 }
 
 .signature-box {
-    width: 200px;
-    text-align: center;
+  width: 200px;
+  text-align: center;
+}
+
+.signature-line {
+  height: 50px;
+  border-bottom: 1px solid #94a3b8;
+  margin-bottom: 0.5rem;
 }
 
 .signature-box p {
-    margin: 5px 0;
-    font-size: 12px;
+  font-size: 11px;
 }
 
-.signature-placeholder {
-    height: 60px;
-    margin: 15px 0;
-    border-bottom: 1px solid var(--gray-200);
-}
-
-.signatory {
-    font-weight: bold;
-}
-
-.document-footer {
-    text-align: center;
-    font-size: 12px;
-    color: var(--gray-600);
-    margin-top: 20px;
-    padding-top: 20px;
-    border-top: 1px solid var(--gray-200);
+/* Invoice footer */
+.invoice-footer {
+  margin-top: 3rem;
+  text-align: center;
+  font-size: 11px;
+  font-style: italic;
+  color: #64748b;
 }
 
 /* Print specific styles */
 @media print {
-    .print-actions {
-        display: none !important;
-    }
+  .no-print {
+    display: none !important;
+  }
 
-    .print-container {
-        padding: 0;
-        max-width: none;
-    }
+  .print-container {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+    background: white;
+  }
 
-    .invoice-document {
-        box-shadow: none;
-        padding: 0;
-    }
+  .invoice-document {
+    border: none;
+    padding: 10mm;
+  }
 
-    @page {
-        size: A4;
-        margin: 1cm;
-    }
+  body {
+    background: white;
+  }
 
-    .signature-section,
-    .document-footer {
-        page-break-inside: avoid;
-    }
-
-    .items-section {
-        page-break-before: auto;
-    }
+  @page {
+    size: A4;
+    margin: 0;
+  }
 }
 </style>

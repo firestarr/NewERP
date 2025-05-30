@@ -1,136 +1,130 @@
 <!-- src/views/purchasing/PurchaseOrderFormView.vue -->
 <template>
-  <div class="po-form-container">
+  <div class="purchase-order-form">
     <div class="page-header">
-      <h1>{{ isEditMode ? 'Edit Purchase Order' : 'Create Purchase Order' }}</h1>
-      <div class="action-buttons">
-        <router-link to="/purchasing/orders" class="btn btn-secondary">
-          <i class="fas fa-arrow-left"></i> Back to List
+      <div class="header-left">
+        <router-link to="/purchasing/orders" class="back-link">
+          <i class="fas fa-arrow-left"></i> Back to Purchase Orders
         </router-link>
+        <h1>{{ isEditMode ? 'Edit Purchase Order' : 'Create Purchase Order' }}</h1>
       </div>
     </div>
 
-    <div class="alert alert-info" v-if="isEditMode && purchaseOrder.status !== 'draft'">
-      <i class="fas fa-info-circle"></i>
-      This purchase order is in "{{ purchaseOrder.status }}" status and some fields may not be editable.
+    <div class="alert-card" v-if="isEditMode && purchaseOrder.status !== 'draft'">
+      <div class="alert-icon">
+        <i class="fas fa-info-circle"></i>
+      </div>
+      <div class="alert-content">
+        <p>This purchase order is in "{{ purchaseOrder.status }}" status and some fields may not be editable.</p>
+      </div>
     </div>
 
-    <div v-if="isLoading" class="text-center py-5">
-      <div class="spinner-border text-primary" role="status">
-        <span class="sr-only">Loading...</span>
-      </div>
-      <p class="mt-2">Loading purchase order data...</p>
+    <div v-if="isLoading" class="loading">
+      <i class="fas fa-spinner fa-spin"></i> Loading purchase order data...
     </div>
 
     <form v-else @submit.prevent="savePurchaseOrder" class="po-form">
       <div class="card">
         <div class="card-header">
-          <h2 class="card-title">Purchase Order Information</h2>
+          <h2>Purchase Order Information</h2>
         </div>
         <div class="card-body">
-          <div class="row">
-            <div class="col-md-4">
-              <div class="form-group">
-                <label>Vendor <span class="text-danger">*</span></label>
-<select 
-  v-model="purchaseOrder.vendor_id" 
-  class="form-control" 
-  :disabled="isEditMode && purchaseOrder.status !== 'draft'"
-  required
->
-  <option value="" disabled>Select Vendor</option>
-  <option v-for="vendor in filteredVendors" :key="vendor.vendor_id" :value="vendor.vendor_id">
-    {{ vendor.name }}
-  </option>
-</select>
-              </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="vendor_id">Vendor <span class="required">*</span></label>
+              <select
+                id="vendor_id"
+                v-model="purchaseOrder.vendor_id"
+                :disabled="isEditMode && purchaseOrder.status !== 'draft'"
+                required
+              >
+                <option value="" disabled>Select Vendor</option>
+                <option v-for="vendor in filteredVendors" :key="vendor.vendor_id" :value="vendor.vendor_id">
+                  {{ vendor.name }}
+                </option>
+              </select>
             </div>
-            <div class="col-md-4">
-              <div class="form-group">
-                <label>PO Date <span class="text-danger">*</span></label>
-                <input 
-                  type="date" 
-                  v-model="purchaseOrder.po_date" 
-                  class="form-control"
-                  :disabled="isEditMode && purchaseOrder.status !== 'draft'"
-                  required
-                >
-              </div>
+
+            <div class="form-group">
+              <label for="po_date">PO Date <span class="required">*</span></label>
+              <input
+                type="date"
+                id="po_date"
+                v-model="purchaseOrder.po_date"
+                :disabled="isEditMode && purchaseOrder.status !== 'draft'"
+                required
+              >
             </div>
-            <div class="col-md-4">
-              <div class="form-group">
-                <label>Expected Delivery</label>
-                <input 
-                  type="date" 
-                  v-model="purchaseOrder.expected_delivery" 
-                  class="form-control"
-                >
-              </div>
+
+            <div class="form-group">
+              <label for="expected_delivery">Expected Delivery</label>
+              <input
+                type="date"
+                id="expected_delivery"
+                v-model="purchaseOrder.expected_delivery"
+              >
             </div>
           </div>
 
-          <div class="row mt-3">
-            <div class="col-md-4">
-              <div class="form-group">
-                <label>Payment Terms</label>
-                <select v-model="purchaseOrder.payment_terms" class="form-control">
-                  <option value="">Select Payment Terms</option>
-                  <option value="Net 30">Net 30</option>
-                  <option value="Net 45">Net 45</option>
-                  <option value="Net 60">Net 60</option>
-                  <option value="Immediate">Immediate</option>
-                </select>
-              </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="payment_terms">Payment Terms</label>
+              <select id="payment_terms" v-model="purchaseOrder.payment_terms">
+                <option value="">Select Payment Terms</option>
+                <option value="Net 30">Net 30</option>
+                <option value="Net 45">Net 45</option>
+                <option value="Net 60">Net 60</option>
+                <option value="Immediate">Immediate</option>
+              </select>
             </div>
-            <div class="col-md-4">
-              <div class="form-group">
-                <label>Delivery Terms</label>
-                <select v-model="purchaseOrder.delivery_terms" class="form-control">
-                  <option value="">Select Delivery Terms</option>
-                  <option value="FOB">FOB (Free On Board)</option>
-                  <option value="CIF">CIF (Cost, Insurance, Freight)</option>
-                  <option value="EXW">EXW (Ex Works)</option>
-                  <option value="DDP">DDP (Delivered Duty Paid)</option>
-                </select>
-              </div>
+
+            <div class="form-group">
+              <label for="delivery_terms">Delivery Terms</label>
+              <select id="delivery_terms" v-model="purchaseOrder.delivery_terms">
+                <option value="">Select Delivery Terms</option>
+                <option value="FOB">FOB (Free On Board)</option>
+                <option value="CIF">CIF (Cost, Insurance, Freight)</option>
+                <option value="EXW">EXW (Ex Works)</option>
+                <option value="DDP">DDP (Delivered Duty Paid)</option>
+              </select>
             </div>
-            <div class="col-md-4">
-              <div class="form-group">
-                <label>Currency</label>
-                <select 
-                  v-model="purchaseOrder.currency_code" 
-                  class="form-control"
-                  :disabled="isEditMode && purchaseOrder.status !== 'draft'"
-                >
-                  <option value="USD">USD - US Dollar</option>
-                  <option value="EUR">EUR - Euro</option>
-                  <option value="GBP">GBP - British Pound</option>
-                  <option value="IDR">IDR - Indonesian Rupiah</option>
-                  <option value="JPY">JPY - Japanese Yen</option>
-                  <option value="CNY">CNY - Chinese Yuan</option>
-                  <option value="SGD">SGD - Singapore Dollar</option>
-                </select>
-              </div>
+
+            <div class="form-group">
+              <label for="currency_code">Currency</label>
+              <select
+                id="currency_code"
+                v-model="purchaseOrder.currency_code"
+                :disabled="isEditMode && purchaseOrder.status !== 'draft'"
+              >
+                <option value="USD">USD - US Dollar</option>
+                <option value="EUR">EUR - Euro</option>
+                <option value="GBP">GBP - British Pound</option>
+                <option value="IDR">IDR - Indonesian Rupiah</option>
+                <option value="JPY">JPY - Japanese Yen</option>
+                <option value="CNY">CNY - Chinese Yuan</option>
+                <option value="SGD">SGD - Singapore Dollar</option>
+              </select>
             </div>
           </div>
         </div>
       </div>
 
       <div class="card mt-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <h2 class="card-title">Purchase Order Lines</h2>
-          <button 
-            type="button" 
-            class="btn btn-sm btn-primary" 
+        <div class="card-header">
+          <h2>Purchase Order Lines</h2>
+          <button
+            type="button"
+            class="btn btn-primary"
             @click="addLine"
             :disabled="isEditMode && purchaseOrder.status !== 'draft'"
           >
             <i class="fas fa-plus"></i> Add Line
           </button>
         </div>
+
         <div class="card-body">
           <div class="table-responsive">
-            <table class="table table-bordered">
+            <table class="data-table">
               <thead>
                 <tr>
                   <th style="width: 40%">Item</th>
@@ -144,24 +138,35 @@
               <tbody>
                 <tr v-for="(line, lineIndex) in purchaseOrder.lines" :key="lineIndex">
                   <td>
-                    <select 
-                      v-model="line.item_id" 
-                      class="form-control"
-                      @change="updateLineItem(line)"
-                      :disabled="isEditMode && purchaseOrder.status !== 'draft'"
-                      required
-                    >
-                      <option value="" disabled>Select Item</option>
-                      <option v-for="item in items" :key="item.item_id" :value="item.item_id">
-                        {{ item.item_code }} - {{ item.name }}
-                      </option>
-                    </select>
+                    <div class="dropdown-container">
+                      <input
+                        type="text"
+                        v-model="itemSearches[lineIndex]"
+                        class="form-control item-search"
+                        placeholder="Search for an item..."
+                        @focus="showItemDropdown[lineIndex] = true"
+                        @blur="hideItemDropdown(lineIndex)"
+                        :disabled="isEditMode && purchaseOrder.status !== 'draft'"
+                      />
+                      <div v-if="showItemDropdown[lineIndex]" class="dropdown-menu">
+                        <div
+                          v-for="item in getFilteredItems(lineIndex)"
+                          :key="item.item_id"
+                          @click="selectItem(item, lineIndex)"
+                          class="dropdown-item"
+                        >
+                          {{ item.item_code }} - {{ item.name }}
+                        </div>
+                        <div v-if="getFilteredItems(lineIndex).length === 0" class="dropdown-item text-muted">
+                          No items found
+                        </div>
+                      </div>
+                    </div>
                   </td>
                   <td>
-                    <input 
-                      type="number" 
-                      v-model.number="line.quantity" 
-                      class="form-control" 
+                    <input
+                      type="number"
+                      v-model.number="line.quantity"
                       min="0.01"
                       step="0.01"
                       @input="updateLineTotal(line)"
@@ -170,9 +175,8 @@
                     >
                   </td>
                   <td>
-                    <select 
-                      v-model="line.uom_id" 
-                      class="form-control"
+                    <select
+                      v-model="line.uom_id"
                       :disabled="isEditMode && purchaseOrder.status !== 'draft'"
                       required
                     >
@@ -183,10 +187,9 @@
                     </select>
                   </td>
                   <td>
-                    <input 
-                      type="number" 
-                      v-model.number="line.unit_price" 
-                      class="form-control" 
+                    <input
+                      type="number"
+                      v-model.number="line.unit_price"
                       min="0"
                       step="0.01"
                       @input="updateLineTotal(line)"
@@ -195,17 +198,17 @@
                     >
                   </td>
                   <td>
-                    <input 
-                      type="number" 
-                      v-model.number="line.subtotal" 
-                      class="form-control" 
+                    <input
+                      type="number"
+                      v-model.number="line.subtotal"
                       readonly
+                      class="read-only"
                     >
                   </td>
                   <td>
-                    <button 
-                      type="button" 
-                      class="btn btn-sm btn-danger"
+                    <button
+                      type="button"
+                      class="btn-icon btn-danger"
                       @click="removeLine(lineIndex)"
                       :disabled="isEditMode && purchaseOrder.status !== 'draft'"
                     >
@@ -214,23 +217,22 @@
                   </td>
                 </tr>
                 <tr v-if="purchaseOrder.lines.length === 0">
-                  <td colspan="6" class="text-center">
+                  <td colspan="6" class="empty-message">
                     No items added. Click "Add Line" to add items to this purchase order.
                   </td>
                 </tr>
               </tbody>
               <tfoot>
                 <tr>
-                  <td colspan="4" class="text-right font-weight-bold">Subtotal:</td>
+                  <td colspan="4" class="text-right"><strong>Subtotal:</strong></td>
                   <td colspan="2">{{ formatCurrency(calculateSubtotal()) }}</td>
                 </tr>
                 <tr>
-                  <td colspan="4" class="text-right font-weight-bold">Tax:</td>
+                  <td colspan="4" class="text-right"><strong>Tax:</strong></td>
                   <td colspan="2">
-                    <input 
-                      type="number" 
-                      v-model.number="purchaseOrder.tax_amount" 
-                      class="form-control"
+                    <input
+                      type="number"
+                      v-model.number="purchaseOrder.tax_amount"
                       min="0"
                       step="0.01"
                       @input="updateTotals"
@@ -239,8 +241,8 @@
                   </td>
                 </tr>
                 <tr>
-                  <td colspan="4" class="text-right font-weight-bold">Total:</td>
-                  <td colspan="2" class="font-weight-bold">{{ formatCurrency(calculateTotal()) }}</td>
+                  <td colspan="4" class="text-right"><strong>Total:</strong></td>
+                  <td colspan="2" class="total-value">{{ formatCurrency(calculateTotal()) }}</td>
                 </tr>
               </tfoot>
             </table>
@@ -250,9 +252,9 @@
 
       <div class="form-actions mt-4">
         <button type="button" class="btn btn-secondary" @click="$router.go(-1)">Cancel</button>
-        <button 
-          type="submit" 
-          class="btn btn-primary ml-2" 
+        <button
+          type="submit"
+          class="btn btn-primary"
           :disabled="isSaving || (isEditMode && purchaseOrder.status !== 'draft')"
         >
           <span v-if="isSaving">
@@ -289,19 +291,26 @@ export default {
         currency_code: 'USD',
         tax_amount: 0,
         lines: []
-      }
+      },
+      // New properties for searchable item select
+      itemSearches: [], // Array to store search text for each line
+      showItemDropdown: [] // Array to control dropdown visibility for each line
     };
   },
   created() {
     // Check if we're in edit mode
     const poId = this.$route.params.id;
     this.isEditMode = !!poId;
-    
+
+    // Initialize search arrays
+    this.itemSearches = [];
+    this.showItemDropdown = [];
+
     // Load necessary data
     this.loadVendors();
     this.loadItems();
     this.loadUoms();
-    
+
     if (this.isEditMode) {
       this.loadPurchaseOrder(poId);
     } else {
@@ -311,30 +320,28 @@ export default {
   },
   methods: {
     async loadVendors() {
-  try {
-    const response = await axios.get('/vendors');
-    
-    // Handle paginated response structure
-    if (response.data && response.data.data && response.data.data.data) {
-      // The vendors are in response.data.data.data (paginated response)
-      this.vendors = response.data.data.data.filter(vendor => vendor && vendor.vendor_id);
-    } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
-      // Regular response structure: response.data.data
-      this.vendors = response.data.data.filter(vendor => vendor && vendor.vendor_id);
-    } else if (response.data && Array.isArray(response.data)) {
-      // Direct array structure
-      this.vendors = response.data.filter(vendor => vendor && vendor.vendor_id);
-    } else {
-      console.warn('Unexpected vendors response format:', response.data);
-      this.vendors = [];
-    }
-    
-    console.log('Processed vendors:', this.vendors);
-  } catch (error) {
-    console.error('Error loading vendors:', error);
-    this.vendors = [];
-  }
-},
+      try {
+        const response = await axios.get('/vendors');
+
+        // Handle paginated response structure
+        if (response.data && response.data.data && response.data.data.data) {
+          // The vendors are in response.data.data.data (paginated response)
+          this.vendors = response.data.data.data.filter(vendor => vendor && vendor.vendor_id);
+        } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+          // Regular response structure: response.data.data
+          this.vendors = response.data.data.filter(vendor => vendor && vendor.vendor_id);
+        } else if (response.data && Array.isArray(response.data)) {
+          // Direct array structure
+          this.vendors = response.data.filter(vendor => vendor && vendor.vendor_id);
+        } else {
+          console.warn('Unexpected vendors response format:', response.data);
+          this.vendors = [];
+        }
+      } catch (error) {
+        console.error('Error loading vendors:', error);
+        this.vendors = [];
+      }
+    },
     async loadItems() {
       try {
         const response = await axios.get('/items?is_purchasable=1');
@@ -355,25 +362,28 @@ export default {
       this.isLoading = true;
       try {
         const response = await axios.get(`/purchase-orders/${poId}`);
-        
+
         if (response.data.status === 'success') {
           this.purchaseOrder = response.data.data;
-          
+
           // Ensure po_date is in the right format for input[type=date]
           if (this.purchaseOrder.po_date) {
             this.purchaseOrder.po_date = this.formatDateForInput(this.purchaseOrder.po_date);
           }
-          
+
           // Ensure expected_delivery is in the right format for input[type=date]
           if (this.purchaseOrder.expected_delivery) {
             this.purchaseOrder.expected_delivery = this.formatDateForInput(this.purchaseOrder.expected_delivery);
           }
-          
+
           // Ensure lines array exists
           if (!this.purchaseOrder.lines) {
             this.purchaseOrder.lines = [];
           }
-          
+
+          // Initialize search states for existing lines
+          this.initializeLineSearchStates();
+
           // If no lines, add one empty line
           if (this.purchaseOrder.lines.length === 0) {
             this.addLine();
@@ -386,7 +396,68 @@ export default {
         this.isLoading = false;
       }
     },
+
+    // New method to initialize search states for lines
+    initializeLineSearchStates() {
+      // Ensure arrays have correct length
+      this.itemSearches = new Array(this.purchaseOrder.lines.length);
+      this.showItemDropdown = new Array(this.purchaseOrder.lines.length);
+
+      this.purchaseOrder.lines.forEach((line, index) => {
+        // Set search text to show selected item
+        if (line.item_id) {
+          const item = this.items.find(i => i.item_id === line.item_id);
+          if (item) {
+            this.itemSearches[index] = `${item.item_code} - ${item.name}`;
+          } else {
+            this.itemSearches[index] = '';
+          }
+        } else {
+          this.itemSearches[index] = '';
+        }
+
+        // Initialize dropdown visibility
+        this.showItemDropdown[index] = false;
+      });
+    },
+
+    // New method to get filtered items for a specific line
+    getFilteredItems(lineIndex) {
+      const searchText = this.itemSearches[lineIndex] || '';
+      if (!searchText) {
+        return this.items; // Return all items if no search text
+      }
+      return this.items.filter(item =>
+        item.name.toLowerCase().includes(searchText.toLowerCase()) ||
+        item.item_code.toLowerCase().includes(searchText.toLowerCase())
+      );
+    },
+
+    // New method to select an item from dropdown
+    selectItem(item, lineIndex) {
+      const line = this.purchaseOrder.lines[lineIndex];
+
+      // Set item ID and search text
+      line.item_id = item.item_id;
+      this.itemSearches[lineIndex] = `${item.item_code} - ${item.name}`;
+
+      // Hide dropdown
+      this.showItemDropdown[lineIndex] = false;
+
+      // Update line item (same logic as before)
+      this.updateLineItem(line);
+    },
+
+    // New method to hide dropdown with delay
+    hideItemDropdown(lineIndex) {
+      setTimeout(() => {
+        this.showItemDropdown[lineIndex] = false;
+      }, 200);
+    },
+
     addLine() {
+      const newIndex = this.purchaseOrder.lines.length;
+
       this.purchaseOrder.lines.push({
         item_id: '',
         quantity: 1,
@@ -396,10 +467,19 @@ export default {
         tax: 0,
         total: 0
       });
+
+      // Initialize search states for new line
+      this.itemSearches[newIndex] = '';
+      this.showItemDropdown[newIndex] = false;
     },
     removeLine(lineIndex) {
       if (confirm('Are you sure you want to remove this line?')) {
         this.purchaseOrder.lines.splice(lineIndex, 1);
+
+        // Remove and reindex search states
+        this.itemSearches.splice(lineIndex, 1);
+        this.showItemDropdown.splice(lineIndex, 1);
+
         this.updateTotals();
       }
     },
@@ -411,7 +491,7 @@ export default {
         if (!line.uom_id && item.uom_id) {
           line.uom_id = item.uom_id;
         }
-        
+
         // Set default price if available
         if (item.cost_price && line.unit_price === 0) {
           line.unit_price = item.cost_price;
@@ -459,44 +539,44 @@ export default {
         alert('Please fill all required fields');
         return;
       }
-      
+
       if (this.purchaseOrder.lines.length === 0) {
         alert('Please add at least one item to the purchase order');
         return;
       }
-      
+
       for (const line of this.purchaseOrder.lines) {
         if (!line.item_id || !line.quantity || !line.uom_id) {
           alert('Please fill all required fields for each line item');
           return;
         }
       }
-      
+
       this.isSaving = true;
       try {
         let response;
-        
+
         if (this.isEditMode) {
           // Update existing PO
           response = await axios.put(
-            `/purchase-orders/${this.purchaseOrder.po_id}`, 
+            `/purchase-orders/${this.purchaseOrder.po_id}`,
             this.purchaseOrder
           );
         } else {
           // Create new PO
           response = await axios.post('/purchase-orders', this.purchaseOrder);
         }
-        
+
         if (response.data.status === 'success') {
           // Show success message
           alert(this.isEditMode ? 'Purchase order updated successfully' : 'Purchase order created successfully');
-          
+
           // Redirect to PO detail page
           this.$router.push(`/purchasing/orders/${response.data.data.po_id}`);
         }
       } catch (error) {
         console.error('Error saving purchase order:', error);
-        
+
         // Show error message
         if (error.response && error.response.data && error.response.data.message) {
           alert(`Error: ${error.response.data.message}`);
@@ -517,8 +597,8 @@ export default {
 </script>
 
 <style scoped>
-.po-form-container {
-  margin-bottom: 2rem;
+.purchase-order-form {
+  padding: 1rem;
 }
 
 .page-header {
@@ -528,17 +608,361 @@ export default {
   margin-bottom: 1.5rem;
 }
 
-.card-title {
-  margin-bottom: 0;
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.header-left h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--gray-800);
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--gray-600);
+  text-decoration: none;
+  font-size: 0.875rem;
+}
+
+.back-link:hover {
+  color: var(--primary-color);
+}
+
+.alert-card {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: #e0f2fe;
+  border-left: 4px solid #0ea5e9;
+  border-radius: 0.375rem;
+  margin-bottom: 1.5rem;
+}
+
+.alert-icon {
+  color: #0ea5e9;
   font-size: 1.25rem;
+}
+
+.alert-content p {
+  margin: 0;
+  color: var(--gray-700);
+}
+
+.card {
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.card-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--gray-800);
+}
+
+.card-body {
+  padding: 1.5rem;
+}
+
+.form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.form-group {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.form-group label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--gray-700);
+}
+
+.form-group input,
+.form-group select {
+  padding: 0.625rem;
+  border: 1px solid var(--gray-300);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.form-group input:disabled,
+.form-group select:disabled {
+  background-color: var(--gray-100);
+  color: var(--gray-500);
+  cursor: not-allowed;
+}
+
+.required {
+  color: var(--danger-color);
+}
+
+.table-responsive {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.data-table th {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--gray-200);
+  background-color: var(--gray-50);
+  font-weight: 500;
+  color: var(--gray-600);
+}
+
+.data-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--gray-100);
+  color: var(--gray-800);
+}
+
+.data-table tbody tr:hover {
+  background-color: var(--gray-50);
+}
+
+.data-table tfoot td {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--gray-200);
+}
+
+.data-table input,
+.data-table select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--gray-200);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+}
+
+.data-table input:focus,
+.data-table select:focus {
+  border-color: var(--primary-color);
+  outline: none;
+}
+
+.data-table input:disabled,
+.data-table select:disabled {
+  background-color: var(--gray-100);
+  color: var(--gray-500);
+  cursor: not-allowed;
+}
+
+.data-table .read-only {
+  background-color: var(--gray-50);
+  cursor: not-allowed;
+}
+
+/* New styles for searchable dropdown */
+.dropdown-container {
+  position: relative;
+  width: 100%;
+}
+
+.item-search {
+  width: 100%;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background-color: white;
+  border: 1px solid var(--gray-300);
+  border-top: none;
+  border-radius: 0 0 0.375rem 0.375rem;
+  max-height: 200px;
+  overflow-y: auto;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.dropdown-item {
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--gray-100);
+  font-size: 0.875rem;
+}
+
+.dropdown-item:hover {
+  background-color: var(--gray-50);
+}
+
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dropdown-item.text-muted {
+  color: var(--gray-500);
+  cursor: default;
+}
+
+.dropdown-item.text-muted:hover {
+  background-color: transparent;
+}
+
+.empty-message {
+  text-align: center;
+  color: var(--gray-500);
+  padding: 2rem 0;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--primary-dark);
+}
+
+.btn-secondary {
+  background-color: var(--gray-200);
+  color: var(--gray-700);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--gray-300);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.375rem;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-danger {
+  background-color: #fee2e2;
+  color: var(--danger-color);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: #fecaca;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.total-value {
+  font-weight: 600;
+  color: var(--gray-800);
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 0;
+  text-align: center;
+  color: var(--gray-500);
+}
+
+.loading i {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: var(--primary-color);
 }
 
 .form-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 1rem;
 }
 
-.table th {
-  background-color: #f8f9fa;
+.mt-4 {
+  margin-top: 1.5rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .form-group {
+    min-width: 100%;
+  }
+
+  .form-actions {
+    flex-direction: column-reverse;
+  }
+
+  .form-actions .btn {
+    width: 100%;
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .card-header .btn {
+    width: 100%;
+  }
+
+  .dropdown-menu {
+    position: fixed;
+    left: 1rem;
+    right: 1rem;
+    max-height: 150px;
+  }
 }
 </style>

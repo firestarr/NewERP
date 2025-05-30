@@ -3,8 +3,8 @@
     <div class="production-completion-form">
       <!-- Toast Notifications -->
       <div class="toast-container">
-        <div 
-          v-for="toast in toasts" 
+        <div
+          v-for="toast in toasts"
           :key="toast.id"
           :class="['toast', `toast-${toast.type}`]"
           @click="removeToast(toast.id)"
@@ -25,12 +25,12 @@
           </router-link>
         </div>
       </div>
-  
+
       <div v-if="loading" class="loading-container">
         <i class="fas fa-spinner fa-spin"></i>
         <span>Loading production order...</span>
       </div>
-  
+
       <div v-else-if="!productionOrder" class="error-container">
         <i class="fas fa-exclamation-triangle"></i>
         <h3>Production Order Not Found</h3>
@@ -39,7 +39,7 @@
           Back to Production Orders
         </router-link>
       </div>
-  
+
       <div v-else class="detail-content">
         <div class="card detail-card">
           <div class="card-header">
@@ -77,7 +77,7 @@
             </div>
           </div>
         </div>
-  
+
         <form @submit.prevent="completeProduction" class="card completion-form">
           <div class="card-header">
             <h2>Production Completion</h2>
@@ -96,17 +96,17 @@
                 This action cannot be undone.
               </div>
             </div>
-  
+
             <div class="form-row">
               <div class="form-group full-width">
                 <label for="actual_quantity">Actual Produced Quantity</label>
-                <input 
-                  type="number" 
-                  id="actual_quantity" 
+                <input
+                  type="number"
+                  id="actual_quantity"
                   v-model="form.actual_quantity"
                   :class="{ 'error': errors.actual_quantity }"
-                  min="0.01" 
-                  step="0.01" 
+                  min="0.01"
+                  step="0.01"
                   required
                   @input="validateActualQuantity"
                 >
@@ -118,23 +118,23 @@
                 </div>
               </div>
             </div>
-  
+
             <div class="form-section">
               <h3>Material Consumption</h3>
               <p class="section-description">
                 Verify and update the actual quantities of materials consumed during production.
               </p>
-              
+
               <div v-if="consumptions.length === 0" class="empty-state">
                 <i class="fas fa-box-open"></i>
                 <p>No material consumption records found. Add materials before completing the production order.</p>
-                <router-link 
-                  :to="`/manufacturing/production-orders/${productionId}/consumption/add`" 
+                <router-link
+                  :to="`/manufacturing/production-orders/${productionId}/consumption/add`"
                   class="btn btn-primary">
                   <i class="fas fa-plus"></i> Add Material
                 </router-link>
               </div>
-              
+
               <div v-else class="table-responsive">
                 <table class="table">
                   <thead>
@@ -155,10 +155,10 @@
                       <td>{{ consumption.warehouse?.name || 'N/A' }}</td>
                       <td>{{ consumption.planned_quantity }}</td>
                       <td>
-                        <input 
-                          type="number" 
-                          v-model="form.consumptions[index].actual_quantity" 
-                          min="0" 
+                        <input
+                          type="number"
+                          v-model="form.consumptions[index].actual_quantity"
+                          min="0"
                           step="0.01"
                           :class="{ 'error': getConsumptionError(index) }"
                           @input="validateConsumptions"
@@ -168,8 +168,8 @@
                         </div>
                       </td>
                       <td>
-                        <div 
-                          class="stock-amount" 
+                        <div
+                          class="stock-amount"
                           :class="{ 'stock-warning': isStockInsufficient(consumption, index) }"
                         >
                           {{ getAvailableStock(consumption) }}
@@ -180,12 +180,12 @@
                 </table>
               </div>
             </div>
-  
+
             <div class="form-row">
               <div class="form-group full-width">
                 <label for="completion_notes">Completion Notes</label>
-                <textarea 
-                  id="completion_notes" 
+                <textarea
+                  id="completion_notes"
                   v-model="form.notes"
                   rows="3"
                   placeholder="Enter any notes or observations about this production run"
@@ -193,12 +193,12 @@
               </div>
             </div>
           </div>
-          
+
           <div class="card-footer">
             <button type="button" class="btn btn-secondary" @click="cancel">Cancel</button>
-            <button 
-              type="submit" 
-              class="btn btn-success" 
+            <button
+              type="submit"
+              class="btn btn-success"
               :disabled="saving || hasValidationErrors || consumptions.length === 0 || !isActualQuantityValid"
             >
               <i v-if="saving" class="fas fa-spinner fa-spin"></i>
@@ -209,7 +209,7 @@
       </div>
     </div>
   </template>
-  
+
   <script>
 import axios from 'axios';
 
@@ -249,7 +249,7 @@ export default {
         this.consumptionErrors.some(err => err !== null)
       );
     },
-    
+
     isActualQuantityValid() {
       const actualQty = parseFloat(this.form.actual_quantity) || 0;
       return actualQty > 0;
@@ -267,9 +267,9 @@ export default {
         type,
         duration
       };
-      
+
       this.toasts.push(toast);
-      
+
       // Auto remove after duration
       setTimeout(() => {
         this.removeToast(toast.id);
@@ -297,7 +297,7 @@ export default {
     showError(msg) {
       this.showToast(msg, 'error');
     },
-    
+
     showSuccess(msg) {
       this.showToast(msg, 'success');
     },
@@ -312,7 +312,7 @@ export default {
 
     validateActualQuantity() {
       const actualQty = parseFloat(this.form.actual_quantity) || 0;
-      
+
       if (actualQty <= 0) {
         this.errors.actual_quantity = 'Actual quantity must be greater than 0';
       } else {
@@ -467,7 +467,7 @@ export default {
           this.showError('Please correct the errors before completing the production order');
           return;
         }
-        
+
         if (this.consumptions.length === 0) {
           this.showError('Cannot complete production order without any material consumption');
           return;
@@ -476,12 +476,12 @@ export default {
         this.saving = true;
         await axios.post(`/production-orders/${this.productionId}/complete`, this.form);
         this.showSuccess('Production order completed successfully');
-        
+
         // Redirect setelah 1 detik agar user bisa lihat success message
         setTimeout(() => {
           this.$router.push(`/manufacturing/production-orders/${this.productionId}`);
         }, 1000);
-        
+
       } catch (err) {
         console.error('Error completing production order:', err);
 
@@ -525,14 +525,14 @@ export default {
       },
       deep: true
     },
-    
+
     'form.actual_quantity'() {
       this.validateActualQuantity();
     }
   }
 };
 </script>
-  
+
 <style scoped>
 /* Toast Styles */
 .toast-container {
@@ -820,28 +820,28 @@ export default {
     left: 10px;
     max-width: none;
   }
-  
+
   .page-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 1rem;
   }
-  
+
   .actions {
     width: 100%;
     justify-content: flex-start;
     flex-wrap: wrap;
   }
-  
+
   .form-row {
     flex-direction: column;
     gap: 1rem;
   }
-  
+
   .table-responsive {
     overflow-x: auto;
   }
-  
+
   .detail-grid {
     grid-template-columns: 1fr;
   }
