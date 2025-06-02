@@ -8,13 +8,21 @@ use App\Models\Sales\SOLine;
 use App\Models\Sales\SalesQuotation;
 use App\Models\Sales\SalesQuotationLine;
 use App\Models\Sales\DeliveryLine;
-use App\Models\Item;
 use App\Models\Sales\Customer;
+use App\Models\Item;
+use App\Models\UnitOfMeasure;
 use App\Models\CurrencyRate;
 use App\Models\ItemStock;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Font;
 
 class SalesOrderController extends Controller
 {
@@ -25,7 +33,7 @@ class SalesOrderController extends Controller
      */
     public function index(Request $request)
     {
-        $query = SalesOrder::with(['customer', 'salesQuotation']);
+        $query = SalesOrder::with(['customer', 'salesQuotation', 'deliveries', 'salesInvoices']);
 
         // Filters
         if ($request->has('status') && $request->status !== '') {
@@ -67,6 +75,19 @@ class SalesOrderController extends Controller
         // Custom date range filter
         if ($request->has('start_date') && $request->has('end_date') && $request->start_date !== '' && $request->end_date !== '') {
             $query->whereBetween('so_date', [$request->start_date, $request->end_date]);
+        }
+
+        // Custom date range filters for Excel export
+        if ($request->has('dateFrom') && $request->dateFrom !== '') {
+            $query->where('so_date', '>=', $request->dateFrom);
+        }
+
+        if ($request->has('dateTo') && $request->dateTo !== '') {
+            $query->where('so_date', '<=', $request->dateTo);
+        }
+
+        if ($request->has('customer_id') && $request->customer_id !== '') {
+            $query->where('customer_id', $request->customer_id);
         }
 
         // Sorting
@@ -112,7 +133,7 @@ class SalesOrderController extends Controller
             'delivery_terms' => 'nullable|string',
             'expected_delivery' => 'nullable|date',
             'status' => 'required|string|max:50',
-            'currency_code' => 'nullable|string|size:3', // New field for currency
+            'currency_code' => 'nullable|string|size:3',
             'lines' => 'required|array',
             'lines.*.item_id' => 'required|exists:items,item_id',
             'lines.*.unit_price' => 'nullable|numeric|min:0',
@@ -1151,5 +1172,699 @@ class SalesOrderController extends Controller
         return response()->json([
             'data' => $outstandingSalesOrders
         ], 200);
+    }
+
+    /**
+     * Download Excel template for sales order import
+     */
+    public function downloadTemplate()
+    {
+        try {
+            $spreadsheet = new Spreadsheet();
+
+            // ===== SHEET 1: SALES ORDER HEADER =====
+            $headerSheet = $spreadsheet->getActiveSheet();
+            $headerSheet->setTitle('Sales Orders');
+
+            // Header columns for Sales Order
+            $headers = [
+                'A1' => 'SO Number*',
+                'B1' => 'SO Date*',
+                'C1' => 'Customer Code*',
+                'D1' => 'Payment Terms',
+                'E1' => 'Delivery Terms',
+                'F1' => 'Expected Delivery',
+                'G1' => 'Status*',
+                'H1' => 'Currency Code',
+                'I1' => 'Notes'
+            ];
+
+            // Apply headers
+            foreach ($headers as $cell => $value) {
+                $headerSheet->setCellValue($cell, $value);
+            }
+
+            // Style header row
+            $headerStyle = [
+                'font' => [
+                    'bold' => true,
+                    'color' => ['rgb' => 'FFFFFF']
+                ],
+                'fill' => [
+                    'fillType' => Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => '366092']
+                ],
+                'alignment' => [
+                    'horizontal' => Alignment::HORIZONTAL_CENTER,
+                    'vertical' => Alignment::VERTICAL_CENTER
+                ],
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => Border::BORDER_THIN,
+                        'color' => ['rgb' => '000000']
+                    ]
+                ]
+            ];
+
+            $headerSheet->getStyle('A1:I1')->applyFromArray($headerStyle);
+
+            // Set column widths
+            $columnWidths = ['A' => 15, 'B' => 12, 'C' => 15, 'D' => 15, 'E' => 15, 'F' => 15, 'G' => 12, 'H' => 12, 'I' => 25];
+            foreach ($columnWidths as $column => $width) {
+                $headerSheet->getColumnDimension($column)->setWidth($width);
+            }
+
+            // Add sample data
+            $sampleData = [
+                ['SO-2024-001', '2024-01-15', 'CUST001', 'Net 30', 'FOB Destination', '2024-02-15', 'Draft', 'USD', 'Sample sales order 1'],
+                ['SO-2024-002', '2024-01-16', 'CUST002', 'Net 60', 'FOB Origin', '2024-02-20', 'Confirmed', 'EUR', 'Sample sales order 2']
+            ];
+
+            $row = 2;
+            foreach ($sampleData as $data) {
+                $col = 'A';
+                foreach ($data as $value) {
+                    $headerSheet->setCellValue($col . $row, $value);
+                    $col++;
+                }
+                $row++;
+            }
+
+            // ===== SHEET 2: SALES ORDER LINES =====
+            $linesSheet = $spreadsheet->createSheet();
+            $linesSheet->setTitle('Sales Order Lines');
+
+            $lineHeaders = [
+                'A1' => 'SO Number*',
+                'B1' => 'Item Code*',
+                'C1' => 'Quantity*',
+                'D1' => 'UOM Code*',
+                'E1' => 'Unit Price',
+                'F1' => 'Discount',
+                'G1' => 'Tax',
+                'H1' => 'Notes'
+            ];
+
+            foreach ($lineHeaders as $cell => $value) {
+                $linesSheet->setCellValue($cell, $value);
+            }
+
+            $linesSheet->getStyle('A1:H1')->applyFromArray($headerStyle);
+
+            // Set column widths for lines sheet
+            $lineColumnWidths = ['A' => 15, 'B' => 15, 'C' => 10, 'D' => 10, 'E' => 12, 'F' => 10, 'G' => 10, 'H' => 25];
+            foreach ($lineColumnWidths as $column => $width) {
+                $linesSheet->getColumnDimension($column)->setWidth($width);
+            }
+
+            // Add sample line data
+            $sampleLineData = [
+                ['SO-2024-001', 'ITEM001', 10, 'PCS', 100.00, 0, 10.00, 'Line 1 for SO-2024-001'],
+                ['SO-2024-001', 'ITEM002', 5, 'KG', 50.00, 5.00, 2.50, 'Line 2 for SO-2024-001'],
+                ['SO-2024-002', 'ITEM003', 20, 'PCS', 75.00, 0, 15.00, 'Line 1 for SO-2024-002']
+            ];
+
+            $row = 2;
+            foreach ($sampleLineData as $data) {
+                $col = 'A';
+                foreach ($data as $value) {
+                    $linesSheet->setCellValue($col . $row, $value);
+                    $col++;
+                }
+                $row++;
+            }
+
+            // ===== SHEET 3: REFERENCE DATA =====
+            $refSheet = $spreadsheet->createSheet();
+            $refSheet->setTitle('Reference Data');
+
+            // Customers reference
+            $refSheet->setCellValue('A1', 'CUSTOMERS');
+            $refSheet->setCellValue('A2', 'Customer Code');
+            $refSheet->setCellValue('B2', 'Customer Name');
+            $refSheet->getStyle('A1:B2')->applyFromArray($headerStyle);
+
+            $customers = Customer::select('customer_id', 'customer_code', 'name')->limit(50)->get();
+            $row = 3;
+            foreach ($customers as $customer) {
+                $customerCode = $customer->customer_code ?: 'CUST' . str_pad($customer->customer_id, 3, '0', STR_PAD_LEFT);
+                $refSheet->setCellValue('A' . $row, $customerCode);
+                $refSheet->setCellValue('B' . $row, $customer->name);
+                $row++;
+            }
+
+            // Items reference
+            $refSheet->setCellValue('D1', 'ITEMS');
+            $refSheet->setCellValue('D2', 'Item Code');
+            $refSheet->setCellValue('E2', 'Item Name');
+            $refSheet->setCellValue('F2', 'Sale Price');
+            $refSheet->getStyle('D1:F2')->applyFromArray($headerStyle);
+
+            $items = Item::where('is_sellable', true)->select('item_id', 'item_code', 'name', 'sale_price')->limit(100)->get();
+            $row = 3;
+            foreach ($items as $item) {
+                $refSheet->setCellValue('D' . $row, $item->item_code);
+                $refSheet->setCellValue('E' . $row, $item->name);
+                $refSheet->setCellValue('F' . $row, $item->sale_price ?? 0);
+                $row++;
+            }
+
+            // UOM reference
+            $refSheet->setCellValue('H1', 'UNIT OF MEASURES');
+            $refSheet->setCellValue('H2', 'UOM Code');
+            $refSheet->setCellValue('I2', 'UOM Name');
+            $refSheet->getStyle('H1:I2')->applyFromArray($headerStyle);
+
+            $uoms = UnitOfMeasure::select('symbol', 'name')->get();
+            $row = 3;
+            foreach ($uoms as $uom) {
+                $refSheet->setCellValue('H' . $row, $uom->symbol);
+                $refSheet->setCellValue('I' . $row, $uom->name);
+                $row++;
+            }
+
+            // Status reference
+            $refSheet->setCellValue('K1', 'VALID STATUSES');
+            $refSheet->setCellValue('K2', 'Status');
+            $refSheet->getStyle('K1:K2')->applyFromArray($headerStyle);
+
+            $statuses = ['Draft', 'Confirmed', 'In Progress', 'Delivered', 'Invoiced', 'Closed', 'Cancelled'];
+            $row = 3;
+            foreach ($statuses as $status) {
+                $refSheet->setCellValue('K' . $row, $status);
+                $row++;
+            }
+
+            // Currency reference
+            $refSheet->setCellValue('M1', 'CURRENCIES');
+            $refSheet->setCellValue('M2', 'Currency Code');
+            $refSheet->getStyle('M1:M2')->applyFromArray($headerStyle);
+
+            $currencies = ['USD', 'EUR', 'IDR', 'SGD', 'MYR', 'JPY', 'CNY'];
+            $row = 3;
+            foreach ($currencies as $currency) {
+                $refSheet->setCellValue('M' . $row, $currency);
+                $row++;
+            }
+
+            // Set active sheet back to first sheet
+            $spreadsheet->setActiveSheetIndex(0);
+
+            // Add instructions sheet
+            $instructionSheet = $spreadsheet->createSheet();
+            $instructionSheet->setTitle('Instructions');
+
+            $instructions = [
+                'SALES ORDER IMPORT INSTRUCTIONS',
+                '',
+                '1. GENERAL RULES:',
+                '   - Fields marked with * are required',
+                '   - Use the exact codes from Reference Data sheet',
+                '   - Date format: YYYY-MM-DD (e.g., 2024-01-15)',
+                '   - Decimal numbers use dot (.) as separator',
+                '',
+                '2. SALES ORDERS SHEET:',
+                '   - SO Number: Must be unique across all sales orders',
+                '   - Customer Code: Must exist in Reference Data',
+                '   - Status: Use values from Reference Data sheet',
+                '   - Currency Code: Use standard 3-letter codes (USD, EUR, etc.)',
+                '',
+                '3. SALES ORDER LINES SHEET:',
+                '   - SO Number: Must match exactly with SO Number in Sales Orders sheet',
+                '   - Item Code: Must exist and be sellable',
+                '   - UOM Code: Must exist in Reference Data',
+                '   - Unit Price: If empty, system will use default sale price',
+                '   - Discount and Tax: Optional, use 0 if not applicable',
+                '',
+                '4. IMPORT PROCESS:',
+                '   - System will first create Sales Orders from "Sales Orders" sheet',
+                '   - Then add lines from "Sales Order Lines" sheet',
+                '   - If SO Number already exists, you can choose to update or skip',
+                '',
+                '5. ERROR HANDLING:',
+                '   - Invalid data will be logged with row number',
+                '   - Import will continue for other valid rows',
+                '   - Download error report after import for details'
+            ];
+
+            $row = 1;
+            foreach ($instructions as $instruction) {
+                $instructionSheet->setCellValue('A' . $row, $instruction);
+                if ($row == 1) {
+                    $instructionSheet->getStyle('A' . $row)->applyFromArray([
+                        'font' => ['bold' => true, 'size' => 14],
+                        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '366092']],
+                        'font' => ['color' => ['rgb' => 'FFFFFF']]
+                    ]);
+                } elseif (strpos($instruction, ':') !== false && !empty(trim($instruction))) {
+                    $instructionSheet->getStyle('A' . $row)->applyFromArray([
+                        'font' => ['bold' => true]
+                    ]);
+                }
+                $row++;
+            }
+            $instructionSheet->getColumnDimension('A')->setWidth(80);
+
+            // Set active sheet back to first sheet
+            $spreadsheet->setActiveSheetIndex(0);
+
+            // Generate filename and save
+            $filename = 'sales_order_import_template_' . date('Y-m-d_H-i-s') . '.xlsx';
+            $tempPath = storage_path('app/temp/' . $filename);
+
+            if (!file_exists(storage_path('app/temp'))) {
+                mkdir(storage_path('app/temp'), 0755, true);
+            }
+
+            $writer = new Xlsx($spreadsheet);
+            $writer->save($tempPath);
+
+            return response()->download($tempPath, $filename)->deleteFileAfterSend(true);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to generate template',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Import sales orders from Excel file
+     */
+    public function importFromExcel(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'file' => 'required|file|mimes:xlsx,xls|max:10240',
+            'update_existing' => 'boolean'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        try {
+            $file = $request->file('file');
+            $updateExisting = $request->get('update_existing', false);
+
+            $spreadsheet = IOFactory::load($file->getPathname());
+
+            // Get Sales Orders sheet
+            $headerSheet = $spreadsheet->getSheetByName('Sales Orders');
+            if (!$headerSheet) {
+                return response()->json(['message' => 'Sales Orders sheet not found'], 422);
+            }
+
+            // Get Sales Order Lines sheet
+            $linesSheet = $spreadsheet->getSheetByName('Sales Order Lines');
+            if (!$linesSheet) {
+                return response()->json(['message' => 'Sales Order Lines sheet not found'], 422);
+            }
+
+            $headerHighestRow = $headerSheet->getHighestRow();
+            $linesHighestRow = $linesSheet->getHighestRow();
+
+            if ($headerHighestRow < 2) {
+                return response()->json(['message' => 'No sales order data found'], 422);
+            }
+
+            $successCount = 0;
+            $errorCount = 0;
+            $errors = [];
+            $createdOrders = [];
+
+            DB::beginTransaction();
+
+            // Process Sales Orders (Headers)
+            for ($row = 2; $row <= $headerHighestRow; $row++) {
+                try {
+                    $soNumber = trim($headerSheet->getCell('A' . $row)->getValue() ?? '');
+                    $soDate = $headerSheet->getCell('B' . $row)->getFormattedValue();
+                    $customerCode = trim($headerSheet->getCell('C' . $row)->getValue() ?? '');
+                    $paymentTerms = trim($headerSheet->getCell('D' . $row)->getValue() ?? '');
+                    $deliveryTerms = trim($headerSheet->getCell('E' . $row)->getValue() ?? '');
+                    $expectedDelivery = $headerSheet->getCell('F' . $row)->getFormattedValue();
+                    $status = trim($headerSheet->getCell('G' . $row)->getValue() ?? 'Draft');
+                    $currencyCode = trim($headerSheet->getCell('H' . $row)->getValue() ?? 'USD');
+
+                    // Skip empty rows
+                    if (empty($soNumber) && empty($customerCode)) {
+                        continue;
+                    }
+
+                    // Validate required fields
+                    if (empty($soNumber) || empty($soDate) || empty($customerCode)) {
+                        $errors[] = "Row {$row}: Missing required fields (SO Number, SO Date, or Customer Code)";
+                        $errorCount++;
+                        continue;
+                    }
+
+                    // Find customer
+                    $customer = Customer::where('customer_code', $customerCode)->first();
+                    if (!$customer) {
+                        $errors[] = "Row {$row}: Customer with code '{$customerCode}' not found";
+                        $errorCount++;
+                        continue;
+                    }
+
+                    // Check if SO already exists
+                    $existingSO = SalesOrder::where('so_number', $soNumber)->first();
+                    if ($existingSO && !$updateExisting) {
+                        $errors[] = "Row {$row}: Sales Order '{$soNumber}' already exists. Enable 'Update Existing' to overwrite.";
+                        $errorCount++;
+                        continue;
+                    }
+
+                    // Validate and convert dates
+                    try {
+                        $soDateFormatted = date('Y-m-d', strtotime($soDate));
+                        $expectedDeliveryFormatted = !empty($expectedDelivery) ? date('Y-m-d', strtotime($expectedDelivery)) : null;
+                    } catch (\Exception $e) {
+                        $errors[] = "Row {$row}: Invalid date format";
+                        $errorCount++;
+                        continue;
+                    }
+
+                    // Get exchange rate
+                    $baseCurrency = config('app.base_currency', 'USD');
+                    $exchangeRate = 1.0;
+
+                    if ($currencyCode !== $baseCurrency) {
+                        $rate = CurrencyRate::getCurrentRate($currencyCode, $baseCurrency, $soDateFormatted);
+                        if (!$rate) {
+                            $errors[] = "Row {$row}: No exchange rate found for {$currencyCode} to {$baseCurrency}";
+                            $errorCount++;
+                            continue;
+                        }
+                        $exchangeRate = $rate;
+                    }
+
+                    // Create or update Sales Order
+                    $salesOrderData = [
+                        'so_number' => $soNumber,
+                        'so_date' => $soDateFormatted,
+                        'customer_id' => $customer->customer_id,
+                        'payment_terms' => $paymentTerms,
+                        'delivery_terms' => $deliveryTerms,
+                        'expected_delivery' => $expectedDeliveryFormatted,
+                        'status' => $status,
+                        'currency_code' => $currencyCode,
+                        'exchange_rate' => $exchangeRate,
+                        'base_currency' => $baseCurrency,
+                        'total_amount' => 0, // Will be calculated after adding lines
+                        'tax_amount' => 0
+                    ];
+
+                    if ($existingSO && $updateExisting) {
+                        $existingSO->update($salesOrderData);
+                        $salesOrder = $existingSO;
+                        // Delete existing lines to replace with new ones
+                        $salesOrder->salesOrderLines()->delete();
+                    } else {
+                        $salesOrder = SalesOrder::create($salesOrderData);
+                    }
+
+                    $createdOrders[$soNumber] = $salesOrder;
+                    $successCount++;
+                } catch (\Exception $e) {
+                    $errors[] = "Row {$row}: " . $e->getMessage();
+                    $errorCount++;
+                }
+            }
+
+            // Process Sales Order Lines
+            if ($linesHighestRow >= 2) {
+                for ($row = 2; $row <= $linesHighestRow; $row++) {
+                    try {
+                        $soNumber = trim($linesSheet->getCell('A' . $row)->getValue() ?? '');
+                        $itemCode = trim($linesSheet->getCell('B' . $row)->getValue() ?? '');
+                        $quantity = $linesSheet->getCell('C' . $row)->getValue();
+                        $uomCode = trim($linesSheet->getCell('D' . $row)->getValue() ?? '');
+                        $unitPrice = $linesSheet->getCell('E' . $row)->getValue();
+                        $discount = $linesSheet->getCell('F' . $row)->getValue() ?? 0;
+                        $tax = $linesSheet->getCell('G' . $row)->getValue() ?? 0;
+
+                        // Skip empty rows
+                        if (empty($soNumber) && empty($itemCode)) {
+                            continue;
+                        }
+
+                        // Validate required fields
+                        if (empty($soNumber) || empty($itemCode) || empty($quantity) || empty($uomCode)) {
+                            $errors[] = "Lines Row {$row}: Missing required fields";
+                            $errorCount++;
+                            continue;
+                        }
+
+                        // Find the sales order
+                        if (!isset($createdOrders[$soNumber])) {
+                            $salesOrder = SalesOrder::where('so_number', $soNumber)->first();
+                            if (!$salesOrder) {
+                                $errors[] = "Lines Row {$row}: Sales Order '{$soNumber}' not found";
+                                $errorCount++;
+                                continue;
+                            }
+                        } else {
+                            $salesOrder = $createdOrders[$soNumber];
+                        }
+
+                        // Find item
+                        $item = Item::where('item_code', $itemCode)->where('is_sellable', true)->first();
+                        if (!$item) {
+                            $errors[] = "Lines Row {$row}: Sellable item with code '{$itemCode}' not found";
+                            $errorCount++;
+                            continue;
+                        }
+
+                        // Find UOM
+                        $uom = UnitOfMeasure::where('symbol', $uomCode)->first();
+                        if (!$uom) {
+                            $errors[] = "Lines Row {$row}: UOM with code '{$uomCode}' not found";
+                            $errorCount++;
+                            continue;
+                        }
+
+                        // Use default price if not provided
+                        if (empty($unitPrice)) {
+                            $unitPrice = $item->getBestSalePriceInCurrency($salesOrder->customer_id, $quantity, $salesOrder->currency_code);
+                        }
+
+                        // Calculate line totals
+                        $subtotal = $unitPrice * $quantity;
+                        $total = $subtotal - $discount + $tax;
+
+                        // Calculate base currency values
+                        $baseUnitPrice = $unitPrice * $salesOrder->exchange_rate;
+                        $baseSubtotal = $subtotal * $salesOrder->exchange_rate;
+                        $baseDiscount = $discount * $salesOrder->exchange_rate;
+                        $baseTax = $tax * $salesOrder->exchange_rate;
+                        $baseTotal = $total * $salesOrder->exchange_rate;
+
+                        // Create line
+                        SOLine::create([
+                            'so_id' => $salesOrder->so_id,
+                            'item_id' => $item->item_id,
+                            'unit_price' => $unitPrice,
+                            'quantity' => $quantity,
+                            'uom_id' => $uom->uom_id,
+                            'discount' => $discount,
+                            'subtotal' => $subtotal,
+                            'tax' => $tax,
+                            'total' => $total,
+                            'base_currency_unit_price' => $baseUnitPrice,
+                            'base_currency_subtotal' => $baseSubtotal,
+                            'base_currency_discount' => $baseDiscount,
+                            'base_currency_tax' => $baseTax,
+                            'base_currency_total' => $baseTotal
+                        ]);
+                    } catch (\Exception $e) {
+                        $errors[] = "Lines Row {$row}: " . $e->getMessage();
+                        $errorCount++;
+                    }
+                }
+            }
+
+            // Update totals for all sales orders
+            foreach ($createdOrders as $salesOrder) {
+                $totalAmount = $salesOrder->salesOrderLines()->sum('total');
+                $taxAmount = $salesOrder->salesOrderLines()->sum('tax');
+                $baseCurrencyTotal = $salesOrder->salesOrderLines()->sum('base_currency_total');
+                $baseCurrencyTax = $salesOrder->salesOrderLines()->sum('base_currency_tax');
+
+                $salesOrder->update([
+                    'total_amount' => $totalAmount,
+                    'tax_amount' => $taxAmount,
+                    'base_currency_total' => $baseCurrencyTotal,
+                    'base_currency_tax' => $baseCurrencyTax
+                ]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Import completed',
+                'summary' => [
+                    'total_processed' => $successCount + $errorCount,
+                    'successful' => $successCount,
+                    'failed' => $errorCount,
+                    'errors' => $errors
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Import failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Export sales orders to Excel
+     */
+    public function exportToExcel(Request $request)
+    {
+        try {
+            $query = SalesOrder::with(['customer', 'salesOrderLines.item', 'salesOrderLines.unitOfMeasure']);
+
+            // Apply filters if provided
+            if ($request->has('status') && $request->status !== '') {
+                $query->where('status', $request->status);
+            }
+
+            if ($request->has('customer_id') && $request->customer_id !== '') {
+                $query->where('customer_id', $request->customer_id);
+            }
+
+            if ($request->has('dateFrom') && $request->dateFrom !== '') {
+                $query->where('so_date', '>=', $request->dateFrom);
+            }
+
+            if ($request->has('dateTo') && $request->dateTo !== '') {
+                $query->where('so_date', '<=', $request->dateTo);
+            }
+
+            $salesOrders = $query->get();
+
+            $spreadsheet = new Spreadsheet();
+
+            // ===== SHEET 1: SALES ORDERS =====
+            $orderSheet = $spreadsheet->getActiveSheet();
+            $orderSheet->setTitle('Sales Orders');
+
+            // Headers
+            $headers = [
+                'A1' => 'SO Number',
+                'B1' => 'SO Date',
+                'C1' => 'Customer Code',
+                'D1' => 'Customer Name',
+                'E1' => 'Payment Terms',
+                'F1' => 'Delivery Terms',
+                'G1' => 'Expected Delivery',
+                'H1' => 'Status',
+                'I1' => 'Currency',
+                'J1' => 'Total Amount',
+                'K1' => 'Tax Amount'
+            ];
+
+            foreach ($headers as $cell => $value) {
+                $orderSheet->setCellValue($cell, $value);
+            }
+
+            // Style headers
+            $headerStyle = [
+                'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '366092']],
+                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER]
+            ];
+            $orderSheet->getStyle('A1:K1')->applyFromArray($headerStyle);
+
+            // Add data
+            $row = 2;
+            foreach ($salesOrders as $order) {
+                $orderSheet->setCellValue('A' . $row, $order->so_number);
+                $orderSheet->setCellValue('B' . $row, $order->so_date->format('Y-m-d'));
+                $orderSheet->setCellValue('C' . $row, $order->customer->customer_code ?? '');
+                $orderSheet->setCellValue('D' . $row, $order->customer->name);
+                $orderSheet->setCellValue('E' . $row, $order->payment_terms);
+                $orderSheet->setCellValue('F' . $row, $order->delivery_terms);
+                $orderSheet->setCellValue('G' . $row, $order->expected_delivery ? $order->expected_delivery->format('Y-m-d') : '');
+                $orderSheet->setCellValue('H' . $row, $order->status);
+                $orderSheet->setCellValue('I' . $row, $order->currency_code ?? 'USD');
+                $orderSheet->setCellValue('J' . $row, $order->total_amount);
+                $orderSheet->setCellValue('K' . $row, $order->tax_amount);
+                $row++;
+            }
+
+            // Auto-size columns
+            foreach (range('A', 'K') as $column) {
+                $orderSheet->getColumnDimension($column)->setAutoSize(true);
+            }
+
+            // ===== SHEET 2: SALES ORDER LINES =====
+            $linesSheet = $spreadsheet->createSheet();
+            $linesSheet->setTitle('Sales Order Lines');
+
+            $lineHeaders = [
+                'A1' => 'SO Number',
+                'B1' => 'Item Code',
+                'C1' => 'Item Name',
+                'D1' => 'Quantity',
+                'E1' => 'UOM',
+                'F1' => 'Unit Price',
+                'G1' => 'Discount',
+                'H1' => 'Subtotal',
+                'I1' => 'Tax',
+                'J1' => 'Total'
+            ];
+
+            foreach ($lineHeaders as $cell => $value) {
+                $linesSheet->setCellValue($cell, $value);
+            }
+
+            $linesSheet->getStyle('A1:J1')->applyFromArray($headerStyle);
+
+            $row = 2;
+            foreach ($salesOrders as $order) {
+                foreach ($order->salesOrderLines as $line) {
+                    $linesSheet->setCellValue('A' . $row, $order->so_number);
+                    $linesSheet->setCellValue('B' . $row, $line->item->item_code);
+                    $linesSheet->setCellValue('C' . $row, $line->item->name);
+                    $linesSheet->setCellValue('D' . $row, $line->quantity);
+                    $linesSheet->setCellValue('E' . $row, $line->unitOfMeasure->symbol);
+                    $linesSheet->setCellValue('F' . $row, $line->unit_price);
+                    $linesSheet->setCellValue('G' . $row, $line->discount);
+                    $linesSheet->setCellValue('H' . $row, $line->subtotal);
+                    $linesSheet->setCellValue('I' . $row, $line->tax);
+                    $linesSheet->setCellValue('J' . $row, $line->total);
+                    $row++;
+                }
+            }
+
+            // Auto-size columns
+            foreach (range('A', 'J') as $column) {
+                $linesSheet->getColumnDimension($column)->setAutoSize(true);
+            }
+
+            // Set active sheet
+            $spreadsheet->setActiveSheetIndex(0);
+
+            // Generate filename and save
+            $filename = 'sales_orders_export_' . date('Y-m-d_H-i-s') . '.xlsx';
+            $tempPath = storage_path('app/temp/' . $filename);
+
+            if (!file_exists(storage_path('app/temp'))) {
+                mkdir(storage_path('app/temp'), 0755, true);
+            }
+
+            $writer = new Xlsx($spreadsheet);
+            $writer->save($tempPath);
+
+            return response()->download($tempPath, $filename)->deleteFileAfterSend(true);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Export failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

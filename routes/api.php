@@ -216,6 +216,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('purchase-orders/reports/outstanding-items', [PurchaseOrderController::class, 'outstandingItemsReport']);
     // New route for currency conversion
     Route::post('purchase-orders/{purchaseOrder}/convert-currency', [PurchaseOrderController::class, 'convertCurrency']);
+    Route::get('purchase-orders/template/download', [PurchaseOrderController::class, 'downloadTemplate']);
+    Route::post('purchase-orders/import', [PurchaseOrderController::class, 'importFromExcel']);
+    Route::post('purchase-orders/export', [PurchaseOrderController::class, 'exportToExcel']);
 
     // Goods Receipts
     Route::prefix('goods-receipts')->group(function () {
@@ -279,6 +282,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{id}/lines', [SalesOrderController::class, 'addLine']);
         Route::put('/{id}/lines/{lineId}', [SalesOrderController::class, 'updateLine']);
         Route::delete('/{id}/lines/{lineId}', [SalesOrderController::class, 'removeLine']);
+        // Excel functionality routes (letakkan sebelum routes dengan parameter {id})
+        Route::get('/excel/template', [SalesOrderController::class, 'downloadTemplate']);
+        Route::post('/excel/import', [SalesOrderController::class, 'importFromExcel']);
+        Route::get('/excel/export', [SalesOrderController::class, 'exportToExcel']);
     });
 
     Route::prefix('deliveries')->group(function () {

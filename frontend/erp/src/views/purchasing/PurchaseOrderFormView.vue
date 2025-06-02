@@ -32,17 +32,32 @@
           <div class="form-row">
             <div class="form-group">
               <label for="vendor_id">Vendor <span class="required">*</span></label>
-              <select
-                id="vendor_id"
-                v-model="purchaseOrder.vendor_id"
-                :disabled="isEditMode && purchaseOrder.status !== 'draft'"
-                required
-              >
-                <option value="" disabled>Select Vendor</option>
-                <option v-for="vendor in filteredVendors" :key="vendor.vendor_id" :value="vendor.vendor_id">
-                  {{ vendor.name }}
-                </option>
-              </select>
+              <div class="dropdown-container">
+                <input
+                  type="text"
+                  id="vendor_search"
+                  v-model="vendorSearch"
+                  class="form-control"
+                  placeholder="Search for a vendor..."
+                  @focus="showVendorDropdown = true"
+                  @blur="hideVendorDropdown"
+                  :disabled="isEditMode && purchaseOrder.status !== 'draft'"
+                  required
+                />
+                <div v-if="showVendorDropdown" class="dropdown-menu">
+                  <div
+                    v-for="vendor in filteredVendors"
+                    :key="vendor.vendor_id"
+                    @click="selectVendor(vendor)"
+                    class="dropdown-item"
+                  >
+                    {{ vendor.name }} ({{ vendor.vendor_code || 'No Code' }})
+                  </div>
+                  <div v-if="filteredVendors.length === 0" class="dropdown-item text-muted">
+                    No vendors found
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div class="form-group">
@@ -260,7 +275,7 @@
           <span v-if="isSaving">
             <i class="fas fa-spinner fa-spin"></i> Saving...
           </span>
-          <span v-else>
+          <span v-else">
             <i class="fas fa-save"></i> {{ isEditMode ? 'Update' : 'Create' }} Purchase Order
           </span>
         </button>
@@ -292,10 +307,27 @@ export default {
         tax_amount: 0,
         lines: []
       },
-      // New properties for searchable item select
-      itemSearches: [], // Array to store search text for each line
-      showItemDropdown: [] // Array to control dropdown visibility for each line
+      // Properties for searchable vendor select
+      vendorSearch: '',
+      showVendorDropdown: false,
+      // Properties for searchable item select
+      itemSearches: [],
+      showItemDropdown: []
     };
+  },
+  computed: {
+    // Computed property to filter vendors based on search input
+    filteredVendors() {
+      if (!this.vendorSearch) {
+        return this.vendors.filter(vendor => vendor && vendor.vendor_id);
+      }
+      return this.vendors.filter(vendor =>
+        vendor &&
+        vendor.vendor_id &&
+        (vendor.name.toLowerCase().includes(this.vendorSearch.toLowerCase()) ||
+         (vendor.vendor_code && vendor.vendor_code.toLowerCase().includes(this.vendorSearch.toLowerCase())))
+      );
+    }
   },
   created() {
     // Check if we're in edit mode
@@ -319,6 +351,20 @@ export default {
     }
   },
   methods: {
+    // Method to select a vendor from the dropdown
+    selectVendor(vendor) {
+      this.purchaseOrder.vendor_id = vendor.vendor_id;
+      this.vendorSearch = `${vendor.name} (${vendor.vendor_code || 'No Code'})`;
+      this.showVendorDropdown = false;
+    },
+
+    // Method to hide vendor dropdown
+    hideVendorDropdown() {
+      setTimeout(() => {
+        this.showVendorDropdown = false;
+      }, 200);
+    },
+
     async loadVendors() {
       try {
         const response = await axios.get('/vendors');
@@ -342,6 +388,7 @@ export default {
         this.vendors = [];
       }
     },
+
     async loadItems() {
       try {
         const response = await axios.get('/items?is_purchasable=1');
@@ -350,6 +397,7 @@ export default {
         console.error('Error loading items:', error);
       }
     },
+
     async loadUoms() {
       try {
         const response = await axios.get('/uoms');
@@ -358,6 +406,7 @@ export default {
         console.error('Error loading UOMs:', error);
       }
     },
+
     async loadPurchaseOrder(poId) {
       this.isLoading = true;
       try {
@@ -365,6 +414,14 @@ export default {
 
         if (response.data.status === 'success') {
           this.purchaseOrder = response.data.data;
+
+          // Set vendor search text if vendor is selected
+          if (this.purchaseOrder.vendor_id) {
+            const vendor = this.vendors.find(v => v.vendor_id === this.purchaseOrder.vendor_id);
+            if (vendor) {
+              this.vendorSearch = `${vendor.name} (${vendor.vendor_code || 'No Code'})`;
+            }
+          }
 
           // Ensure po_date is in the right format for input[type=date]
           if (this.purchaseOrder.po_date) {
@@ -397,14 +454,12 @@ export default {
       }
     },
 
-    // New method to initialize search states for lines
+    // Initialize search states for lines
     initializeLineSearchStates() {
-      // Ensure arrays have correct length
       this.itemSearches = new Array(this.purchaseOrder.lines.length);
       this.showItemDropdown = new Array(this.purchaseOrder.lines.length);
 
       this.purchaseOrder.lines.forEach((line, index) => {
-        // Set search text to show selected item
         if (line.item_id) {
           const item = this.items.find(i => i.item_id === line.item_id);
           if (item) {
@@ -415,17 +470,15 @@ export default {
         } else {
           this.itemSearches[index] = '';
         }
-
-        // Initialize dropdown visibility
         this.showItemDropdown[index] = false;
       });
     },
 
-    // New method to get filtered items for a specific line
+    // Get filtered items for a specific line
     getFilteredItems(lineIndex) {
       const searchText = this.itemSearches[lineIndex] || '';
       if (!searchText) {
-        return this.items; // Return all items if no search text
+        return this.items;
       }
       return this.items.filter(item =>
         item.name.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -433,22 +486,16 @@ export default {
       );
     },
 
-    // New method to select an item from dropdown
+    // Select an item from dropdown
     selectItem(item, lineIndex) {
       const line = this.purchaseOrder.lines[lineIndex];
-
-      // Set item ID and search text
       line.item_id = item.item_id;
       this.itemSearches[lineIndex] = `${item.item_code} - ${item.name}`;
-
-      // Hide dropdown
       this.showItemDropdown[lineIndex] = false;
-
-      // Update line item (same logic as before)
       this.updateLineItem(line);
     },
 
-    // New method to hide dropdown with delay
+    // Hide item dropdown with delay
     hideItemDropdown(lineIndex) {
       setTimeout(() => {
         this.showItemDropdown[lineIndex] = false;
@@ -472,33 +519,29 @@ export default {
       this.itemSearches[newIndex] = '';
       this.showItemDropdown[newIndex] = false;
     },
+
     removeLine(lineIndex) {
       if (confirm('Are you sure you want to remove this line?')) {
         this.purchaseOrder.lines.splice(lineIndex, 1);
-
-        // Remove and reindex search states
         this.itemSearches.splice(lineIndex, 1);
         this.showItemDropdown.splice(lineIndex, 1);
-
         this.updateTotals();
       }
     },
+
     updateLineItem(line) {
-      // Find the selected item
       const item = this.items.find(i => i.item_id === line.item_id);
       if (item) {
-        // Set default UOM if not already set
         if (!line.uom_id && item.uom_id) {
           line.uom_id = item.uom_id;
         }
-
-        // Set default price if available
         if (item.cost_price && line.unit_price === 0) {
           line.unit_price = item.cost_price;
           this.updateLineTotal(line);
         }
       }
     },
+
     updateLineTotal(line) {
       if (line.quantity && line.unit_price) {
         line.subtotal = parseFloat((line.quantity * line.unit_price).toFixed(2));
@@ -507,24 +550,29 @@ export default {
       }
       this.updateTotals();
     },
+
     calculateSubtotal() {
       return this.purchaseOrder.lines.reduce((sum, line) => sum + (line.subtotal || 0), 0);
     },
+
     calculateTotal() {
       const subtotal = this.calculateSubtotal();
       const tax = parseFloat(this.purchaseOrder.tax_amount || 0);
       return subtotal + tax;
     },
+
     updateTotals() {
       const subtotal = this.calculateSubtotal();
       const tax = parseFloat(this.purchaseOrder.tax_amount || 0);
       this.purchaseOrder.total_amount = subtotal + tax;
     },
+
     formatDateForInput(dateString) {
       if (!dateString) return '';
       const date = new Date(dateString);
       return date.toISOString().split('T')[0];
     },
+
     formatCurrency(amount) {
       if (amount === null || amount === undefined) return '-';
       return new Intl.NumberFormat('id-ID', {
@@ -533,6 +581,7 @@ export default {
         maximumFractionDigits: 2
       }).format(amount);
     },
+
     async savePurchaseOrder() {
       // Validate the form
       if (!this.purchaseOrder.vendor_id || !this.purchaseOrder.po_date) {
@@ -557,27 +606,20 @@ export default {
         let response;
 
         if (this.isEditMode) {
-          // Update existing PO
           response = await axios.put(
             `/purchase-orders/${this.purchaseOrder.po_id}`,
             this.purchaseOrder
           );
         } else {
-          // Create new PO
           response = await axios.post('/purchase-orders', this.purchaseOrder);
         }
 
         if (response.data.status === 'success') {
-          // Show success message
           alert(this.isEditMode ? 'Purchase order updated successfully' : 'Purchase order created successfully');
-
-          // Redirect to PO detail page
           this.$router.push(`/purchasing/orders/${response.data.data.po_id}`);
         }
       } catch (error) {
         console.error('Error saving purchase order:', error);
-
-        // Show error message
         if (error.response && error.response.data && error.response.data.message) {
           alert(`Error: ${error.response.data.message}`);
         } else {
@@ -586,11 +628,6 @@ export default {
       } finally {
         this.isSaving = false;
       }
-    }
-  },
-  computed: {
-    filteredVendors() {
-      return this.vendors.filter(vendor => vendor && vendor.vendor_id);
     }
   }
 };
@@ -788,7 +825,7 @@ export default {
   cursor: not-allowed;
 }
 
-/* New styles for searchable dropdown */
+/* Styles for searchable dropdown */
 .dropdown-container {
   position: relative;
   width: 100%;

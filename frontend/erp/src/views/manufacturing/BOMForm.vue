@@ -5,45 +5,52 @@
       <div class="card-header">
         <h2 class="card-title">{{ isEditMode ? 'Edit BOM' : 'Create New BOM' }}</h2>
       </div>
-      
+
       <div class="card-body">
         <form @submit.prevent="submitForm">
           <!-- BOM Header Information -->
           <div class="form-section">
             <h3 class="section-title">Basic Information</h3>
-            
+
             <div class="row">
               <div class="col-md-6">
                 <div class="form-group">
                   <label for="item_id">Item <span class="required">*</span></label>
                   <div class="dropdown">
-                    <input 
-                      type="text" 
-                      id="item_id" 
-                      v-model="itemSearch" 
-                      class="form-control" 
+                    <input
+                      type="text"
+                      id="item_id"
+                      v-model="itemSearch"
+                      class="form-control"
                       :class="{ 'is-invalid': errors.item_id }"
                       placeholder="Search for an item..."
                       @focus="showDropdown = true"
                       @blur="hideDropdown"
                     />
                     <div v-if="showDropdown" class="dropdown-menu">
-                      <div v-for="item in filteredItems" :key="item.item_id" @click="selectItem(item)" class="dropdown-item">
-                        {{ item.name }} ({{ item.item_code }})
+                      <div v-for="item in filteredItems" :key="item.item_id" @mousedown="selectItem(item)" class="dropdown-item">
+                        <div class="item-info">
+                          <strong>{{ item.name }}</strong>
+                          <span class="item-code">({{ item.item_code }})</span>
+                        </div>
+                        <div class="item-details">
+                          <span class="category">{{ item.category ? item.category.name : 'No Category' }}</span>
+                          <span class="stock">Stock: {{ item.current_stock || 0 }}</span>
+                        </div>
                       </div>
                       <div v-if="filteredItems.length === 0" class="dropdown-item text-muted">No items found</div>
                     </div>
                   </div>
                   <div v-if="errors.item_id" class="invalid-feedback">{{ errors.item_id }}</div>
                 </div>
-                
+
                 <div class="form-group">
                   <label for="bom_code">BOM Code <span class="required">*</span></label>
-                  <input 
-                    type="text" 
-                    id="bom_code" 
-                    v-model="form.bom_code" 
-                    class="form-control" 
+                  <input
+                    type="text"
+                    id="bom_code"
+                    v-model="form.bom_code"
+                    class="form-control"
                     :class="{ 'is-invalid': errors.bom_code }"
                     required
                     maxlength="50"
@@ -52,14 +59,14 @@
                   />
                   <div v-if="errors.bom_code" class="invalid-feedback">{{ errors.bom_code }}</div>
                 </div>
-                
+
                 <div class="form-group">
                   <label for="revision">Revision <span class="required">*</span></label>
-                  <input 
-                    type="text" 
-                    id="revision" 
-                    v-model="form.revision" 
-                    class="form-control" 
+                  <input
+                    type="text"
+                    id="revision"
+                    v-model="form.revision"
+                    class="form-control"
                     :class="{ 'is-invalid': errors.revision }"
                     required
                     maxlength="10"
@@ -68,30 +75,30 @@
                   <div v-if="errors.revision" class="invalid-feedback">{{ errors.revision }}</div>
                 </div>
               </div>
-              
+
               <div class="col-md-6">
                 <div class="form-group">
                   <label for="effective_date">Effective Date <span class="required">*</span></label>
-                  <input 
-                    type="date" 
-                    id="effective_date" 
-                    v-model="form.effective_date" 
-                    class="form-control" 
+                  <input
+                    type="date"
+                    id="effective_date"
+                    v-model="form.effective_date"
+                    class="form-control"
                     :class="{ 'is-invalid': errors.effective_date }"
                     required
                   />
                   <div v-if="errors.effective_date" class="invalid-feedback">{{ errors.effective_date }}</div>
                 </div>
-                
+
                 <div class="row">
                   <div class="col-md-6">
                     <div class="form-group">
                       <label for="standard_quantity">Standard Quantity <span class="required">*</span></label>
-                      <input 
-                        type="number" 
-                        id="standard_quantity" 
-                        v-model="form.standard_quantity" 
-                        class="form-control" 
+                      <input
+                        type="number"
+                        id="standard_quantity"
+                        v-model="form.standard_quantity"
+                        class="form-control"
                         :class="{ 'is-invalid': errors.standard_quantity }"
                         required
                         step="0.01"
@@ -104,10 +111,10 @@
                   <div class="col-md-6">
                     <div class="form-group">
                       <label for="uom_id">Unit of Measure <span class="required">*</span></label>
-                      <select 
-                        id="uom_id" 
-                        v-model="form.uom_id" 
-                        class="form-control" 
+                      <select
+                        id="uom_id"
+                        v-model="form.uom_id"
+                        class="form-control"
                         :class="{ 'is-invalid': errors.uom_id }"
                         required
                       >
@@ -120,13 +127,13 @@
                     </div>
                   </div>
                 </div>
-                
+
                 <div class="form-group">
                   <label for="status">Status <span class="required">*</span></label>
-                  <select 
-                    id="status" 
-                    v-model="form.status" 
-                    class="form-control" 
+                  <select
+                    id="status"
+                    v-model="form.status"
+                    class="form-control"
                     :class="{ 'is-invalid': errors.status }"
                     required
                   >
@@ -140,20 +147,20 @@
               </div>
             </div>
           </div>
-          
+
           <!-- BOM Components Section -->
           <div class="form-section">
             <div class="section-header">
               <h3 class="section-title">Components</h3>
-              <button 
-                type="button" 
-                class="btn btn-primary btn-sm" 
-                @click="showAddComponentModal = true"
+              <button
+                type="button"
+                class="btn btn-primary btn-sm"
+                @click="openAddComponentModal"
               >
                 <i class="fas fa-plus mr-1"></i> Add Component
               </button>
             </div>
-            
+
             <div class="table-container">
               <table class="table table-bordered" v-if="form.bom_lines.length > 0">
                 <thead>
@@ -180,25 +187,25 @@
                     <td>{{ formatNumber(line.quantity) }}</td>
                     <td>{{ getUomSymbol(line.uom_id) }}</td>
                     <td class="text-center">
-                      <i 
-                        v-if="line.is_critical" 
+                      <i
+                        v-if="line.is_critical"
                         class="fas fa-check-circle text-success"
                         title="Critical component"
                       ></i>
-                      <i 
-                        v-else 
+                      <i
+                        v-else
                         class="fas fa-times-circle text-muted"
                         title="Optional component"
                       ></i>
                     </td>
                     <td class="text-center">
-                      <i 
-                        v-if="line.is_yield_based" 
+                      <i
+                        v-if="line.is_yield_based"
                         class="fas fa-flask text-info"
                         title="Yield-based component"
                       ></i>
-                      <i 
-                        v-else 
+                      <i
+                        v-else
                         class="fas fa-minus text-muted"
                         title="Standard component"
                       ></i>
@@ -210,9 +217,9 @@
                       {{ line.is_yield_based ? formatPercentage(line.shrinkage_factor) : '-' }}
                     </td>
                     <td>
-                      <span 
-                        v-if="line.notes" 
-                        class="notes-preview" 
+                      <span
+                        v-if="line.notes"
+                        class="notes-preview"
                         :title="line.notes"
                       >
                         {{ truncateText(line.notes, 30) }}
@@ -221,17 +228,17 @@
                     </td>
                     <td class="text-center">
                       <div class="action-group">
-                        <button 
-                          type="button" 
-                          class="btn btn-sm btn-info" 
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-info"
                           @click="editComponent(index)"
                           title="Edit component"
                         >
                           <i class="fas fa-edit"></i>
                         </button>
-                        <button 
-                          type="button" 
-                          class="btn btn-sm btn-danger" 
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-danger"
                           @click="removeComponent(index)"
                           title="Remove component"
                         >
@@ -242,28 +249,28 @@
                   </tr>
                 </tbody>
               </table>
-              
+
               <div v-else class="empty-components">
                 <p>No components added yet</p>
-                <button 
-                  type="button" 
-                  class="btn btn-primary" 
-                  @click="showAddComponentModal = true"
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  @click="openAddComponentModal"
                 >
                   <i class="fas fa-plus mr-1"></i> Add First Component
                 </button>
               </div>
             </div>
           </div>
-          
+
           <!-- Form Actions -->
           <div class="form-actions">
             <button type="button" class="btn btn-secondary" @click="cancelForm">
               Cancel
             </button>
-            <button 
-              type="submit" 
-              class="btn btn-primary" 
+            <button
+              type="submit"
+              class="btn btn-primary"
               :disabled="isSubmitting || form.bom_lines.length === 0"
             >
               <i v-if="isSubmitting" class="fas fa-spinner fa-spin mr-1"></i>
@@ -273,7 +280,7 @@
         </form>
       </div>
     </div>
-    
+
     <!-- Add/Edit Component Modal -->
     <div v-if="showAddComponentModal || showEditComponentModal" class="modal">
       <div class="modal-backdrop" @click="cancelComponentModal"></div>
@@ -286,59 +293,92 @@
         </div>
         <div class="modal-body">
           <form @submit.prevent="saveComponent">
+            <!-- Item Selection with Search -->
             <div class="form-group">
               <label for="component_item_id">Item <span class="required">*</span></label>
-              <select 
-                id="component_item_id" 
-                v-model="componentForm.item_id" 
-                class="form-control" 
-                required
-              >
-                <option value="">Select Item</option>
-                <option v-for="item in items" :key="item.item_id" :value="item.item_id">
-                  {{ item.name }} ({{ item.item_code }})
-                </option>
-              </select>
+              <div class="dropdown">
+                <input
+                  type="text"
+                  id="component_item_id"
+                  v-model="componentItemSearch"
+                  class="form-control"
+                  :class="{ 'is-invalid': componentErrors.item_id }"
+                  placeholder="Search for an item..."
+                  @focus="showComponentDropdown = true"
+                  @blur="hideComponentDropdown"
+                  autocomplete="off"
+                />
+                <div v-if="showComponentDropdown" class="dropdown-menu">
+                  <div
+                    v-for="item in filteredComponentItems"
+                    :key="item.item_id"
+                    @mousedown="selectComponentItem(item)"
+                    class="dropdown-item"
+                  >
+                    <div class="item-info">
+                      <strong>{{ item.name }}</strong>
+                      <span class="item-code">({{ item.item_code }})</span>
+                    </div>
+                    <div class="item-details">
+                      <span class="category">{{ item.category ? item.category.name : 'No Category' }}</span>
+                      <span class="stock">Stock: {{ item.current_stock || 0 }}</span>
+                    </div>
+                  </div>
+                  <div v-if="filteredComponentItems.length === 0" class="dropdown-item text-muted">
+                    No items found
+                  </div>
+                </div>
+              </div>
+              <div v-if="componentErrors.item_id" class="invalid-feedback">{{ componentErrors.item_id }}</div>
             </div>
-            
+
+            <!-- Quantity and UOM -->
             <div class="row">
               <div class="col-md-6">
                 <div class="form-group">
                   <label for="component_quantity">Quantity <span class="required">*</span></label>
-                  <input 
-                    type="number" 
-                    id="component_quantity" 
-                    v-model="componentForm.quantity" 
-                    class="form-control" 
+                  <input
+                    type="number"
+                    id="component_quantity"
+                    v-model="componentForm.quantity"
+                    class="form-control"
+                    :class="{ 'is-invalid': componentErrors.quantity }"
                     step="0.01"
                     min="0.01"
                     required
                   />
+                  <div v-if="componentErrors.quantity" class="invalid-feedback">{{ componentErrors.quantity }}</div>
                 </div>
               </div>
               <div class="col-md-6">
                 <div class="form-group">
                   <label for="component_uom_id">Unit of Measure <span class="required">*</span></label>
-                  <select 
-                    id="component_uom_id" 
-                    v-model="componentForm.uom_id" 
-                    class="form-control" 
+                  <select
+                    id="component_uom_id"
+                    v-model="componentForm.uom_id"
+                    class="form-control"
+                    :class="{ 'is-invalid': componentErrors.uom_id }"
                     required
                   >
                     <option value="">Select UOM</option>
+                    <option v-if="selectedComponentItemUOM" :value="selectedComponentItemUOM.uom_id">
+                      {{ selectedComponentItemUOM.name }} ({{ selectedComponentItemUOM.symbol }})
+                    </option>
                     <option v-for="uom in uoms" :key="uom.uom_id" :value="uom.uom_id">
                       {{ uom.name }} ({{ uom.symbol }})
                     </option>
                   </select>
+                  <div v-if="componentErrors.uom_id" class="invalid-feedback">{{ componentErrors.uom_id }}</div>
                 </div>
               </div>
             </div>
-            
+
+            <!-- Critical and Yield-Based Checkboxes -->
             <div class="form-group form-check">
-              <input 
-                type="checkbox" 
-                id="component_is_critical" 
-                v-model="componentForm.is_critical" 
+              <input
+                type="checkbox"
+                id="component_is_critical"
+                v-model="componentForm.is_critical"
                 class="form-check-input"
               />
               <label for="component_is_critical" class="form-check-label">
@@ -348,12 +388,12 @@
                 Mark as critical if this component is essential for the BOM
               </small>
             </div>
-            
+
             <div class="form-group form-check">
-              <input 
-                type="checkbox" 
-                id="component_is_yield_based" 
-                v-model="componentForm.is_yield_based" 
+              <input
+                type="checkbox"
+                id="component_is_yield_based"
+                v-model="componentForm.is_yield_based"
                 class="form-check-input"
               />
               <label for="component_is_yield_based" class="form-check-label">
@@ -363,15 +403,16 @@
                 Enable if this component's quantity affects the final yield of the product
               </small>
             </div>
-            
+
+            <!-- Yield-Based Fields -->
             <div v-if="componentForm.is_yield_based" class="yield-based-fields">
               <div class="form-group">
                 <label for="component_yield_ratio">Yield Ratio <span class="required">*</span></label>
-                <input 
-                  type="number" 
-                  id="component_yield_ratio" 
-                  v-model="componentForm.yield_ratio" 
-                  class="form-control" 
+                <input
+                  type="number"
+                  id="component_yield_ratio"
+                  v-model="componentForm.yield_ratio"
+                  class="form-control"
                   step="0.0001"
                   min="0.0001"
                   required
@@ -381,15 +422,15 @@
                   How many units of the finished product can be produced per unit of this material
                 </small>
               </div>
-              
+
               <div class="form-group">
                 <label for="component_shrinkage_factor">Shrinkage Factor</label>
                 <div class="input-group">
-                  <input 
-                    type="number" 
-                    id="component_shrinkage_factor" 
-                    v-model="componentForm.shrinkage_factor" 
-                    class="form-control" 
+                  <input
+                    type="number"
+                    id="component_shrinkage_factor"
+                    v-model="componentForm.shrinkage_factor"
+                    class="form-control"
                     step="0.01"
                     min="0"
                     max="0.99"
@@ -404,18 +445,19 @@
                 </small>
               </div>
             </div>
-            
+
+            <!-- Notes -->
             <div class="form-group">
               <label for="component_notes">Notes</label>
-              <textarea 
-                id="component_notes" 
-                v-model="componentForm.notes" 
-                class="form-control" 
+              <textarea
+                id="component_notes"
+                v-model="componentForm.notes"
+                class="form-control"
                 rows="3"
                 placeholder="Enter any special instructions or notes about this component"
               ></textarea>
             </div>
-            
+
             <div class="modal-footer">
               <button type="button" class="btn btn-secondary" @click="cancelComponentModal">
                 Cancel
@@ -432,10 +474,9 @@
 </template>
 
 <script>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
-import { watch } from 'vue';
 
 export default {
   name: 'BOMForm',
@@ -444,33 +485,42 @@ export default {
     const router = useRouter();
     const bomId = route.params.id;
     const isEditMode = computed(() => !!bomId);
-    
+
     // Form state
     const isLoading = ref(false);
     const isSubmitting = ref(false);
     const errors = ref({});
-    
+
     // Reference data
     const items = ref([]);
     const uoms = ref([]);
-    
+
     // Modal state
     const showAddComponentModal = ref(false);
     const showEditComponentModal = ref(false);
     const editingComponentIndex = ref(-1);
-    
+
+    // Main item search state
+    const itemSearch = ref('');
+    const showDropdown = ref(false);
+
+    // Component search state
+    const componentItemSearch = ref('');
+    const showComponentDropdown = ref(false);
+    const componentErrors = ref({});
+
     // Main form data
     const form = reactive({
       item_id: '',
       bom_code: '',
       revision: '1.0',
-      effective_date: new Date().toISOString().substr(0, 10), // Default to today
+      effective_date: new Date().toISOString().substr(0, 10),
       standard_quantity: 1,
       uom_id: '',
       status: 'Draft',
       bom_lines: []
     });
-    
+
     // Component form data
     const componentForm = reactive({
       item_id: '',
@@ -482,54 +532,96 @@ export default {
       shrinkage_factor: 0,
       notes: ''
     });
-    
 
-    const itemSearch = ref(''); // Reactive property for search input
-    const showDropdown = ref(false); // Control dropdown visibility
-    // Computed property to filter items based on search input
+    // Computed property untuk filter main items berdasarkan search input
     const filteredItems = computed(() => {
       if (!itemSearch.value) {
-        return items.value; // Return all items if no search input
+        return items.value.slice(0, 10);
       }
-      return items.value.filter(item => 
-        item.name.toLowerCase().includes(itemSearch.value.toLowerCase()) || 
+      return items.value.filter(item =>
+        item.name.toLowerCase().includes(itemSearch.value.toLowerCase()) ||
         item.item_code.toLowerCase().includes(itemSearch.value.toLowerCase())
-      );
-    });
-    // Method to select an item from the dropdown
-    const selectItem = (item) => {
-      form.item_id = item.item_id; // Set selected item ID
-      itemSearch.value = `${item.name} (${item.item_code})`; // Set input value
-      showDropdown.value = false; // Hide dropdown
-    };
-    // Method to hide dropdown
-    const hideDropdown = () => {
-      setTimeout(() => {
-        showDropdown.value = false; // Delay to allow click event to register
-      }, 200);
-    };
-    // Computed property to get the UOM of the selected item
-    const selectedItemUOM = computed(() => {
-      const selectedItem = items.value.find(item => item.item_id === form.item_id);
-      return selectedItem ? selectedItem.unit_of_measure : null; // Ambil unit_of_measure langsung
+      ).slice(0, 10);
     });
 
+    // Computed property untuk filter component items berdasarkan search
+    const filteredComponentItems = computed(() => {
+      if (!componentItemSearch.value) {
+        return items.value.slice(0, 10);
+      }
+      return items.value.filter(item =>
+        item.name.toLowerCase().includes(componentItemSearch.value.toLowerCase()) ||
+        item.item_code.toLowerCase().includes(componentItemSearch.value.toLowerCase())
+      ).slice(0, 10);
+    });
+
+    // Computed property untuk mendapatkan UOM dari main item yang dipilih
+    const selectedItemUOM = computed(() => {
+      const selectedItem = items.value.find(item => item.item_id === form.item_id);
+      return selectedItem ? selectedItem.unit_of_measure : null;
+    });
+
+    // Computed property untuk mendapatkan UOM dari component item yang dipilih
+    const selectedComponentItemUOM = computed(() => {
+      const selectedItem = items.value.find(item => item.item_id === componentForm.item_id);
+      return selectedItem ? selectedItem.unit_of_measure : null;
+    });
+
+    // Watch perubahan main item_id untuk auto-set UOM
     watch(() => form.item_id, (newItemId) => {
       const selectedItem = items.value.find(item => item.item_id === newItemId);
-      if (selectedItem) {
-        form.uom_id = selectedItem.unit_of_measure.uom_id; // Set UOM ID berdasarkan item yang dipilih
+      if (selectedItem && selectedItem.unit_of_measure) {
+        form.uom_id = selectedItem.unit_of_measure.uom_id;
       } else {
-        form.uom_id = ''; // Reset UOM ID jika tidak ada item yang dipilih
+        form.uom_id = '';
       }
     });
-    
+
+    // Watch perubahan component item_id untuk auto-set UOM
+    watch(() => componentForm.item_id, (newItemId) => {
+      const selectedItem = items.value.find(item => item.item_id === newItemId);
+      if (selectedItem && selectedItem.unit_of_measure) {
+        componentForm.uom_id = selectedItem.unit_of_measure.uom_id;
+      } else {
+        componentForm.uom_id = '';
+      }
+    });
+
+    // Method untuk select main item dari dropdown
+    const selectItem = (item) => {
+      form.item_id = item.item_id;
+      itemSearch.value = `${item.name} (${item.item_code})`;
+      showDropdown.value = false;
+    };
+
+    // Method untuk hide main dropdown
+    const hideDropdown = () => {
+      setTimeout(() => {
+        showDropdown.value = false;
+      }, 200);
+    };
+
+    // Method untuk select component item dari dropdown
+    const selectComponentItem = (item) => {
+      componentForm.item_id = item.item_id;
+      componentItemSearch.value = `${item.name} (${item.item_code})`;
+      showComponentDropdown.value = false;
+    };
+
+    // Method untuk hide component dropdown
+    const hideComponentDropdown = () => {
+      setTimeout(() => {
+        showComponentDropdown.value = false;
+      }, 200);
+    };
+
     // Fetch reference data
     const fetchReferenceData = async () => {
       try {
         // Fetch items
         const itemsResponse = await axios.get('/items');
         items.value = itemsResponse.data.data || itemsResponse.data;
-        
+
         // Fetch UOMs
         const uomsResponse = await axios.get('/unit-of-measures');
         uoms.value = uomsResponse.data.data || uomsResponse.data;
@@ -537,17 +629,17 @@ export default {
         console.error('Error fetching reference data:', error);
       }
     };
-    
+
     // Fetch BOM for editing
     const fetchBOM = async () => {
       if (!isEditMode.value) return;
-      
+
       isLoading.value = true;
-      
+
       try {
         const response = await axios.get(`/boms/${bomId}`);
         const bomData = response.data.data;
-        
+
         // Update form with BOM data
         form.item_id = bomData.item_id;
         form.bom_code = bomData.bom_code;
@@ -556,8 +648,13 @@ export default {
         form.standard_quantity = bomData.standard_quantity;
         form.uom_id = bomData.uom_id;
         form.status = bomData.status;
-        
-        // If BOM lines are included in the response
+
+        // Set itemSearch untuk display
+        if (bomData.item) {
+          itemSearch.value = `${bomData.item.name} (${bomData.item.item_code})`;
+        }
+
+        // Handle BOM lines
         if (bomData.bomLines && Array.isArray(bomData.bomLines)) {
           form.bom_lines = bomData.bomLines.map(line => ({
             line_id: line.line_id,
@@ -571,7 +668,6 @@ export default {
             notes: line.notes || ''
           }));
         } else {
-          // Fetch BOM lines separately
           await fetchBOMLines();
         }
       } catch (error) {
@@ -580,8 +676,8 @@ export default {
         isLoading.value = false;
       }
     };
-    
-    // Fetch BOM lines separately if not included in BOM data
+
+    // Fetch BOM lines separately
     const fetchBOMLines = async () => {
       try {
         const response = await axios.get(`/boms/${bomId}/lines`);
@@ -600,7 +696,7 @@ export default {
         console.error('Error fetching BOM lines:', error);
       }
     };
-    
+
     // Component modal handlers
     const openAddComponentModal = () => {
       // Reset component form
@@ -615,13 +711,17 @@ export default {
           componentForm[key] = '';
         }
       });
-      
+
+      // Reset search and errors
+      componentItemSearch.value = '';
+      componentErrors.value = {};
       showAddComponentModal.value = true;
     };
-    
+
     const editComponent = (index) => {
       const line = form.bom_lines[index];
-      
+      const item = items.value.find(i => i.item_id === line.item_id);
+
       // Populate component form with line data
       componentForm.item_id = line.item_id;
       componentForm.quantity = line.quantity;
@@ -631,29 +731,49 @@ export default {
       componentForm.yield_ratio = line.yield_ratio || 1;
       componentForm.shrinkage_factor = line.shrinkage_factor || 0;
       componentForm.notes = line.notes || '';
-      
+
+      // Set search text
+      if (item) {
+        componentItemSearch.value = `${item.name} (${item.item_code})`;
+      }
+
       editingComponentIndex.value = index;
+      componentErrors.value = {};
       showEditComponentModal.value = true;
     };
-    
+
     const cancelComponentModal = () => {
       showAddComponentModal.value = false;
       showEditComponentModal.value = false;
       editingComponentIndex.value = -1;
+      componentItemSearch.value = '';
+      componentErrors.value = {};
     };
-    
+
     const saveComponent = () => {
+      // Reset errors
+      componentErrors.value = {};
+
       // Basic validation
-      if (!componentForm.item_id || !componentForm.quantity || !componentForm.uom_id) {
-        alert('Please fill in all required fields');
-        return;
+      if (!componentForm.item_id) {
+        componentErrors.value.item_id = 'Item is required';
       }
-      
+      if (!componentForm.quantity || componentForm.quantity <= 0) {
+        componentErrors.value.quantity = 'Quantity must be greater than zero';
+      }
+      if (!componentForm.uom_id) {
+        componentErrors.value.uom_id = 'Unit of measure is required';
+      }
+
       if (componentForm.is_yield_based && (!componentForm.yield_ratio || componentForm.yield_ratio <= 0)) {
-        alert('Yield ratio must be greater than zero for yield-based components');
+        componentErrors.value.yield_ratio = 'Yield ratio must be greater than zero for yield-based components';
+      }
+
+      // Return if validation fails
+      if (Object.keys(componentErrors.value).length > 0) {
         return;
       }
-      
+
       if (showEditComponentModal.value) {
         // Update existing component
         if (editingComponentIndex.value >= 0 && editingComponentIndex.value < form.bom_lines.length) {
@@ -680,20 +800,20 @@ export default {
           notes: componentForm.notes
         });
       }
-      
+
       cancelComponentModal();
     };
-    
+
     const removeComponent = (index) => {
       if (confirm(`Are you sure you want to remove this component?`)) {
         form.bom_lines.splice(index, 1);
       }
     };
-    
+
     // Form submission
     const submitForm = async () => {
-      errors.value = {}; // Clear previous errors
-      
+      errors.value = {};
+
       // Validate form
       if (!form.item_id) errors.value.item_id = 'Item is required';
       if (!form.bom_code) errors.value.bom_code = 'BOM Code is required';
@@ -704,47 +824,40 @@ export default {
       }
       if (!form.uom_id) errors.value.uom_id = 'Unit of Measure is required';
       if (!form.status) errors.value.status = 'Status is required';
-      
-      // Check if we have components
+
       if (form.bom_lines.length === 0) {
         alert('You must add at least one component to the BOM');
         return;
       }
-      
-      // Return if we have errors
+
       if (Object.keys(errors.value).length > 0) return;
-      
+
       isSubmitting.value = true;
-      
+
       try {
         if (isEditMode.value) {
-          // Update existing BOM
           await updateBOM();
         } else {
-          // Create new BOM
           await createBOM();
         }
-        
-        // Redirect to BOM detail page or list
+
         router.push(isEditMode.value ? `/manufacturing/boms/${bomId}` : '/manufacturing/boms');
       } catch (error) {
         console.error('Error saving BOM:', error);
-        
-        // Handle validation errors from backend
+
         if (error.response && error.response.data && error.response.data.errors) {
           const serverErrors = error.response.data.errors;
           Object.keys(serverErrors).forEach(key => {
-            errors.value[key] = serverErrors[key][0]; // Display first error message
+            errors.value[key] = serverErrors[key][0];
           });
         } else {
-          // Generic error message
           alert('Failed to save BOM. Please try again.');
         }
       } finally {
         isSubmitting.value = false;
       }
     };
-    
+
     // Create a new BOM
     const createBOM = async () => {
       const payload = {
@@ -757,13 +870,12 @@ export default {
         status: form.status,
         bom_lines: form.bom_lines
       };
-      
+
       await axios.post('/boms', payload);
     };
-    
+
     // Update an existing BOM
     const updateBOM = async () => {
-      // First, update the BOM header
       const bomPayload = {
         item_id: form.item_id,
         bom_code: form.bom_code,
@@ -773,12 +885,11 @@ export default {
         uom_id: form.uom_id,
         status: form.status
       };
-      
+
       await axios.put(`/boms/${bomId}`, bomPayload);
-      
-      // Handle BOM lines - update existing, create new ones
+
       const updatePromises = [];
-      
+
       for (const line of form.bom_lines) {
         const linePayload = {
           item_id: line.item_id,
@@ -790,61 +901,59 @@ export default {
           shrinkage_factor: line.is_yield_based ? line.shrinkage_factor : null,
           notes: line.notes
         };
-        
+
         if (line.line_id) {
-          // Update existing line
           updatePromises.push(axios.put(`/boms/${bomId}/lines/${line.line_id}`, linePayload));
         } else {
-          // Create new line
           updatePromises.push(axios.post(`/boms/${bomId}/lines`, linePayload));
         }
       }
-      
+
       await Promise.all(updatePromises);
     };
-    
+
     // Cancel form submission
     const cancelForm = () => {
       router.push(isEditMode.value ? `/manufacturing/boms/${bomId}` : '/manufacturing/boms');
     };
-    
+
     // Helper functions
     const getItemName = (itemId) => {
       const item = items.value.find(i => i.item_id === itemId);
       return item ? `${item.name} (${item.item_code})` : '';
     };
-    
+
     const getUomSymbol = (uomId) => {
       const uom = uoms.value.find(u => u.uom_id === uomId);
       return uom ? uom.symbol : '';
     };
-    
+
     const formatNumber = (value) => {
       if (value === null || value === undefined) return '-';
-      return parseFloat(value).toLocaleString(undefined, { 
+      return parseFloat(value).toLocaleString(undefined, {
         minimumFractionDigits: 0,
         maximumFractionDigits: 4
       });
     };
-    
+
     const formatPercentage = (value) => {
       if (value === null || value === undefined) return '-';
-      return (value * 100).toLocaleString(undefined, { 
+      return (value * 100).toLocaleString(undefined, {
         minimumFractionDigits: 0,
         maximumFractionDigits: 2
       }) + '%';
     };
-    
+
     const truncateText = (text, maxLength) => {
       if (!text) return '';
       return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
     };
-    
+
     onMounted(() => {
       fetchReferenceData();
       fetchBOM();
     });
-    
+
     return {
       isEditMode,
       isLoading,
@@ -852,11 +961,24 @@ export default {
       form,
       componentForm,
       errors,
+      componentErrors,
       items,
       uoms,
       showAddComponentModal,
       showEditComponentModal,
       editingComponentIndex,
+      itemSearch,
+      showDropdown,
+      componentItemSearch,
+      showComponentDropdown,
+      filteredItems,
+      filteredComponentItems,
+      selectedItemUOM,
+      selectedComponentItemUOM,
+      selectItem,
+      hideDropdown,
+      selectComponentItem,
+      hideComponentDropdown,
       openAddComponentModal,
       editComponent,
       cancelComponentModal,
@@ -868,13 +990,7 @@ export default {
       getUomSymbol,
       formatNumber,
       formatPercentage,
-      selectedItemUOM,
-      itemSearch,
-      truncateText,
-      showDropdown,
-      filteredItems,
-      selectItem,
-      hideDropdown
+      truncateText
     };
   }
 };
@@ -1127,6 +1243,84 @@ export default {
   color: #0ea5e9;
 }
 
+/* Dropdown Styles */
+.dropdown {
+  position: relative;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid var(--gray-300);
+  border-top: none;
+  border-radius: 0 0 0.375rem 0.375rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  max-height: 250px;
+  overflow-y: auto;
+  z-index: 100;
+}
+
+.dropdown-item {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--gray-100);
+  transition: background-color 0.2s;
+}
+
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dropdown-item:hover {
+  background-color: var(--gray-50);
+}
+
+.dropdown-item.text-muted {
+  color: var(--gray-500);
+  cursor: default;
+}
+
+.dropdown-item.text-muted:hover {
+  background-color: transparent;
+}
+
+.item-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.item-info strong {
+  font-weight: 600;
+  color: var(--gray-800);
+}
+
+.item-code {
+  color: var(--gray-500);
+  font-size: 0.8rem;
+}
+
+.item-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+}
+
+.category {
+  color: var(--primary-color);
+  font-weight: 500;
+}
+
+.stock {
+  color: var(--gray-500);
+}
+
+/* Modal Styles */
 .modal {
   position: fixed;
   top: 0;
@@ -1211,31 +1405,118 @@ export default {
   padding: 0.5rem;
 }
 
+/* Button Styles */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem 1.25rem;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background-color: #2563eb;
+  border-color: #2563eb;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+.btn-secondary:hover {
+  background-color: #e2e8f0;
+  border-color: #94a3b8;
+}
+
+.btn-info {
+  background-color: #0ea5e9;
+  border-color: #0ea5e9;
+  color: white;
+}
+
+.btn-info:hover {
+  background-color: #0284c7;
+  border-color: #0284c7;
+}
+
+.btn-danger {
+  background-color: #dc2626;
+  border-color: #dc2626;
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #b91c1c;
+  border-color: #b91c1c;
+}
+
+.btn-sm {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8rem;
+}
+
+.mr-1 {
+  margin-right: 0.25rem;
+}
+
 @media (max-width: 768px) {
   .row {
     flex-direction: column;
   }
-  
+
   .col-md-6 {
     flex: 0 0 100%;
   }
-  
+
   .form-actions {
     flex-direction: column-reverse;
     gap: 0.75rem;
   }
-  
+
   .form-actions .btn {
     width: 100%;
   }
-  
+
   .section-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.75rem;
   }
-  
+
   .section-header .btn {
+    width: 100%;
+  }
+
+  .modal-content {
+    width: 95%;
+    max-height: 80vh;
+  }
+
+  .modal-footer {
+    flex-direction: column-reverse;
+    gap: 0.75rem;
+  }
+
+  .modal-footer .btn {
     width: 100%;
   }
 }

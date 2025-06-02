@@ -3,9 +3,9 @@
     <div class="page-header">
       <h1>{{ isEdit ? 'Edit' : 'Create' }} Sales Forecast</h1>
       <div class="page-actions">
-        <button 
-          type="button" 
-          class="btn btn-secondary" 
+        <button
+          type="button"
+          class="btn btn-secondary"
           @click="$router.go(-1)"
         >
           <i class="fas fa-arrow-left"></i>
@@ -21,50 +21,86 @@
       <div class="card-body">
         <form @submit.prevent="submitForm">
           <div class="form-grid">
-            <!-- Customer Selection -->
+            <!-- Customer Selection with Search -->
             <div class="form-group">
               <label for="customer_id" class="required">Customer</label>
-              <select 
-                id="customer_id"
-                v-model="form.customer_id" 
-                class="form-control"
-                required
-                :disabled="isEdit"
-              >
-                <option value="">Select Customer</option>
-                <option 
-                  v-for="customer in customers" 
-                  :key="customer.customer_id" 
-                  :value="customer.customer_id"
-                >
-                  {{ customer.name }} ({{ customer.customer_code }})
-                </option>
-              </select>
-              <div v-if="errors.customer_id" class="text-danger">
+              <div class="dropdown">
+                <input
+                  type="text"
+                  id="customer_id"
+                  v-model="customerSearch"
+                  class="form-control"
+                  :class="{ 'is-invalid': errors.customer_id }"
+                  placeholder="Search for a customer..."
+                  @focus="showCustomerDropdown = true"
+                  @blur="hideCustomerDropdown"
+                  :disabled="isEdit"
+                  autocomplete="off"
+                />
+                <div v-if="showCustomerDropdown" class="dropdown-menu">
+                  <div
+                    v-for="customer in filteredCustomers"
+                    :key="customer.customer_id"
+                    @mousedown="selectCustomer(customer)"
+                    class="dropdown-item"
+                  >
+                    <div class="item-info">
+                      <strong>{{ customer.name }}</strong>
+                      <span class="item-code">({{ customer.customer_code }})</span>
+                    </div>
+                    <div class="item-details">
+                      <span class="category">{{ customer.email || 'No email' }}</span>
+                      <span class="stock">{{ customer.phone || 'No phone' }}</span>
+                    </div>
+                  </div>
+                  <div v-if="filteredCustomers.length === 0" class="dropdown-item text-muted">
+                    No customers found
+                  </div>
+                </div>
+              </div>
+              <div v-if="errors.customer_id" class="invalid-feedback">
                 {{ errors.customer_id[0] }}
               </div>
             </div>
 
-            <!-- Item Selection -->
+            <!-- Item Selection with Search -->
             <div class="form-group">
               <label for="item_id" class="required">Item</label>
-              <select 
-                id="item_id"
-                v-model="form.item_id" 
-                class="form-control"
-                required
-                :disabled="isEdit"
-              >
-                <option value="">Select Item</option>
-                <option 
-                  v-for="item in items" 
-                  :key="item.item_id" 
-                  :value="item.item_id"
-                >
-                  {{ item.name }} ({{ item.item_code }})
-                </option>
-              </select>
-              <div v-if="errors.item_id" class="text-danger">
+              <div class="dropdown">
+                <input
+                  type="text"
+                  id="item_id"
+                  v-model="itemSearch"
+                  class="form-control"
+                  :class="{ 'is-invalid': errors.item_id }"
+                  placeholder="Search for an item..."
+                  @focus="showItemDropdown = true"
+                  @blur="hideItemDropdown"
+                  :disabled="isEdit"
+                  autocomplete="off"
+                />
+                <div v-if="showItemDropdown" class="dropdown-menu">
+                  <div
+                    v-for="item in filteredItems"
+                    :key="item.item_id"
+                    @mousedown="selectItem(item)"
+                    class="dropdown-item"
+                  >
+                    <div class="item-info">
+                      <strong>{{ item.name }}</strong>
+                      <span class="item-code">({{ item.item_code }})</span>
+                    </div>
+                    <div class="item-details">
+                      <span class="category">{{ item.category ? item.category.name : 'No Category' }}</span>
+                      <span class="stock">Stock: {{ item.current_stock || 0 }}</span>
+                    </div>
+                  </div>
+                  <div v-if="filteredItems.length === 0" class="dropdown-item text-muted">
+                    No items found
+                  </div>
+                </div>
+              </div>
+              <div v-if="errors.item_id" class="invalid-feedback">
                 {{ errors.item_id[0] }}
               </div>
             </div>
@@ -72,15 +108,16 @@
             <!-- Forecast Period -->
             <div class="form-group">
               <label for="forecast_period" class="required">Forecast Period</label>
-              <input 
+              <input
                 id="forecast_period"
-                type="month" 
-                v-model="form.forecast_period" 
+                type="month"
+                v-model="form.forecast_period"
                 class="form-control"
+                :class="{ 'is-invalid': errors.forecast_period }"
                 required
                 :disabled="isEdit"
               >
-              <div v-if="errors.forecast_period" class="text-danger">
+              <div v-if="errors.forecast_period" class="invalid-feedback">
                 {{ errors.forecast_period[0] }}
               </div>
             </div>
@@ -88,16 +125,17 @@
             <!-- Forecast Quantity -->
             <div class="form-group">
               <label for="forecast_quantity" class="required">Forecast Quantity</label>
-              <input 
+              <input
                 id="forecast_quantity"
-                type="number" 
+                type="number"
                 step="0.01"
                 min="0"
-                v-model="form.forecast_quantity" 
+                v-model="form.forecast_quantity"
                 class="form-control"
+                :class="{ 'is-invalid': errors.forecast_quantity }"
                 required
               >
-              <div v-if="errors.forecast_quantity" class="text-danger">
+              <div v-if="errors.forecast_quantity" class="invalid-feedback">
                 {{ errors.forecast_quantity[0] }}
               </div>
             </div>
@@ -105,15 +143,16 @@
             <!-- Actual Quantity (for edit mode) -->
             <div class="form-group" v-if="isEdit">
               <label for="actual_quantity">Actual Quantity</label>
-              <input 
+              <input
                 id="actual_quantity"
-                type="number" 
+                type="number"
                 step="0.01"
                 min="0"
-                v-model="form.actual_quantity" 
+                v-model="form.actual_quantity"
                 class="form-control"
+                :class="{ 'is-invalid': errors.actual_quantity }"
               >
-              <div v-if="errors.actual_quantity" class="text-danger">
+              <div v-if="errors.actual_quantity" class="invalid-feedback">
                 {{ errors.actual_quantity[0] }}
               </div>
             </div>
@@ -121,10 +160,11 @@
             <!-- Forecast Source -->
             <div class="form-group">
               <label for="forecast_source">Forecast Source</label>
-              <select 
+              <select
                 id="forecast_source"
-                v-model="form.forecast_source" 
+                v-model="form.forecast_source"
                 class="form-control"
+                :class="{ 'is-invalid': errors.forecast_source }"
               >
                 <option value="Customer">Customer</option>
                 <option value="System-Manual">System Manual</option>
@@ -132,7 +172,7 @@
                 <option value="System-Weighted">System Weighted</option>
                 <option value="System-Trend">System Trend</option>
               </select>
-              <div v-if="errors.forecast_source" class="text-danger">
+              <div v-if="errors.forecast_source" class="invalid-feedback">
                 {{ errors.forecast_source[0] }}
               </div>
             </div>
@@ -140,18 +180,19 @@
             <!-- Confidence Level -->
             <div class="form-group">
               <label for="confidence_level">Confidence Level</label>
-              <input 
+              <input
                 id="confidence_level"
-                type="number" 
+                type="number"
                 step="0.01"
                 min="0"
                 max="1"
-                v-model="form.confidence_level" 
+                v-model="form.confidence_level"
                 class="form-control"
+                :class="{ 'is-invalid': errors.confidence_level }"
                 placeholder="0.70"
               >
               <small class="form-text text-muted">Value between 0 and 1 (e.g., 0.75 for 75% confidence)</small>
-              <div v-if="errors.confidence_level" class="text-danger">
+              <div v-if="errors.confidence_level" class="invalid-feedback">
                 {{ errors.confidence_level[0] }}
               </div>
             </div>
@@ -159,13 +200,14 @@
             <!-- Forecast Issue Date -->
             <div class="form-group">
               <label for="forecast_issue_date">Forecast Issue Date</label>
-              <input 
+              <input
                 id="forecast_issue_date"
-                type="date" 
-                v-model="form.forecast_issue_date" 
+                type="date"
+                v-model="form.forecast_issue_date"
                 class="form-control"
+                :class="{ 'is-invalid': errors.forecast_issue_date }"
               >
-              <div v-if="errors.forecast_issue_date" class="text-danger">
+              <div v-if="errors.forecast_issue_date" class="invalid-feedback">
                 {{ errors.forecast_issue_date[0] }}
               </div>
             </div>
@@ -177,19 +219,19 @@
             <div class="form-grid">
               <div class="form-group">
                 <label>Variance</label>
-                <input 
-                  type="number" 
-                  :value="calculateVariance()" 
-                  class="form-control" 
+                <input
+                  type="number"
+                  :value="calculateVariance()"
+                  class="form-control"
                   readonly
                 >
               </div>
               <div class="form-group">
                 <label>Variance %</label>
-                <input 
-                  type="text" 
-                  :value="calculateVariancePercentage()" 
-                  class="form-control" 
+                <input
+                  type="text"
+                  :value="calculateVariancePercentage()"
+                  class="form-control"
                   readonly
                 >
               </div>
@@ -198,16 +240,16 @@
 
           <!-- Submit Buttons -->
           <div class="form-actions">
-            <button 
-              type="button" 
-              class="btn btn-secondary" 
+            <button
+              type="button"
+              class="btn btn-secondary"
               @click="$router.go(-1)"
             >
               Cancel
             </button>
-            <button 
-              type="submit" 
-              class="btn btn-primary" 
+            <button
+              type="submit"
+              class="btn btn-primary"
               :disabled="isLoading"
             >
               <i v-if="isLoading" class="fas fa-spinner fa-spin"></i>
@@ -246,17 +288,44 @@ export default {
         forecast_source: 'System-Manual',
         confidence_level: 0.7,
         forecast_issue_date: ''
-      }
+      },
+      // Customer search states
+      customerSearch: '',
+      showCustomerDropdown: false,
+      // Item search states
+      itemSearch: '',
+      showItemDropdown: false
     };
   },
   computed: {
     isEdit() {
       return !!this.id;
+    },
+    // Filter customers based on search input
+    filteredCustomers() {
+      if (!this.customerSearch) {
+        return this.customers.slice(0, 10);
+      }
+      return this.customers.filter(customer =>
+        customer.name.toLowerCase().includes(this.customerSearch.toLowerCase()) ||
+        customer.customer_code.toLowerCase().includes(this.customerSearch.toLowerCase()) ||
+        (customer.email && customer.email.toLowerCase().includes(this.customerSearch.toLowerCase()))
+      ).slice(0, 10);
+    },
+    // Filter items based on search input
+    filteredItems() {
+      if (!this.itemSearch) {
+        return this.items.slice(0, 10);
+      }
+      return this.items.filter(item =>
+        item.name.toLowerCase().includes(this.itemSearch.toLowerCase()) ||
+        item.item_code.toLowerCase().includes(this.itemSearch.toLowerCase())
+      ).slice(0, 10);
     }
   },
   async mounted() {
     await this.loadDropdownData();
-    
+
     if (this.isEdit) {
       await this.loadForecast();
     } else {
@@ -270,7 +339,7 @@ export default {
         // Load customers
         const customersResponse = await axios.get('/customers');
         this.customers = customersResponse.data.data || customersResponse.data;
-        
+
         // Load items (sellable items only)
         const itemsResponse = await axios.get('/items', {
           params: { is_sellable: true }
@@ -287,7 +356,7 @@ export default {
         this.isLoading = true;
         const response = await axios.get(`/forecasts/${this.id}`);
         const forecast = response.data.data;
-        
+
         this.form = {
           customer_id: forecast.customer_id,
           item_id: forecast.item_id,
@@ -296,9 +365,17 @@ export default {
           actual_quantity: forecast.actual_quantity || '',
           forecast_source: forecast.forecast_source || 'System-Manual',
           confidence_level: forecast.confidence_level || 0.7,
-          forecast_issue_date: forecast.forecast_issue_date ? 
+          forecast_issue_date: forecast.forecast_issue_date ?
             this.formatDateForInput(forecast.forecast_issue_date) : ''
         };
+
+        // Set search texts for display
+        if (forecast.customer) {
+          this.customerSearch = `${forecast.customer.name} (${forecast.customer.customer_code})`;
+        }
+        if (forecast.item) {
+          this.itemSearch = `${forecast.item.name} (${forecast.item.item_code})`;
+        }
       } catch (error) {
         console.error('Error loading forecast:', error);
         this.$toast?.error('Failed to load forecast data');
@@ -308,30 +385,56 @@ export default {
       }
     },
 
+    // Customer dropdown methods
+    selectCustomer(customer) {
+      this.form.customer_id = customer.customer_id;
+      this.customerSearch = `${customer.name} (${customer.customer_code})`;
+      this.showCustomerDropdown = false;
+    },
+
+    hideCustomerDropdown() {
+      setTimeout(() => {
+        this.showCustomerDropdown = false;
+      }, 200);
+    },
+
+    // Item dropdown methods
+    selectItem(item) {
+      this.form.item_id = item.item_id;
+      this.itemSearch = `${item.name} (${item.item_code})`;
+      this.showItemDropdown = false;
+    },
+
+    hideItemDropdown() {
+      setTimeout(() => {
+        this.showItemDropdown = false;
+      }, 200);
+    },
+
     async submitForm() {
       try {
         this.isLoading = true;
         this.errors = {};
-        
+
         // Prepare form data
         const formData = { ...this.form };
-        
+
         // Convert forecast_period to proper format (YYYY-MM-01)
         if (formData.forecast_period) {
           formData.forecast_period = formData.forecast_period + '-01';
         }
-        
+
         if (this.isEdit) {
           await axios.put(`/forecasts/${this.id}`, formData);
         } else {
           await axios.post('/forecasts', formData);
         }
-        
+
         this.$toast?.success(`Forecast ${this.isEdit ? 'updated' : 'created'} successfully`);
         this.$router.push('/sales/forecasts');
       } catch (error) {
         console.error('Error saving forecast:', error);
-        
+
         if (error.response?.data?.errors) {
           this.errors = error.response.data.errors;
         } else {
@@ -362,15 +465,15 @@ export default {
       if (!date) return '';
       const d = new Date(date);
       if (isNaN(d.getTime())) return '';
-      
+
       const year = d.getFullYear();
       const month = String(d.getMonth() + 1).padStart(2, '0');
-      
+
       // For month input, we need YYYY-MM format
       if (this.isMonthInput) {
         return `${year}-${month}`;
       }
-      
+
       // For date input, we need YYYY-MM-DD format
       const day = String(d.getDate()).padStart(2, '0');
       return `${year}-${month}-${day}`;
@@ -454,6 +557,7 @@ export default {
   border-radius: 0.375rem;
   font-size: 0.875rem;
   transition: border-color 0.2s, box-shadow 0.2s;
+  background-color: white;
 }
 
 .form-control:focus {
@@ -468,6 +572,16 @@ export default {
   cursor: not-allowed;
 }
 
+.form-control.is-invalid {
+  border-color: var(--danger-color);
+}
+
+.invalid-feedback {
+  color: var(--danger-color);
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+}
+
 .form-text {
   font-size: 0.75rem;
   margin-top: 0.25rem;
@@ -475,12 +589,6 @@ export default {
 
 .text-muted {
   color: var(--gray-500);
-}
-
-.text-danger {
-  color: var(--danger-color);
-  font-size: 0.75rem;
-  margin-top: 0.25rem;
 }
 
 .calculated-fields {
@@ -542,6 +650,83 @@ export default {
 
 .btn-secondary:hover {
   background-color: var(--gray-50);
+}
+
+/* Dropdown Styles */
+.dropdown {
+  position: relative;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid var(--gray-300);
+  border-top: none;
+  border-radius: 0 0 0.375rem 0.375rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  max-height: 250px;
+  overflow-y: auto;
+  z-index: 100;
+}
+
+.dropdown-item {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--gray-100);
+  transition: background-color 0.2s;
+}
+
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dropdown-item:hover {
+  background-color: var(--gray-50);
+}
+
+.dropdown-item.text-muted {
+  color: var(--gray-500);
+  cursor: default;
+}
+
+.dropdown-item.text-muted:hover {
+  background-color: transparent;
+}
+
+.item-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.item-info strong {
+  font-weight: 600;
+  color: var(--gray-800);
+}
+
+.item-code {
+  color: var(--gray-500);
+  font-size: 0.8rem;
+}
+
+.item-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+}
+
+.category {
+  color: var(--primary-color);
+  font-weight: 500;
+}
+
+.stock {
+  color: var(--gray-500);
 }
 
 @media (max-width: 768px) {

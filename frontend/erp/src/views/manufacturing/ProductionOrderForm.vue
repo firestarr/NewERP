@@ -23,10 +23,10 @@
           <div class="form-row">
             <div class="form-group">
               <label for="production_number">Production Number</label>
-              <input 
-                type="text" 
-                id="production_number" 
-                v-model="form.production_number" 
+              <input
+                type="text"
+                id="production_number"
+                v-model="form.production_number"
                 :readonly="isEditing"
                 :class="{ 'error': errors && errors.production_number }"
                 placeholder="Will be auto-generated if left empty"
@@ -38,9 +38,9 @@
 
             <div class="form-group">
               <label for="production_date">Production Date</label>
-              <input 
-                type="date" 
-                id="production_date" 
+              <input
+                type="date"
+                id="production_date"
                 v-model="form.production_date"
                 :class="{ 'error': errors && errors.production_date }"
                 required
@@ -53,19 +53,44 @@
 
           <div class="form-row">
             <div class="form-group">
-              <label for="work_order">Work Order</label>
-              <select 
-                id="work_order" 
-                v-model="form.wo_id"
-                :class="{ 'error': errors && errors.wo_id }"
-                @change="loadWorkOrderDetails"
-                required
-              >
-                <option value="">-- Select Work Order --</option>
-                <option v-for="wo in workOrders" :key="wo.wo_id" :value="wo.wo_id">
-                  {{ wo.wo_number }} - {{ wo.item?.name || 'Unknown Item' }}
-                </option>
-              </select>
+              <label for="work_order">Work Order <span class="required">*</span></label>
+              <div class="dropdown">
+                <input
+                  type="text"
+                  id="work_order"
+                  v-model="workOrderSearch"
+                  class="form-control"
+                  :class="{ 'error': errors && errors.wo_id }"
+                  placeholder="Search for a work order..."
+                  @focus="showWorkOrderDropdown = true"
+                  @blur="hideWorkOrderDropdown"
+                  autocomplete="off"
+                />
+                <div v-if="showWorkOrderDropdown" class="dropdown-menu">
+                  <div
+                    v-for="wo in filteredWorkOrders"
+                    :key="wo.wo_id"
+                    @mousedown="selectWorkOrder(wo)"
+                    class="dropdown-item"
+                  >
+                    <div class="work-order-info">
+                      <strong>{{ wo.wo_number }}</strong>
+                      <span class="work-order-status" :class="getStatusClass(wo.status)">{{ wo.status }}</span>
+                    </div>
+                    <div class="work-order-details">
+                      <span class="item-name">{{ wo.item?.name || 'Unknown Item' }}</span>
+                      <span class="quantity">Qty: {{ wo.planned_quantity }}</span>
+                    </div>
+                    <div class="work-order-dates">
+                      <span class="date-info">Start: {{ formatDate(wo.planned_start_date) }}</span>
+                      <span class="date-info">End: {{ formatDate(wo.planned_end_date) }}</span>
+                    </div>
+                  </div>
+                  <div v-if="filteredWorkOrders.length === 0" class="dropdown-item text-muted">
+                    No work orders found
+                  </div>
+                </div>
+              </div>
               <div v-if="errors && errors.wo_id" class="error-message">
                 {{ errors.wo_id }}
               </div>
@@ -73,8 +98,8 @@
 
             <div class="form-group">
               <label for="status">Status</label>
-              <select 
-                id="status" 
+              <select
+                id="status"
                 v-model="form.status"
                 :class="{ 'error': errors && errors.status }"
                 required
@@ -129,14 +154,14 @@
           <div class="form-row">
             <div class="form-group">
               <label for="planned_quantity">Planned Quantity</label>
-              <input 
-                type="number" 
-                id="planned_quantity" 
+              <input
+                type="number"
+                id="planned_quantity"
                 v-model="form.planned_quantity"
                 :class="{ 'error': errors && errors.planned_quantity }"
                 :max="getRemainingQuantity()"
-                min="0" 
-                step="0.01" 
+                min="0"
+                step="0.01"
                 required
               >
               <div v-if="errors && errors.planned_quantity" class="error-message">
@@ -149,12 +174,12 @@
 
             <div class="form-group">
               <label for="actual_quantity">Actual Quantity</label>
-              <input 
-                type="number" 
-                id="actual_quantity" 
+              <input
+                type="number"
+                id="actual_quantity"
                 v-model="form.actual_quantity"
                 :class="{ 'error': errors && errors.actual_quantity }"
-                min="0" 
+                min="0"
                 step="0.01"
               >
               <div v-if="errors && errors.actual_quantity" class="error-message">
@@ -200,11 +225,11 @@
                     </div>
                   </td>
                   <td>
-                    <input 
-                      type="number" 
-                      v-model="component.planned_quantity" 
-                      min="0" 
-                      step="0.01" 
+                    <input
+                      type="number"
+                      v-model="component.planned_quantity"
+                      min="0"
+                      step="0.01"
                       required
                     >
                     <div v-if="errors && errors[`consumptions.${index}.planned_quantity`]" class="error-message">
@@ -212,10 +237,10 @@
                     </div>
                   </td>
                   <td>
-                    <input 
-                      type="number" 
-                      v-model="component.actual_quantity" 
-                      min="0" 
+                    <input
+                      type="number"
+                      v-model="component.actual_quantity"
+                      min="0"
                       step="0.01"
                     >
                   </td>
@@ -268,12 +293,26 @@ export default {
       bomComponents: [],
       loading: true,
       saving: false,
-      errors: {}
+      errors: {},
+      // Work Order Search State
+      workOrderSearch: '',
+      showWorkOrderDropdown: false
     };
   },
   computed: {
     isEditing() {
       return !!this.id;
+    },
+    // Filtered work orders based on search
+    filteredWorkOrders() {
+      if (!this.workOrderSearch) {
+        return this.workOrders.slice(0, 10);
+      }
+      return this.workOrders.filter(wo =>
+        wo.wo_number.toLowerCase().includes(this.workOrderSearch.toLowerCase()) ||
+        (wo.item && wo.item.name.toLowerCase().includes(this.workOrderSearch.toLowerCase())) ||
+        wo.status.toLowerCase().includes(this.workOrderSearch.toLowerCase())
+      ).slice(0, 10);
     }
   },
   created() {
@@ -288,10 +327,10 @@ export default {
           axios.get('/work-orders', { params: { exclude_status: 'Completed' } }),
           axios.get('/warehouses')
         ]);
-        
+
         this.workOrders = workOrdersRes.data.data || workOrdersRes.data;
         this.warehouses = warehousesRes.data.data || warehousesRes.data;
-        
+
         // If editing, fetch production order details
         if (this.isEditing) {
           await this.fetchProductionOrder();
@@ -303,12 +342,12 @@ export default {
         this.loading = false;
       }
     },
-    
+
     async fetchProductionOrder() {
       try {
         const response = await axios.get(`/production-orders/${this.id}`);
         const productionOrder = response.data.data || response.data;
-        
+
         // Map production order data to form
         this.form = {
           production_number: productionOrder.production_number,
@@ -319,10 +358,15 @@ export default {
           status: productionOrder.status,
           consumptions: []
         };
-        
+
+        // Set work order search text
+        if (productionOrder.workOrder) {
+          this.workOrderSearch = `${productionOrder.workOrder.wo_number} - ${productionOrder.workOrder.item?.name || 'Unknown Item'}`;
+        }
+
         // Load work order details
         await this.loadWorkOrderDetails();
-        
+
         // Load consumption data
         if (productionOrder.productionConsumptions) {
           this.form.consumptions = productionOrder.productionConsumptions.map(consumption => ({
@@ -338,7 +382,31 @@ export default {
         if (this.$toast) this.$toast.error('Failed to load production order data');
       }
     },
-    
+
+    // Work Order Selection Methods
+    selectWorkOrder(workOrder) {
+      this.form.wo_id = workOrder.wo_id;
+      this.workOrderSearch = `${workOrder.wo_number} - ${workOrder.item?.name || 'Unknown Item'}`;
+      this.showWorkOrderDropdown = false;
+      this.loadWorkOrderDetails();
+    },
+
+    hideWorkOrderDropdown() {
+      setTimeout(() => {
+        this.showWorkOrderDropdown = false;
+      }, 200);
+    },
+
+    getStatusClass(status) {
+      const statusClasses = {
+        'Draft': 'status-draft',
+        'In Progress': 'status-in-progress',
+        'Completed': 'status-completed',
+        'Cancelled': 'status-cancelled'
+      };
+      return statusClasses[status] || '';
+    },
+
     async loadWorkOrderDetails() {
       if (!this.form.wo_id) {
         this.workOrderDetails = null;
@@ -347,51 +415,51 @@ export default {
         this.existingProductionOrders = [];
         return;
       }
-      
+
       try {
         // Fetch work order details and existing production orders
         const [workOrderResponse, productionOrdersResponse] = await Promise.all([
           axios.get(`/work-orders/${this.form.wo_id}`),
-          axios.get('/production-orders', { 
-            params: { wo_id: this.form.wo_id } 
+          axios.get('/production-orders', {
+            params: { wo_id: this.form.wo_id }
           })
         ]);
-        
+
         this.workOrderDetails = workOrderResponse.data.data || workOrderResponse.data;
-        
+
         // Filter out current production order if editing
         this.existingProductionOrders = (productionOrdersResponse.data.data || productionOrdersResponse.data)
           .filter(po => this.isEditing ? po.production_id !== parseInt(this.id) : true);
-        
+
         // Set default production quantity from remaining quantity
         const remainingQuantity = this.getRemainingQuantity();
         if (!this.isEditing || this.form.planned_quantity === 0) {
           this.form.planned_quantity = Math.min(remainingQuantity, this.workOrderDetails.planned_quantity);
         }
-        
+
         // Fetch BOM components
         if (this.workOrderDetails.bom_id) {
           const bomResponse = await axios.get(`/boms/${this.workOrderDetails.bom_id}`);
           const bom = bomResponse.data.data || bomResponse.data;
-          
+
           if (bom && bom.bomLines) {
             this.bomComponents = bom.bomLines;
-            
+
             // Fetch items data
             const itemIds = this.bomComponents.map(line => line.item_id);
             const itemsResponse = await axios.get('/items', { params: { ids: itemIds.join(',') } });
             const items = itemsResponse.data.data || itemsResponse.data;
-            
+
             // Create a lookup object for items
             items.forEach(item => {
               this.items[item.item_id] = item;
             });
-            
+
             // Only create new consumptions if not editing or if no consumptions exist
             if (!this.isEditing || this.form.consumptions.length === 0) {
               // Calculate component quantities based on production quantity ratio
               const ratio = this.form.planned_quantity / bom.standard_quantity;
-              
+
               this.form.consumptions = this.bomComponents.map(component => {
                 return {
                   item_id: component.item_id,
@@ -409,91 +477,91 @@ export default {
         if (this.$toast) this.$toast.error('Failed to load work order details');
       }
     },
-    
+
     getRemainingQuantity() {
       if (!this.workOrderDetails) return 0;
-      
+
       const existingPlannedQtySum = this.existingProductionOrders
         .reduce((sum, po) => sum + parseFloat(po.planned_quantity || 0), 0);
-      
+
       return this.workOrderDetails.planned_quantity - existingPlannedQtySum;
     },
-    
+
     getRemainingQuantityClass() {
       const remaining = this.getRemainingQuantity();
       if (remaining <= 0) return 'text-danger';
       if (remaining < this.workOrderDetails.planned_quantity * 0.2) return 'text-warning';
       return 'text-success';
     },
-    
+
     getDefaultWarehouse() {
       // Return first warehouse or empty if none available
       return this.warehouses.length > 0 ? this.warehouses[0].warehouse_id : '';
     },
-    
+
     getItemName(itemId) {
       return this.items[itemId]?.name || 'Unknown Item';
     },
-    
+
     getItemCode(itemId) {
       return this.items[itemId]?.item_code || '';
     },
-    
+
     getItemUom(itemId) {
       return this.items[itemId]?.unitOfMeasure?.symbol || '';
     },
-    
+
     formatDate(date) {
       if (!date) return 'N/A';
       return new Date(date).toLocaleDateString();
     },
-    
+
     async saveProductionOrder() {
       this.errors = {};
       this.saving = true;
-      
+
       try {
         // Calculate variances for consumptions
         this.form.consumptions.forEach(consumption => {
           consumption.variance = consumption.planned_quantity - (consumption.actual_quantity || 0);
         });
-        
+
         let response;
         if (this.isEditing) {
           response = await axios.put(`/production-orders/${this.id}`, this.form);
         } else {
           response = await axios.post('/production-orders', this.form);
         }
-        
+
         if (this.$toast) this.$toast.success(
-          this.isEditing 
-            ? 'Production order updated successfully' 
+          this.isEditing
+            ? 'Production order updated successfully'
             : 'Production order created successfully'
         );
-        
+
         // Redirect to production order detail view
-        const productionId = this.isEditing 
-          ? this.id 
+        const productionId = this.isEditing
+          ? this.id
           : (response.data.data?.production_id || response.data.production_id);
-          
+
         this.$router.push(`/manufacturing/production-orders/${productionId}`);
       } catch (error) {
         console.error('Error saving production order:', error);
-        
+
         // Reset errors object
         this.errors = {};
-        
+
         if (error && error.response && error.response.data) {
           // Handle validation errors
           if (error.response.data.errors) {
             this.errors = error.response.data.errors;
             if (this.$toast) this.$toast.error('Please correct the errors before submitting');
-          } 
+          }
           // Handle single error message
           else {
             // Safely extract the error message, avoiding undefined properties
-            const errorMessage = error.response.data.message || 
-                                (error.response.data.error !== undefined ? error.response.data.error : null) || 
+            const errorMessage = error.response.data.message ||
+                                (error.response.data.error !== undefined ? error.response.data.error : null) ||
                                 'Failed to save production order';
             if (this.$toast) this.$toast.error(errorMessage);
           }
@@ -504,7 +572,7 @@ export default {
         this.saving = false;
       }
     },
-    
+
     cancel() {
       // Go back to previous page or to list
       if (this.$router.options.history.state.back) {
@@ -514,13 +582,13 @@ export default {
       }
     }
   },
-  
+
   watch: {
     'form.planned_quantity'() {
       // Recalculate consumption quantities when planned quantity changes
       if (this.bomComponents.length > 0 && this.workOrderDetails?.bom) {
         const ratio = this.form.planned_quantity / this.workOrderDetails.bom.standard_quantity;
-        
+
         this.form.consumptions.forEach((consumption, index) => {
           const bomLine = this.bomComponents[index];
           if (bomLine) {
@@ -534,7 +602,7 @@ export default {
 </script>
 
 <style scoped>
-/* Existing styles remain the same - adding new classes for remaining quantity */
+/* Existing styles remain the same - adding new classes for dropdown and work order styling */
 
 .text-success {
   color: #059669 !important;
@@ -556,6 +624,122 @@ export default {
   color: #64748b;
   margin-top: 0.25rem;
   font-style: italic;
+}
+
+.required {
+  color: #dc2626;
+}
+
+/* Dropdown Styles */
+.dropdown {
+  position: relative;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-top: none;
+  border-radius: 0 0 0.375rem 0.375rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 100;
+}
+
+.dropdown-item {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  border-bottom: 1px solid #f3f4f6;
+  transition: background-color 0.2s;
+}
+
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dropdown-item:hover {
+  background-color: #f9fafb;
+}
+
+.dropdown-item.text-muted {
+  color: #6b7280;
+  cursor: default;
+}
+
+.dropdown-item.text-muted:hover {
+  background-color: transparent;
+}
+
+.work-order-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.work-order-info strong {
+  font-weight: 600;
+  color: #111827;
+}
+
+.work-order-status {
+  font-size: 0.75rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-weight: 500;
+}
+
+.status-draft {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.status-in-progress {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+}
+
+.status-completed {
+  background-color: #d1fae5;
+  color: #059669;
+}
+
+.status-cancelled {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+.work-order-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.item-name {
+  color: #2563eb;
+  font-weight: 500;
+}
+
+.quantity {
+  color: #6b7280;
+}
+
+.work-order-dates {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.date-info {
+  font-weight: 400;
 }
 
 /* Base container styling */
@@ -668,7 +852,8 @@ label {
 input[type="text"],
 input[type="date"],
 input[type="number"],
-select {
+select,
+.form-control {
   width: 100%;
   padding: 0.65rem 0.85rem;
   font-size: 0.95rem;
@@ -690,7 +875,8 @@ select {
 }
 
 input:focus,
-select:focus {
+select:focus,
+.form-control:focus {
   border-color: #3b82f6;
   outline: 0;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
@@ -702,7 +888,8 @@ input:read-only {
 }
 
 input.error,
-select.error {
+select.error,
+.form-control.error {
   border-color: #ef4444;
 }
 
@@ -899,32 +1086,32 @@ select.error {
     flex-direction: column;
     align-items: flex-start;
   }
-  
+
   .page-header h1 {
     margin-bottom: 1rem;
   }
-  
+
   .form-row {
     flex-direction: column;
   }
-  
+
   .form-group {
     flex: 0 0 100%;
     margin-bottom: 1rem;
   }
-  
+
   .info-row {
     flex-direction: column;
   }
-  
+
   .info-label {
     margin-bottom: 0.25rem;
   }
-  
+
   .card-footer {
     flex-direction: column;
   }
-  
+
   .btn {
     width: 100%;
   }
@@ -935,13 +1122,13 @@ select.error {
   .card-body {
     padding: 1.25rem;
   }
-  
+
   input,
   select,
   .btn {
     padding: 0.75rem 1rem;
   }
-  
+
   .table-responsive {
     margin-left: -1.25rem;
     margin-right: -1.25rem;

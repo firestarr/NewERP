@@ -2,13 +2,13 @@
 <template>
   <div class="delivery-form">
     <div class="page-header">
-      <h1>{{ isEditMode ? 'Edit Pengiriman' : 'Buat Pengiriman Baru' }}</h1>
+      <h1>{{ isEditMode ? 'Edit Delivery' : 'Create New Delivery' }}</h1>
       <div class="page-actions">
         <button class="btn btn-secondary" @click="goBack">
-          <i class="fas fa-arrow-left"></i> Kembali
+          <i class="fas fa-arrow-left"></i> Back
         </button>
         <button class="btn btn-primary" @click="saveDelivery" :disabled="isSubmitting">
-          <i class="fas fa-save"></i> {{ isSubmitting ? 'Menyimpan...' : 'Simpan' }}
+          <i class="fas fa-save"></i> {{ isSubmitting ? 'Saving...' : 'Save' }}
         </button>
       </div>
     </div>
@@ -20,12 +20,12 @@
     <div class="form-container">
       <div class="form-card">
         <div class="card-header">
-          <h2>Informasi Pengiriman</h2>
+          <h2>Delivery Information</h2>
         </div>
         <div class="card-body">
           <div class="form-row">
             <div class="form-group">
-              <label for="delivery_number">Nomor Pengiriman*</label>
+              <label for="delivery_number">Delivery Number*</label>
               <input
                 type="text"
                 id="delivery_number"
@@ -34,11 +34,11 @@
                 :readonly="isEditMode"
                 :class="{ 'readonly': isEditMode }"
               />
-              <small v-if="isEditMode" class="text-muted">Nomor pengiriman tidak dapat diubah</small>
+              <small v-if="isEditMode" class="text-muted">Delivery number cannot be changed</small>
             </div>
 
             <div class="form-group">
-              <label for="delivery_date">Tanggal Pengiriman*</label>
+              <label for="delivery_date">Delivery Date*</label>
               <input
                 type="date"
                 id="delivery_date"
@@ -50,22 +50,40 @@
 
           <div class="form-row">
             <div class="form-group">
-              <label for="so_id">Sales Order*</label>
-              <select id="so_id" v-model="form.so_id" required @change="loadSalesOrderDetails">
-                <option value="">-- Pilih Sales Order --</option>
-                <option v-for="so in salesOrders" :key="so.so_id" :value="so.so_id">
-                  {{ so.so_number }} - {{ so.customer.name }}
-                </option>
-              </select>
+              <label for="so_id">Sales Order* <span class="required">*</span></label>
+              <div class="dropdown">
+                <input
+                  type="text"
+                  id="so_id"
+                  v-model="soSearch"
+                  class="form-control"
+                  :class="{ 'is-invalid': !form.so_id && errors.so_id }"
+                  placeholder="Search for a sales order..."
+                  @focus="showSoDropdown = true"
+                  @blur="hideSoDropdown"
+                  :disabled="isEditMode"
+                />
+                <div v-if="showSoDropdown && !isEditMode" class="dropdown-menu">
+                  <div v-for="so in filteredSalesOrders" :key="so.so_id" @click="selectSalesOrder(so)" class="dropdown-item">
+                    <div class="so-item">
+                      <div class="so-number">{{ so.so_number }}</div>
+                      <div class="so-customer">{{ so.customer.name }}</div>
+                    </div>
+                  </div>
+                  <div v-if="filteredSalesOrders.length === 0" class="dropdown-item text-muted">No sales orders found</div>
+                </div>
+              </div>
+              <div v-if="errors.so_id" class="invalid-feedback">{{ errors.so_id }}</div>
+              <small v-if="isEditMode" class="text-muted">Sales order cannot be changed in edit mode</small>
             </div>
 
             <div class="form-group">
-              <label for="shipping_method">Metode Pengiriman</label>
+              <label for="shipping_method">Shipping Method</label>
               <select id="shipping_method" v-model="form.shipping_method">
-                <option value="">-- Pilih Metode --</option>
-                <option value="Road">Darat</option>
-                <option value="Sea">Laut</option>
-                <option value="Air">Udara</option>
+                <option value="">-- Select Method --</option>
+                <option value="Road">Road</option>
+                <option value="Sea">Sea</option>
+                <option value="Air">Air</option>
                 <option value="Express">Express</option>
               </select>
             </div>
@@ -73,22 +91,22 @@
 
           <div class="form-row">
             <div class="form-group">
-              <label for="tracking_number">Nomor Pelacakan</label>
+              <label for="tracking_number">Tracking Number</label>
               <input
                 type="text"
                 id="tracking_number"
                 v-model="form.tracking_number"
-                placeholder="Nomor pelacakan pengiriman"
+                placeholder="Shipment Tracking Number"
               />
             </div>
 
             <div class="form-group" v-if="isEditMode">
               <label for="status">Status*</label>
               <select id="status" v-model="form.status" required>
-                <option value="Pending">Menunggu</option>
-                <option value="In Transit">Dalam Pengiriman</option>
-                <option value="Completed">Selesai</option>
-                <option value="Cancelled">Dibatalkan</option>
+                <option value="Pending">Pending</option>
+                <option value="In Transit">In Transit</option>
+                <option value="Completed">Completed</option>
+                <option value="Cancelled">Cancelled</option>
               </select>
             </div>
           </div>
@@ -102,17 +120,17 @@
         <div class="card-body" v-if="selectedCustomer">
           <div class="customer-info">
             <div class="info-group">
-              <label>Nama Pelanggan</label>
+              <label>Customer Name</label>
               <div class="info-value">{{ selectedCustomer.name }}</div>
             </div>
 
             <div class="info-group">
-              <label>Kode Pelanggan</label>
+              <label>Customer Code</label>
               <div class="info-value">{{ selectedCustomer.customer_code }}</div>
             </div>
 
             <div class="info-group">
-              <label>Alamat</label>
+              <label>Address</label>
               <div class="info-value">{{ selectedCustomer.address || '-' }}</div>
             </div>
 
@@ -122,35 +140,35 @@
             </div>
 
             <div class="info-group">
-              <label>Telepon</label>
+              <label>Phone</label>
               <div class="info-value">{{ selectedCustomer.phone || '-' }}</div>
             </div>
           </div>
         </div>
         <div class="card-body empty-info" v-else>
-          <p>Pilih Sales Order terlebih dahulu untuk melihat informasi pelanggan</p>
+          <p>Select Sales Order first to view customer information</p>
         </div>
       </div>
 
       <div class="form-card">
         <div class="card-header">
-          <h2>Item Pengiriman</h2>
+          <h2>Item Delivery</h2>
         </div>
         <div class="card-body">
           <div v-if="form.lines.length === 0" class="empty-lines">
-            <p>Pilih Sales Order terlebih dahulu untuk menambahkan item pengiriman.</p>
+            <p>Select Sales Order first to add shipping items.</p>
           </div>
 
           <div v-else class="delivery-lines">
             <div class="line-headers">
               <div class="line-header">Item</div>
-              <div class="line-header">Jumlah Dipesan</div>
-              <div class="line-header">Jumlah Terkirim</div>
-              <div class="line-header">Sisa Outstanding</div>
-              <div class="line-header">Jumlah Dikirim</div>
-              <div class="line-header">Gudang</div>
+              <div class="line-header">Ordered Quantity</div>
+              <div class="line-header">Delivered Quantity</div>
+              <div class="line-header">Outstanding Remaining</div>
+              <div class="line-header">Delivery Quantity</div>
+              <div class="line-header">Warehouse</div>
               <div class="line-header">Batch Number</div>
-              <div class="line-header">Aksi</div>
+              <div class="line-header">Action</div>
             </div>
 
             <div
@@ -194,19 +212,18 @@
               </div>
 
               <div class="line-item">
-                <select v-model="line.warehouse_id" required>
-                  <option value="">-- Pilih Gudang --</option>
-                  <option v-for="warehouse in warehouses" :key="warehouse.warehouse_id" :value="warehouse.warehouse_id">
-                    {{ warehouse.name }}
-                  </option>
-                </select>
+                <div class="line-item">
+                  <span>
+                    {{ warehouses.find(w => w.warehouse_id === 2)?.name || '' }}
+                  </span>
+                </div>
               </div>
 
               <div class="line-item">
                 <input
                   type="text"
                   v-model="line.batch_number"
-                  placeholder="Batch Number (opsional)"
+                  placeholder="Batch Number (optional)"
                 />
               </div>
 
@@ -214,7 +231,7 @@
                 <button
                   type="button"
                   class="btn-icon delete-btn"
-                  title="Hapus Item"
+                  title="Remove Item"
                   @click="removeLine(index)"
                 >
                   <i class="fas fa-trash"></i>
@@ -227,10 +244,10 @@
 
       <div class="form-actions">
         <button type="button" class="btn btn-secondary" @click="goBack">
-          Batal
+          Cancel
         </button>
         <button type="button" class="btn btn-primary" @click="saveDelivery" :disabled="isSubmitting">
-          {{ isSubmitting ? 'Menyimpan...' : 'Simpan Pengiriman' }}
+          {{ isSubmitting ? 'Saving...' : 'Save Delivery' }}
         </button>
       </div>
     </div>
@@ -238,7 +255,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import axios from 'axios';
 
@@ -265,6 +282,11 @@ export default {
     const warehouses = ref([]);
     const selectedCustomer = ref(null);
 
+    // Sales Order Search functionality
+    const soSearch = ref(''); // For search input
+    const showSoDropdown = ref(false); // Control dropdown visibility
+    const errors = ref({});
+
     // UI state
     const isLoading = ref(false);
     const isSubmitting = ref(false);
@@ -273,6 +295,46 @@ export default {
     // Check if we're in edit mode
     const isEditMode = computed(() => {
       return route.params.id !== undefined;
+    });
+
+    // Computed property to filter sales orders based on search input
+    const filteredSalesOrders = computed(() => {
+      if (!soSearch.value) {
+        return salesOrders.value; // Return all sales orders if no search input
+      }
+      return salesOrders.value.filter(so =>
+        so.so_number.toLowerCase().includes(soSearch.value.toLowerCase()) ||
+        so.customer.name.toLowerCase().includes(soSearch.value.toLowerCase())
+      );
+    });
+
+    // Method to select a sales order from the dropdown
+    const selectSalesOrder = (so) => {
+      form.value.so_id = so.so_id; // Set selected sales order ID
+      soSearch.value = `${so.so_number} - ${so.customer.name}`; // Set input value
+      showSoDropdown.value = false; // Hide dropdown
+      loadSalesOrderDetails(); // Load details for selected SO
+    };
+
+    // Method to hide dropdown
+    const hideSoDropdown = () => {
+      setTimeout(() => {
+        showSoDropdown.value = false; // Delay to allow click event to register
+      }, 200);
+    };
+
+    // Watch for sales order selection to update display
+    watch(() => form.value.so_id, (newSoId) => {
+      if (newSoId) {
+        const selectedSo = salesOrders.value.find(so => so.so_id === newSoId);
+        if (selectedSo && !soSearch.value.includes(selectedSo.so_number)) {
+          soSearch.value = `${selectedSo.so_number} - ${selectedSo.customer.name}`;
+        }
+      } else {
+        soSearch.value = '';
+        selectedCustomer.value = null;
+        form.value.lines = [];
+      }
     });
 
     // Generate a unique delivery number for new deliveries
@@ -288,49 +350,49 @@ export default {
 
     // Load reference data
     const loadReferenceData = async () => {
-  try {
-    console.log('🔄 Loading outstanding sales orders...');
+      try {
+        console.log('🔄 Loading outstanding sales orders...');
 
-    // Load sales orders that have outstanding items
-    const soResponse = await axios.get('/deliveries/outstanding-so');
+        // Load sales orders that have outstanding items
+        const soResponse = await axios.get('/deliveries/outstanding-so');
 
-    // ⭐ TRANSFORM: Convert flat structure to nested structure
-    const rawData = soResponse.data.data || [];
-    console.log('📡 Raw response:', rawData);
+        // ⭐ TRANSFORM: Convert flat structure to nested structure
+        const rawData = soResponse.data.data || [];
+        console.log('📡 Raw response:', rawData);
 
-    salesOrders.value = rawData.map(order => ({
-      so_id: order.so_id,
-      so_number: order.so_number,
-      // Transform flat customer_name to nested customer.name
-      customer: {
-        name: order.customer_name || 'Unknown Customer',
-        customer_code: order.customer_id || ''
+        salesOrders.value = rawData.map(order => ({
+          so_id: order.so_id,
+          so_number: order.so_number,
+          // Transform flat customer_name to nested customer.name
+          customer: {
+            name: order.customer_name || 'Unknown Customer',
+            customer_code: order.customer_id || ''
+          }
+        }));
+
+        console.log('✨ Transformed orders:', salesOrders.value);
+
+        // Load warehouses
+        const warehouseResponse = await axios.get('/warehouses');
+        warehouses.value = warehouseResponse.data.data || [];
+
+      } catch (err) {
+        console.error('💥 Error loading reference data:', err);
+
+        // Better error message based on error type
+        if (err.response?.status === 404) {
+          error.value = 'Endpoint not found. Make sure the route has been fixed.';
+        } else if (err.response?.status === 400) {
+          error.value = 'Invalid delivery ID error. Check route order.';
+        } else {
+          error.value = `An error occurred: ${err.response?.data?.message || err.message}`;
+        }
+
+        // Set empty fallbacks
+        salesOrders.value = [];
+        warehouses.value = [];
       }
-    }));
-
-    console.log('✨ Transformed orders:', salesOrders.value);
-
-    // Load warehouses
-    const warehouseResponse = await axios.get('/warehouses');
-    warehouses.value = warehouseResponse.data.data || [];
-
-  } catch (err) {
-    console.error('💥 Error loading reference data:', err);
-
-    // Better error message based on error type
-    if (err.response?.status === 404) {
-      error.value = 'Endpoint tidak ditemukan. Pastikan route sudah diperbaiki.';
-    } else if (err.response?.status === 400) {
-      error.value = 'Invalid delivery ID error. Periksa urutan route.';
-    } else {
-      error.value = `Terjadi kesalahan: ${err.response?.data?.message || err.message}`;
-    }
-
-    // Set empty fallbacks
-    salesOrders.value = [];
-    warehouses.value = [];
-  }
-};
+    };
 
     // Load delivery data if in edit mode
     const loadDelivery = async () => {
@@ -365,6 +427,14 @@ export default {
 
         // Set selected customer
         selectedCustomer.value = delivery.customer;
+
+        // Set sales order search display for edit mode
+        if (delivery.soId) {
+          const selectedSo = salesOrders.value.find(so => so.so_id === delivery.soId);
+          if (selectedSo) {
+            soSearch.value = `${selectedSo.so_number} - ${selectedSo.customer.name}`;
+          }
+        }
 
         // Set line items
         if (delivery.deliveryLines && delivery.deliveryLines.length > 0) {
@@ -411,7 +481,7 @@ export default {
         }
       } catch (err) {
         console.error('Error loading delivery:', err);
-        error.value = 'Terjadi kesalahan saat memuat data pengiriman.';
+        error.value = 'An error occurred while loading delivery data.';
       } finally {
         isLoading.value = false;
       }
@@ -455,7 +525,7 @@ export default {
         }
       } catch (err) {
         console.error('Error fetching outstanding items:', err);
-        error.value = 'Terjadi kesalahan saat memuat data outstanding items.';
+        error.value = 'An error occurred while loading outstanding items data.';
       }
     };
 
@@ -499,7 +569,7 @@ export default {
               previously_delivered_quantity: item.delivered_quantity,
               outstanding_quantity: item.outstanding_quantity,
               delivered_quantity: 0,
-              warehouse_id: '',
+              warehouse_id: 2,
               batch_number: '',
               warehouse_stocks: item.warehouse_stocks || []
             }));
@@ -507,7 +577,7 @@ export default {
         }
       } catch (err) {
         console.error('Error loading sales order details:', err);
-        error.value = 'Terjadi kesalahan saat memuat detail sales order.';
+        error.value = 'An error occurred while loading sales order details.';
       }
     };
 
@@ -529,10 +599,10 @@ export default {
       const outstanding = getOutstandingQuantity(line);
 
       if (delivered <= 0) {
-        line.quantityError = 'Jumlah harus lebih dari 0';
+        line.quantityError = 'Quantity must be greater than 0';
       } else if (delivered > outstanding) {
         line.delivered_quantity = outstanding; // Cap at maximum outstanding
-        line.quantityError = `Jumlah tidak boleh melebihi sisa outstanding (${outstanding})`;
+        line.quantityError = `Quantity cannot exceed outstanding remaining (${outstanding})`;
       } else {
         line.quantityError = null;
       }
@@ -540,7 +610,7 @@ export default {
 
     // Remove a line
     const removeLine = (index) => {
-      if (confirm('Apakah Anda yakin ingin menghapus item ini?')) {
+      if (confirm('Are you sure you want to remove this item?')) {
         form.value.lines.splice(index, 1);
       }
     };
@@ -552,15 +622,21 @@ export default {
 
     // Save the delivery
     const saveDelivery = async () => {
+      // Clear previous errors
+      errors.value = {};
+
       // Validate form
       if (!form.value.delivery_number || !form.value.delivery_date || !form.value.so_id) {
-        error.value = 'Harap isi semua field yang wajib diisi.';
+        error.value = 'Please fill in all required fields.';
+        if (!form.value.so_id) {
+          errors.value.so_id = 'Sales Order is required';
+        }
         return;
       }
 
       // Validate line items
       if (form.value.lines.length === 0) {
-        error.value = 'Pengiriman harus memiliki setidaknya satu item.';
+        error.value = 'Delivery must have at least one item.';
         return;
       }
 
@@ -573,12 +649,12 @@ export default {
         }
 
         if (line.delivered_quantity <= 0) {
-          line.quantityError = `Jumlah pengiriman harus lebih dari 0`;
+          line.quantityError = `Delivery quantity must be greater than 0`;
           hasError = true;
         }
 
         if (!line.warehouse_id) {
-          error.value = `Gudang harus dipilih untuk item ke-${index + 1}.`;
+          error.value = `Warehouse must be selected for item ${index + 1}.`;
           hasError = true;
         }
       });
@@ -594,11 +670,11 @@ export default {
         if (isEditMode.value) {
           // Update existing delivery
           await axios.put(`/deliveries/${form.value.delivery_id}`, form.value);
-          alert('Pengiriman berhasil diperbarui!');
+          alert('Delivery updated successfully!');
         } else {
           // Create new delivery
           await axios.post('/deliveries', form.value);
-          alert('Pengiriman berhasil dibuat!');
+          alert('Delivery created successfully!');
         }
 
         // Redirect to deliveries list
@@ -607,13 +683,13 @@ export default {
         console.error('Error saving delivery:', err);
 
         if (err.response && err.response.data && err.response.data.errors) {
-          const errors = err.response.data.errors;
-          const firstError = Object.values(errors)[0][0];
+          const serverErrors = err.response.data.errors;
+          const firstError = Object.values(serverErrors)[0][0];
           error.value = firstError;
         } else if (err.response && err.response.data && err.response.data.message) {
           error.value = err.response.data.message;
         } else {
-          error.value = 'Terjadi kesalahan saat menyimpan pengiriman.';
+          error.value = 'An error occurred while saving the delivery.';
         }
       } finally {
         isSubmitting.value = false;
@@ -633,7 +709,13 @@ export default {
       isLoading,
       isSubmitting,
       error,
+      errors,
       isEditMode,
+      soSearch,
+      showSoDropdown,
+      filteredSalesOrders,
+      selectSalesOrder,
+      hideSoDropdown,
       getOutstandingQuantity,
       validateDeliveredQuantity,
       removeLine,
@@ -732,6 +814,10 @@ export default {
   color: #334155;
 }
 
+.required {
+  color: #dc2626;
+}
+
 .form-group input,
 .form-group select,
 .form-group textarea {
@@ -754,10 +840,104 @@ export default {
   cursor: not-allowed;
 }
 
+.form-control {
+  width: 100%;
+  padding: 0.625rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background-color: white;
+}
+
+.form-control:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  outline: none;
+}
+
+.form-control.is-invalid {
+  border-color: #dc2626;
+}
+
+.form-control:disabled {
+  background-color: #f8fafc;
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+.invalid-feedback {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: #dc2626;
+}
+
 .text-muted {
   color: #64748b;
   font-size: 0.75rem;
   margin-top: 0.25rem;
+}
+
+/* Dropdown styles - matching BOMForm.vue */
+.dropdown {
+  position: relative;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  margin-top: 0.25rem;
+}
+
+.dropdown-item {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background-color 0.2s;
+}
+
+.dropdown-item:hover {
+  background-color: #f8fafc;
+}
+
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dropdown-item.text-muted {
+  color: #64748b;
+  cursor: default;
+}
+
+.dropdown-item.text-muted:hover {
+  background-color: transparent;
+}
+
+.so-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.so-number {
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 0.875rem;
+}
+
+.so-customer {
+  font-size: 0.75rem;
+  color: #64748b;
 }
 
 .customer-info {
@@ -995,10 +1175,10 @@ export default {
   }
 
   .line-item.actions::before {
-    content: "Aksi";
+    content: "Action";
     font-weight: 500;
     width: 8rem;
     text-align: left;
   }
 }
-  </style>
+</style>

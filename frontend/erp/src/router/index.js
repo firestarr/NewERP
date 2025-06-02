@@ -63,6 +63,7 @@ import SalesOrderList from "../views/sales/SalesOrderList.vue";
 import SalesOrderDetail from "../views/sales/SalesOrderDetail.vue";
 import SalesOrderForm from "../views/sales/SalesOrderForm.vue";
 import CreateOrderFromQuotation from "../views/sales/CreateOrderFromQuotation.vue";
+import SalesOrderExcelImport from "../views/sales/SalesOrderExcelImport.vue";
 //Sales Invoice
 import SalesInvoiceList from "../views/sales/SalesInvoiceList.vue";
 import SalesInvoiceDetail from "../views/sales/SalesInvoiceDetail.vue";
@@ -102,6 +103,7 @@ import PurchaseOrderDetail from "@/views/purchasing/PurchaseOrderDetail.vue";
 import PurchaseOrderFormView from "@/views/purchasing/PurchaseOrderFormView.vue";
 import PurchaseOrderTrack from "@/views/purchasing/PurchaseOrderTrack.vue";
 import CreatePOFromQuotation from "@/views/purchasing/CreatePOFromQuotation.vue";
+import PurchaseOrderExcelImport from "../views/purchasing/PurchaseOrderExcelImport.vue";
 
 //GoodReceipt
 import GoodsReceiptList from "../views/purchasing/GoodsReceiptList.vue";
@@ -599,6 +601,12 @@ const routes = [
                 props: true,
                 meta: { requiresAuth: true },
             },
+            {
+                path: "/sales/orders/excel/import",
+                name: "SalesOrderExcelImport",
+                component: SalesOrderExcelImport,
+                meta: { requiresAuth: true },
+            },
             // Sales Invoice routes
             {
                 path: "/sales/invoices",
@@ -995,6 +1003,13 @@ const routes = [
                 props: true,
                 meta: { requiresAuth: true },
             },
+            {
+                path: "/purchasing/orders/import",
+                name: "ImportPurchaseOrders",
+                component: PurchaseOrderExcelImport,
+                meta: { requiresAuth: true },
+            },
+
             // Goods Receipts Routes
             {
                 path: "/purchasing/goods-receipts",

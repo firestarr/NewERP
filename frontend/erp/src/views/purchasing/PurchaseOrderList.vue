@@ -8,6 +8,13 @@
         <router-link to="/purchasing/orders/create" class="btn-create">
           <i class="fas fa-plus"></i> Create Purchase Order
         </router-link>
+        <router-link to="/purchasing/orders/import" class="btn-create2">
+            <i class="fas fa-file-import"></i>
+            <div>
+                <span>Import PO Excel</span>
+                <!-- <small>Import POs from Excel</small> -->
+            </div>
+        </router-link>
       </div>
     </div>
 
@@ -489,6 +496,22 @@ export default {
   font-weight: 500;
   text-decoration: none;
   transition: background-color 0.2s;
+}
+
+.btn-create2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #109331;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 12px 20px;
+  font-size: 16px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color 0.2s;
+  margin-left: 4px;
 }
 
 .btn-create:hover {

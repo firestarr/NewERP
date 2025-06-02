@@ -43,6 +43,24 @@
                     <button class="btn btn-primary" @click="createOrder">
                         <i class="fas fa-plus"></i> Create Order
                     </button>
+                    <!-- <button
+                        @click="exportToExcel"
+                        :disabled="isExporting"
+                        class="btn btn-outline-success"
+                        title="Export to Excel"
+                    >
+                        <i class="fas fa-file-excel"></i>
+                        {{ isExporting ? 'Exporting...' : 'Export' }}
+                    </button> -->
+
+                    <router-link
+                        to="/sales/orders/excel/import"
+                        class="btn btn-outline-primary"
+                        title="Import from Excel"
+                    >
+                        <i class="fas fa-file-import"></i>
+                        Import Excel
+                    </router-link>
                 </template>
             </SearchFilter>
 
@@ -371,8 +389,7 @@ export default {
 
 const formatCurrency = (value) => {
     return new Intl.NumberFormat("id-ID", {
-        style: "currency",
-        currency: "IDR",
+        style: "decimal",
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     }).format(value ?? 0);
@@ -428,8 +445,7 @@ const formatCurrency = (value) => {
         const canDeleteOrder = (order) => {
             // Only allow delete if there are no deliveries or invoices
             return (
-                order.deliveries?.length === 0 &&
-                order.salesInvoices?.length === 0
+                order.deliveries?.length === 0
             );
         };
 

@@ -70,21 +70,40 @@
               </div>
 
               <div class="form-row">
+                <!-- Updated Customer Selection with Search -->
                 <div class="form-group">
                   <label for="customer">Customer <span class="required">*</span></label>
-                  <select
-                    id="customer"
-                    v-model="invoice.customer_id"
-                    class="form-control"
-                    required
-                    :disabled="isEditing"
-                    @change="handleCustomerChange"
-                  >
-                    <option value="">Select Customer</option>
-                    <option v-for="customer in customers" :key="customer.customer_id" :value="customer.customer_id">
-                      {{ customer.name }}
-                    </option>
-                  </select>
+                  <div class="dropdown">
+                    <input
+                      type="text"
+                      id="customer"
+                      v-model="customerSearch"
+                      class="form-control"
+                      :class="{ 'is-invalid': errors.customer_id }"
+                      placeholder="Search for a customer..."
+                      :disabled="isEditing"
+                      @focus="showCustomerDropdown = true"
+                      @blur="hideCustomerDropdown"
+                      required
+                    />
+                    <div v-if="showCustomerDropdown" class="dropdown-menu">
+                      <div
+                        v-for="customer in filteredCustomers"
+                        :key="customer.customer_id"
+                        @click="selectCustomer(customer)"
+                        class="dropdown-item"
+                      >
+                        <div class="customer-info">
+                          <strong>{{ customer.name }}</strong>
+                          <small v-if="customer.email" class="customer-email">{{ customer.email }}</small>
+                          <small v-if="customer.phone" class="customer-phone">{{ customer.phone }}</small>
+                        </div>
+                      </div>
+                      <div v-if="filteredCustomers.length === 0" class="dropdown-item text-muted">
+                        No customers found
+                      </div>
+                    </div>
+                  </div>
                   <div v-if="errors.customer_id?.length" class="error-message">
                     {{ errors.customer_id[0] }}
                   </div>
@@ -473,6 +492,9 @@ export default {
       createFromDelivery: false,
       loadingDeliveries: false,
       isLoadingItems: false,
+      // Customer search properties
+      customerSearch: '',
+      showCustomerDropdown: false,
       invoice: {
         invoice_number: '',
         invoice_date: new Date().toISOString().split('T')[0],
@@ -502,6 +524,18 @@ export default {
         console.error('Error calculating default due date:', error);
         return new Date().toISOString().split('T')[0];
       }
+    },
+
+    // Filter customers based on search input
+    filteredCustomers() {
+      if (!this.customerSearch) {
+        return this.customers;
+      }
+      return this.customers.filter(customer =>
+        customer.name.toLowerCase().includes(this.customerSearch.toLowerCase()) ||
+        (customer.email && customer.email.toLowerCase().includes(this.customerSearch.toLowerCase())) ||
+        (customer.phone && customer.phone.toLowerCase().includes(this.customerSearch.toLowerCase()))
+      );
     }
   },
 
@@ -529,6 +563,22 @@ export default {
   },
 
   methods: {
+    // Customer dropdown methods
+    selectCustomer(customer) {
+      this.invoice.customer_id = customer.customer_id;
+      this.customerSearch = customer.name;
+      this.showCustomerDropdown = false;
+
+      // Trigger customer change handler
+      this.handleCustomerChange();
+    },
+
+    hideCustomerDropdown() {
+      setTimeout(() => {
+        this.showCustomerDropdown = false;
+      }, 200);
+    },
+
     // Safe message display with fallbacks
     showMessage(message, type = 'info') {
       try {
@@ -648,6 +698,12 @@ export default {
           do_id: invoice.do_id || null,
           lines: []
         };
+
+        // Set customer search text for display
+        const selectedCustomer = this.customers.find(c => c.customer_id === this.invoice.customer_id);
+        if (selectedCustomer) {
+          this.customerSearch = selectedCustomer.name;
+        }
 
         // Process invoice lines safely with UOM fix
         await this.processInvoiceLines(invoice);
@@ -1589,6 +1645,72 @@ export default {
 
   .delivery-item:last-child {
     border-bottom: none;
+  }
+
+  /* Dropdown Styles - Same as BOMForm */
+  .dropdown {
+    position: relative;
+    width: 100%;
+  }
+
+  .dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid var(--gray-300);
+    border-radius: 0.375rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    max-height: 250px;
+    overflow-y: auto;
+    z-index: 1000;
+    margin-top: 2px;
+  }
+
+  .dropdown-item {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    border-bottom: 1px solid var(--gray-100);
+    transition: background-color 0.15s ease-in-out;
+  }
+
+  .dropdown-item:last-child {
+    border-bottom: none;
+  }
+
+  .dropdown-item:hover {
+    background-color: var(--gray-50);
+  }
+
+  .dropdown-item.text-muted {
+    color: var(--gray-500);
+    cursor: default;
+    font-style: italic;
+  }
+
+  .dropdown-item.text-muted:hover {
+    background-color: transparent;
+  }
+
+  .customer-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .customer-info strong {
+    color: var(--gray-800);
+    font-weight: 600;
+  }
+
+  .customer-email, .customer-phone {
+    color: var(--gray-600);
+    font-size: 0.75rem;
+  }
+
+  .form-control.is-invalid {
+    border-color: #dc2626;
   }
 
   @media (max-width: 768px) {
