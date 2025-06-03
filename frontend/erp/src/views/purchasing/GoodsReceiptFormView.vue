@@ -40,18 +40,41 @@
 
                   <div class="form-group">
                     <label for="vendor_id">Vendor <span class="required">*</span></label>
-                    <select
-                      id="vendor_id"
-                      v-model="receipt.vendor_id"
-                      required
-                      :disabled="itemsLoaded || isEdit"
-                      @change="vendorSelected"
-                    >
-                      <option value="">Select Vendor</option>
-                    <option v-for="vendor in vendors.filter(v => v)" :key="vendor.vendor_id" :value="vendor.vendor_id">
-                      {{ vendor.name }}
-                    </option>
-                    </select>
+                    <div class="dropdown">
+                      <input
+                        type="text"
+                        id="vendor_id"
+                        v-model="vendorSearch"
+                        class="form-control"
+                        :class="{ 'is-invalid': validationErrors.vendor_id }"
+                        placeholder="Search for a vendor..."
+                        @focus="showVendorDropdown = true"
+                        @blur="hideVendorDropdown"
+                        :disabled="itemsLoaded || isEdit"
+                        autocomplete="off"
+                        required
+                      />
+                      <div v-if="showVendorDropdown && !itemsLoaded && !isEdit" class="dropdown-menu">
+                        <div
+                          v-for="vendor in filteredVendors"
+                          :key="vendor.vendor_id"
+                          @mousedown="selectVendor(vendor)"
+                          class="dropdown-item"
+                        >
+                          <div class="vendor-info">
+                            <strong>{{ vendor.name }}</strong>
+                            <span class="vendor-code" v-if="vendor.vendor_code">({{ vendor.vendor_code }})</span>
+                          </div>
+                          <div class="vendor-details">
+                            <span class="contact" v-if="vendor.contact_person">Contact: {{ vendor.contact_person }}</span>
+                            <span class="phone" v-if="vendor.phone">{{ vendor.phone }}</span>
+                          </div>
+                        </div>
+                        <div v-if="filteredVendors.length === 0" class="dropdown-item text-muted">
+                          No vendors found
+                        </div>
+                      </div>
+                    </div>
                     <div v-if="validationErrors.vendor_id" class="error-message">
                       {{ validationErrors.vendor_id[0] }}
                     </div>
@@ -289,7 +312,10 @@
         showAvailableItemsModal: false,
         itemSearch: '',
         validationErrors: {},
-        defaultWarehouseId: 1
+        defaultWarehouseId: 1,
+        // Vendor search state
+        vendorSearch: '',
+        showVendorDropdown: false
       };
     },
     computed: {
@@ -318,6 +344,20 @@
           item.item_name.toLowerCase().includes(search) ||
           item.po_number.toLowerCase().includes(search)
         );
+      },
+      // Filtered vendors based on search
+      filteredVendors() {
+        if (!this.vendorSearch) {
+          return this.vendors.filter(v => v).slice(0, 10);
+        }
+        const search = this.vendorSearch.toLowerCase();
+        return this.vendors.filter(vendor =>
+          vendor && (
+            vendor.name.toLowerCase().includes(search) ||
+            (vendor.vendor_code && vendor.vendor_code.toLowerCase().includes(search)) ||
+            (vendor.contact_person && vendor.contact_person.toLowerCase().includes(search))
+          )
+        ).slice(0, 10);
       }
     },
     created() {
@@ -380,6 +420,12 @@
               batch_number: line.batch_number
             }));
 
+            // Set vendor search display text
+            const selectedVendor = this.vendors.find(v => v.vendor_id === data.receipt.vendor_id);
+            if (selectedVendor) {
+              this.vendorSearch = selectedVendor.name;
+            }
+
             // Mark as loaded
             this.itemsLoaded = true;
             this.loading = false;
@@ -389,6 +435,18 @@
             this.$toast.error('Failed to load receipt data');
             this.loading = false;
           });
+      },
+      // Vendor selection methods
+      selectVendor(vendor) {
+        this.receipt.vendor_id = vendor.vendor_id;
+        this.vendorSearch = vendor.name;
+        this.showVendorDropdown = false;
+        this.vendorSelected();
+      },
+      hideVendorDropdown() {
+        setTimeout(() => {
+          this.showVendorDropdown = false;
+        }, 200);
       },
       vendorSelected() {
         if (!this.receipt.vendor_id) return;
@@ -422,7 +480,7 @@
             this.loadingPOs = false;
           });
       },
-async loadItemsFromPOs() {
+      async loadItemsFromPOs() {
         if (this.selectedPOs.length === 0) return;
 
         this.loading = true;
@@ -680,12 +738,24 @@ async loadItemsFromPOs() {
   }
 
   .form-group input,
-  .form-group select {
+  .form-group select,
+  .form-control {
     width: 100%;
     padding: 0.5rem;
     border: 1px solid var(--gray-300);
     border-radius: 0.375rem;
     font-size: 0.875rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    outline: none;
+  }
+
+  .form-control.is-invalid {
+    border-color: var(--danger-color);
   }
 
   .required {
@@ -883,6 +953,83 @@ async loadItemsFromPOs() {
 
   .btn-icon.add:hover {
     background-color: #a7f3d0;
+  }
+
+  /* Dropdown Styles */
+  .dropdown {
+    position: relative;
+  }
+
+  .dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid var(--gray-300);
+    border-top: none;
+    border-radius: 0 0 0.375rem 0.375rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    max-height: 250px;
+    overflow-y: auto;
+    z-index: 100;
+  }
+
+  .dropdown-item {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    border-bottom: 1px solid var(--gray-100);
+    transition: background-color 0.2s;
+  }
+
+  .dropdown-item:last-child {
+    border-bottom: none;
+  }
+
+  .dropdown-item:hover {
+    background-color: var(--gray-50);
+  }
+
+  .dropdown-item.text-muted {
+    color: var(--gray-500);
+    cursor: default;
+  }
+
+  .dropdown-item.text-muted:hover {
+    background-color: transparent;
+  }
+
+  .vendor-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .vendor-info strong {
+    font-weight: 600;
+    color: var(--gray-800);
+  }
+
+  .vendor-code {
+    color: var(--gray-500);
+    font-size: 0.8rem;
+  }
+
+  .vendor-details {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+  }
+
+  .contact {
+    color: var(--primary-color);
+    font-weight: 500;
+  }
+
+  .phone {
+    color: var(--gray-500);
   }
 
   /* Modal styles */

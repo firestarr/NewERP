@@ -365,25 +365,35 @@
                             </div>
                         </div>
 
+                        <!-- Debug Panel -->
+                        <!-- <div class="debug-panel" style="background: #f3f4f6; padding: 10px; margin: 10px 0; border-radius: 5px;">
+                            <strong>Debug Info:</strong><br>
+                            Active Tab: {{ activeTab }}<br>
+                            Selected Customer: {{ selectedCustomer ? selectedCustomer.name : 'None' }}<br>
+                            Loading States - Orders: {{ isLoadingOrders }}, Invoices: {{ isLoadingInvoices }}, Quotations: {{ isLoadingQuotations }}, Interactions: {{ isLoadingInteractions }}<br>
+                            Data Counts - Orders: {{ customerOrders?.length || 0 }}, Invoices: {{ customerInvoices?.length || 0 }}, Quotations: {{ customerQuotations?.length || 0 }}, Interactions: {{ customerInteractions?.length || 0 }}
+                        </div> -->
+
+                        <!-- Fixed Tabs -->
                         <div class="tabs">
                             <div
                                 class="tab"
                                 :class="{ active: activeTab === 'orders' }"
-                                @click="activeTab = 'orders'"
+                                @click="setActiveTab('orders')"
                             >
                                 Orders
                             </div>
                             <div
                                 class="tab"
                                 :class="{ active: activeTab === 'invoices' }"
-                                @click="activeTab = 'invoices'"
+                                @click="setActiveTab('invoices')"
                             >
                                 Invoices
                             </div>
                             <div
                                 class="tab"
                                 :class="{ active: activeTab === 'quotations' }"
-                                @click="activeTab = 'quotations'"
+                                @click="setActiveTab('quotations')"
                             >
                                 Quotations
                             </div>
@@ -392,7 +402,7 @@
                                 :class="{
                                     active: activeTab === 'interactions',
                                 }"
-                                @click="activeTab = 'interactions'"
+                                @click="setActiveTab('interactions')"
                             >
                                 Interactions
                             </div>
@@ -503,8 +513,14 @@
                                 >
                                     <i class="fas fa-file-invoice-dollar"></i>
                                     <p>No invoices found for this customer</p>
+                                    <p style="color: #666; font-size: 12px;">
+                                        Debug: customerInvoices = {{ customerInvoices }}, length = {{ customerInvoices?.length }}
+                                    </p>
                                 </div>
                                 <div v-else class="data-table-wrapper">
+                                    <p style="color: #666; margin-bottom: 10px;">
+                                        Showing {{ customerInvoices.length }} invoice(s)
+                                    </p>
                                     <table class="data-table">
                                         <thead>
                                             <tr>
@@ -741,6 +757,12 @@
                                 >
                                     <i class="fas fa-edit"></i> Edit Customer
                                 </button>
+                                <button
+                                    class="btn btn-secondary"
+                                    @click="forceRefreshInvoices"
+                                >
+                                    🔄 Force Refresh Invoices
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -758,6 +780,8 @@ import axios from "axios";
 export default {
     name: "CustomersList",
     setup() {
+        // console.log('CustomersList component initialized');
+
         const router = useRouter();
         const customers = ref([]);
         const isLoading = ref(true);
@@ -825,6 +849,76 @@ export default {
 
             return result;
         });
+
+        // FIXED: setActiveTab function
+        const setActiveTab = async (tab) => {
+            // console.log('=== CustomersList - Setting active tab to:', tab);
+            // console.log('Selected customer:', selectedCustomer.value);
+
+            activeTab.value = tab;
+
+            if (!selectedCustomer.value) {
+                // console.log('No selected customer, skipping fetch');
+                return;
+            }
+
+            const customerId = selectedCustomer.value.customer_id;
+            // console.log('Customer ID:', customerId);
+
+            try {
+                switch (tab) {
+                    case 'orders':
+                        // console.log('Loading orders...');
+                        if (customerOrders.value.length === 0) {
+                            await fetchCustomerOrders(customerId);
+                        } else {
+                            // console.log('Orders already loaded:', customerOrders.value.length);
+                        }
+                        break;
+
+                    case 'invoices':
+                        // console.log('Loading invoices...');
+                        if (customerInvoices.value.length === 0) {
+                            await fetchCustomerInvoices(customerId);
+                        } else {
+                            // console.log('Invoices already loaded:', customerInvoices.value.length);
+                        }
+                        break;
+
+                    case 'quotations':
+                        // console.log('Loading quotations...');
+                        if (customerQuotations.value.length === 0) {
+                            await fetchCustomerQuotations(customerId);
+                        } else {
+                            // console.log('Quotations already loaded:', customerQuotations.value.length);
+                        }
+                        break;
+
+                    case 'interactions':
+                        // console.log('Loading interactions...');
+                        if (customerInteractions.value.length === 0) {
+                            await fetchCustomerInteractions(customerId);
+                        } else {
+                            // console.log('Interactions already loaded:', customerInteractions.value.length);
+                        }
+                        break;
+                }
+            } catch (error) {
+                console.error(`Error loading ${tab} data:`, error);
+            }
+        };
+
+        // Force refresh function untuk debugging
+        const forceRefreshInvoices = async () => {
+            // console.log('Force refreshing invoices...');
+            if (!selectedCustomer.value) {
+                // console.log('No selected customer');
+                return;
+            }
+
+            customerInvoices.value = [];
+            await fetchCustomerInvoices(selectedCustomer.value.customer_id);
+        };
 
         // Methods
         const fetchCustomers = async () => {
@@ -935,21 +1029,21 @@ export default {
                     ? "Active"
                     : "Inactive";
 
-                console.log(
-                    "Saving customer with payload:",
-                    customerForm.value
-                );
+                // console.log(
+                //     "Saving customer with payload:",
+                //     customerForm.value
+                // );
 
                 if (isEditMode.value) {
                     // Update existing customer
-                    const response = await axios.put(
+                     await axios.put(
                         `/customers/${customerForm.value.customer_id}`,
                         customerForm.value
                     );
-                    console.log(
-                        "Customer update successful. Response:",
-                        response.data
-                    );
+                    // console.log(
+                    //     "Customer update successful. Response:",
+                    //     response.data
+                    // );
 
                     // Update local state
                     const index = customers.value.findIndex(
@@ -975,10 +1069,10 @@ export default {
                         "/customers",
                         customerForm.value
                     );
-                    console.log(
-                        "Customer creation successful. Response:",
-                        response.data
-                    );
+                    // console.log(
+                    //     "Customer creation successful. Response:",
+                    //     response.data
+                    // );
 
                     // Add to local state
                     customers.value.push(response.data.data);
@@ -1015,6 +1109,7 @@ export default {
         };
 
         const viewCustomerDetails = async (customer) => {
+            // console.log('Opening customer details for:', customer.name);
             selectedCustomer.value = customer;
             activeTab.value = "orders";
             showDetailsModal.value = true;
@@ -1084,12 +1179,14 @@ export default {
 
         // Tab-related methods
         const fetchCustomerOrders = async (customerId) => {
+            // console.log('fetchCustomerOrders called for customer:', customerId);
             isLoadingOrders.value = true;
             try {
                 const response = await axios.get(
                     `/customers/${customerId}/orders`
                 );
                 customerOrders.value = response.data.data;
+                // console.log('Customer orders loaded:', customerOrders.value);
             } catch (error) {
                 console.error("Error fetching customer orders:", error);
                 // Use dummy data if API call fails
@@ -1109,20 +1206,44 @@ export default {
                         status: "Delivered",
                     },
                 ];
+                // console.log('Using dummy orders:', customerOrders.value);
             } finally {
                 isLoadingOrders.value = false;
             }
         };
 
+        // FIXED: fetchCustomerInvoices with better debugging
         const fetchCustomerInvoices = async (customerId) => {
+            // console.log('fetchCustomerInvoices called for customer:', customerId);
+
             isLoadingInvoices.value = true;
             try {
-                const response = await axios.get(
-                    `/customers/${customerId}/invoices`
-                );
-                customerInvoices.value = response.data.data;
+                const url = `/customers/${customerId}/invoices`;
+                // console.log('Fetching from URL:', url);
+
+                const response = await axios.get(url);
+                // console.log('API Response:', response);
+                // console.log('Response data:', response.data);
+
+                if (response.data && response.data.data) {
+                    customerInvoices.value = response.data.data;
+                    // console.log('Customer invoices set to:', customerInvoices.value);
+                } else if (response.data && Array.isArray(response.data)) {
+                    customerInvoices.value = response.data;
+                    // console.log('Customer invoices set to (direct array):', customerInvoices.value);
+                } else {
+                    console.warn('Unexpected response structure:', response.data);
+                    customerInvoices.value = [];
+                }
             } catch (error) {
-                console.error("Error fetching customer invoices:", error);
+                console.error('Error fetching customer invoices:', error);
+                console.error('Error details:', {
+                    message: error.message,
+                    status: error.response?.status,
+                    statusText: error.response?.statusText,
+                    data: error.response?.data
+                });
+
                 // Use dummy data if API call fails
                 customerInvoices.value = [
                     {
@@ -1142,18 +1263,22 @@ export default {
                         status: "Open",
                     },
                 ];
+                // console.log('Using dummy invoices:', customerInvoices.value);
             } finally {
                 isLoadingInvoices.value = false;
+                // console.log('fetchCustomerInvoices completed. Final invoices:', customerInvoices.value);
             }
         };
 
         const fetchCustomerQuotations = async (customerId) => {
+            // console.log('fetchCustomerQuotations called for customer:', customerId);
             isLoadingQuotations.value = true;
             try {
                 const response = await axios.get(
                     `/customers/${customerId}/quotations`
                 );
                 customerQuotations.value = response.data.data;
+                // console.log('Customer quotations loaded:', customerQuotations.value);
             } catch (error) {
                 console.error("Error fetching customer quotations:", error);
                 // Use dummy data if API call fails
@@ -1173,18 +1298,21 @@ export default {
                         status: "Open",
                     },
                 ];
+                // console.log('Using dummy quotations:', customerQuotations.value);
             } finally {
                 isLoadingQuotations.value = false;
             }
         };
 
         const fetchCustomerInteractions = async (customerId) => {
+            // console.log('fetchCustomerInteractions called for customer:', customerId);
             isLoadingInteractions.value = true;
             try {
                 const response = await axios.get(
                     `/interactions/customer/${customerId}`
                 );
                 customerInteractions.value = response.data.data;
+                // console.log('Customer interactions loaded:', customerInteractions.value);
             } catch (error) {
                 console.error("Error fetching customer interactions:", error);
                 // Use dummy data if API call fails
@@ -1204,38 +1332,9 @@ export default {
                         user: { name: "Sales Rep 2" },
                     },
                 ];
+                // console.log('Using dummy interactions:', customerInteractions.value);
             } finally {
                 isLoadingInteractions.value = false;
-            }
-        };
-
-        // Watch for tab changes to load appropriate data
-        const handleTabChange = async (tab) => {
-            if (!selectedCustomer.value) return;
-
-            const customerId = selectedCustomer.value.customer_id;
-
-            switch (tab) {
-                case "orders":
-                    if (customerOrders.value.length === 0) {
-                        await fetchCustomerOrders(customerId);
-                    }
-                    break;
-                case "invoices":
-                    if (customerInvoices.value.length === 0) {
-                        await fetchCustomerInvoices(customerId);
-                    }
-                    break;
-                case "quotations":
-                    if (customerQuotations.value.length === 0) {
-                        await fetchCustomerQuotations(customerId);
-                    }
-                    break;
-                case "interactions":
-                    if (customerInteractions.value.length === 0) {
-                        await fetchCustomerInteractions(customerId);
-                    }
-                    break;
             }
         };
 
@@ -1325,13 +1424,9 @@ export default {
 
         // Initialize
         onMounted(() => {
+            // console.log('CustomersList mounted');
             fetchCustomers();
         });
-
-        // Watch for tab changes
-        const watchActiveTab = (newTab) => {
-            handleTabChange(newTab);
-        };
 
         return {
             customers,
@@ -1356,6 +1451,8 @@ export default {
             isLoadingInvoices,
             isLoadingQuotations,
             isLoadingInteractions,
+            setActiveTab,  // FIXED: Added this
+            forceRefreshInvoices,  // Added for debugging
             applyFilters,
             clearSearch,
             openAddCustomerModal,
@@ -1375,7 +1472,6 @@ export default {
             viewOrder,
             viewInvoice,
             viewQuotation,
-            watchActiveTab,
         };
     },
 };
@@ -1865,6 +1961,12 @@ export default {
 .customer-status-badge.inactive {
     background-color: #f3f4f6;
     color: #6b7280;
+}
+
+/* Debug panel */
+.debug-panel {
+    font-size: 0.75rem;
+    line-height: 1.4;
 }
 
 /* Tab styles */

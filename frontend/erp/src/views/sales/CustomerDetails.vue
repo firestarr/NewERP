@@ -16,11 +16,11 @@
         </button>
       </div>
     </div>
-    
+
     <div v-if="isLoading" class="loading-indicator">
       <i class="fas fa-spinner fa-spin"></i> Loading customer details...
     </div>
-    
+
     <div v-else-if="!customer" class="empty-state">
       <div class="empty-icon">
         <i class="fas fa-user-slash"></i>
@@ -31,7 +31,7 @@
         Back to Customers
       </button>
     </div>
-    
+
     <div v-else class="customer-content">
       <div class="customer-info-card">
         <div class="card-header">
@@ -40,7 +40,7 @@
             {{ customer.status }}
           </span>
         </div>
-        
+
         <div class="card-body">
           <div class="info-grid">
             <div class="info-item">
@@ -74,7 +74,7 @@
           </div>
         </div>
       </div>
-      
+
       <!-- Customer Summary Cards -->
 <div class="customer-summary-cards">
   <div class="summary-card">
@@ -86,7 +86,7 @@
       <div class="summary-label">Orders</div>
     </div>
   </div>
-  
+
   <div class="summary-card">
     <div class="summary-icon invoices-icon">
       <i class="fas fa-file-invoice-dollar"></i>
@@ -96,7 +96,7 @@
       <div class="summary-label">Invoices</div>
     </div>
   </div>
-  
+
   <div class="summary-card">
     <div class="summary-icon amount-icon">
       <i class="fas fa-dollar-sign"></i>
@@ -106,7 +106,7 @@
       <div class="summary-label">Total Amount</div>
     </div>
   </div>
-  
+
   <div class="summary-card">
     <div class="summary-icon last-order-icon">
       <i class="fas fa-calendar-check"></i>
@@ -121,36 +121,36 @@
 <!-- Tabs Container -->
 <div class="tabs-container">
   <div class="tabs">
-    <div 
-      class="tab" 
-      :class="{ active: activeTab === 'orders' }" 
+    <div
+      class="tab"
+      :class="{ active: activeTab === 'orders' }"
       @click="setActiveTab('orders')"
     >
       <i class="fas fa-shopping-cart"></i> Orders
     </div>
-    <div 
-      class="tab" 
-      :class="{ active: activeTab === 'invoices' }" 
+    <div
+      class="tab"
+      :class="{ active: activeTab === 'invoices' }"
       @click="setActiveTab('invoices')"
     >
       <i class="fas fa-file-invoice-dollar"></i> Invoices
     </div>
-    <div 
-      class="tab" 
-      :class="{ active: activeTab === 'quotations' }" 
+    <div
+      class="tab"
+      :class="{ active: activeTab === 'quotations' }"
       @click="setActiveTab('quotations')"
     >
       <i class="fas fa-quote-right"></i> Quotations
     </div>
-    <div 
-      class="tab" 
-      :class="{ active: activeTab === 'interactions' }" 
+    <div
+      class="tab"
+      :class="{ active: activeTab === 'interactions' }"
       @click="setActiveTab('interactions')"
     >
       <i class="fas fa-comments"></i> Interactions
     </div>
   </div>
-        
+
         <div class="tab-content">
           <!-- Orders tab -->
           <div v-if="activeTab === 'orders'" class="orders-tab">
@@ -160,11 +160,11 @@
                 <i class="fas fa-plus"></i> New Order
               </button>
             </div>
-            
+
             <div v-if="isLoadingOrders" class="loading-indicator">
               <i class="fas fa-spinner fa-spin"></i> Loading orders...
             </div>
-            
+
             <div v-else-if="!orders || orders.length === 0" class="empty-tab">
               <div class="empty-icon">
                 <i class="fas fa-shopping-cart"></i>
@@ -175,7 +175,7 @@
                 Create First Order
               </button>
             </div>
-            
+
             <div v-else class="data-table-container">
               <table class="data-table">
                 <thead>
@@ -201,17 +201,17 @@
                       <button class="action-btn" @click="viewOrder(order)" title="View Order">
                         <i class="fas fa-eye"></i>
                       </button>
-                      <button 
-                        class="action-btn" 
-                        @click="createDelivery(order)" 
+                      <button
+                        class="action-btn"
+                        @click="createDelivery(order)"
                         title="Create Delivery"
                         :disabled="!canCreateDelivery(order)"
                       >
                         <i class="fas fa-truck"></i>
                       </button>
-                      <button 
-                        class="action-btn" 
-                        @click="createInvoice(order)" 
+                      <button
+                        class="action-btn"
+                        @click="createInvoice(order)"
                         title="Create Invoice"
                         :disabled="!canCreateInvoice(order)"
                       >
@@ -223,17 +223,17 @@
               </table>
             </div>
           </div>
-          
+
           <!-- Invoices tab -->
           <div v-if="activeTab === 'invoices'" class="invoices-tab">
             <div class="tab-header">
               <h3>Invoices</h3>
             </div>
-            
+
             <div v-if="isLoadingInvoices" class="loading-indicator">
               <i class="fas fa-spinner fa-spin"></i> Loading invoices...
             </div>
-            
+
             <div v-else-if="!invoices || invoices.length === 0" class="empty-tab">
               <div class="empty-icon">
                 <i class="fas fa-file-invoice-dollar"></i>
@@ -241,7 +241,7 @@
               <h4>No Invoices Found</h4>
               <p>This customer doesn't have any invoices yet.</p>
             </div>
-            
+
             <div v-else class="data-table-container">
               <table class="data-table">
                 <thead>
@@ -272,9 +272,9 @@
                       <button class="action-btn" @click="printInvoice(invoice)" title="Print Invoice">
                         <i class="fas fa-print"></i>
                       </button>
-                      <button 
-                        class="action-btn" 
-                        @click="registerPayment(invoice)" 
+                      <button
+                        class="action-btn"
+                        @click="registerPayment(invoice)"
                         title="Register Payment"
                         :disabled="invoice.status === 'Paid'"
                       >
@@ -286,7 +286,7 @@
               </table>
             </div>
           </div>
-          
+
           <!-- Quotations tab -->
           <div v-if="activeTab === 'quotations'" class="quotations-tab">
             <div class="tab-header">
@@ -295,11 +295,11 @@
                 <i class="fas fa-plus"></i> New Quotation
               </button>
             </div>
-            
+
             <div v-if="isLoadingQuotations" class="loading-indicator">
               <i class="fas fa-spinner fa-spin"></i> Loading quotations...
             </div>
-            
+
             <div v-else-if="!quotations || quotations.length === 0" class="empty-tab">
               <div class="empty-icon">
                 <i class="fas fa-quote-right"></i>
@@ -310,7 +310,7 @@
                 Create First Quotation
               </button>
             </div>
-            
+
             <div v-else class="data-table-container">
               <table class="data-table">
                 <thead>
@@ -339,9 +339,9 @@
                       <button class="action-btn" @click="printQuotation(quotation)" title="Print Quotation">
                         <i class="fas fa-print"></i>
                       </button>
-                      <button 
-                        class="action-btn" 
-                        @click="convertToOrder(quotation)" 
+                      <button
+                        class="action-btn"
+                        @click="convertToOrder(quotation)"
                         title="Convert to Order"
                         :disabled="quotation.status !== 'Open'"
                       >
@@ -353,7 +353,7 @@
               </table>
             </div>
           </div>
-          
+
           <!-- Interactions tab -->
           <div v-if="activeTab === 'interactions'" class="interactions-tab">
             <div class="tab-header">
@@ -362,11 +362,11 @@
                 <i class="fas fa-plus"></i> Add Interaction
               </button>
             </div>
-            
+
             <div v-if="isLoadingInteractions" class="loading-indicator">
               <i class="fas fa-spinner fa-spin"></i> Loading interactions...
             </div>
-            
+
             <div v-else-if="!interactions || interactions.length === 0" class="empty-tab">
               <div class="empty-icon">
                 <i class="fas fa-comments"></i>
@@ -377,11 +377,11 @@
                 Add First Interaction
               </button>
             </div>
-            
+
             <div v-else class="interactions-list">
-              <div 
-                v-for="interaction in interactions" 
-                :key="interaction.interaction_id" 
+              <div
+                v-for="interaction in interactions"
+                :key="interaction.interaction_id"
                 class="interaction-card"
               >
                 <div class="interaction-header">
@@ -408,7 +408,7 @@
         </div>
       </div>
     </div>
-    
+
     <!-- Add Interaction Modal -->
     <div v-if="showInteractionModal" class="modal">
       <div class="modal-backdrop" @click="closeInteractionModal"></div>
@@ -424,9 +424,9 @@
             <div class="form-row">
               <div class="form-group">
                 <label for="interaction_type">Interaction Type*</label>
-                <select 
-                  id="interaction_type" 
-                  v-model="interactionForm.interaction_type" 
+                <select
+                  id="interaction_type"
+                  v-model="interactionForm.interaction_type"
                   required
                 >
                   <option value="">-- Select Type --</option>
@@ -439,25 +439,25 @@
               </div>
               <div class="form-group">
                 <label for="interaction_date">Date*</label>
-                <input 
-                  type="date" 
-                  id="interaction_date" 
-                  v-model="interactionForm.interaction_date" 
+                <input
+                  type="date"
+                  id="interaction_date"
+                  v-model="interactionForm.interaction_date"
                   required
                 />
               </div>
             </div>
-            
+
             <div class="form-group">
               <label for="notes">Notes*</label>
-              <textarea 
-                id="notes" 
-                v-model="interactionForm.notes" 
+              <textarea
+                id="notes"
+                v-model="interactionForm.notes"
                 rows="5"
                 required
               ></textarea>
             </div>
-            
+
             <div class="form-actions">
               <button type="button" class="btn btn-secondary" @click="closeInteractionModal">
                 Cancel
@@ -470,7 +470,7 @@
         </div>
       </div>
     </div>
-    
+
     <!-- Delete Interaction Confirmation Modal -->
     <div v-if="showDeleteModal" class="modal">
       <div class="modal-backdrop" @click="closeDeleteModal"></div>
@@ -484,7 +484,7 @@
         <div class="modal-body">
           <p>Are you sure you want to delete this interaction?</p>
           <p class="text-danger">This action cannot be undone.</p>
-          
+
           <div class="form-actions">
             <button type="button" class="btn btn-secondary" @click="closeDeleteModal">
               Cancel
@@ -510,21 +510,21 @@ export default {
     const route = useRoute();
     const router = useRouter();
     const customerId = ref(parseInt(route.params.id));
-    
+
     // Data
     const customer = ref(null);
     const orders = ref([]);
     const invoices = ref([]);
     const quotations = ref([]);
     const interactions = ref([]);
-    
+
     // Loading states
     const isLoading = ref(true);
     const isLoadingOrders = ref(false);
     const isLoadingInvoices = ref(false);
     const isLoadingQuotations = ref(false);
     const isLoadingInteractions = ref(false);
-    
+
     // UI state
     const activeTab = ref('orders');
     const showInteractionModal = ref(false);
@@ -537,30 +537,30 @@ export default {
     const interactionToEdit = ref(null);
     const interactionToDelete = ref(null);
     const showDeleteModal = ref(false);
-    
+
     // Stats
     const orderStats = computed(() => {
       return {
         count: orders.value.length,
-        lastOrderDate: orders.value.length > 0 ? 
-          [...orders.value].sort((a, b) => new Date(b.so_date) - new Date(a.so_date))[0].so_date : 
+        lastOrderDate: orders.value.length > 0 ?
+          [...orders.value].sort((a, b) => new Date(b.so_date) - new Date(a.so_date))[0].so_date :
           null
       };
     });
 
-    
+
     const invoiceStats = computed(() => {
       return {
         count: invoices.value.length,
         total: invoices.value.reduce((sum, invoice) => sum + (invoice.total_amount || 0), 0)
       };
     });
-    
+
     // Fetch data
     const fetchCustomer = async () => {
       isLoading.value = true;
       try {
-        const response = await axios.get(`/api/customers/${customerId.value}`);
+        const response = await axios.get(`/customers/${customerId.value}`);
         customer.value = response.data.data;
       } catch (error) {
         console.error('Error fetching customer:', error);
@@ -569,11 +569,11 @@ export default {
         isLoading.value = false;
       }
     };
-    
+
     const fetchOrders = async () => {
       isLoadingOrders.value = true;
       try {
-        const response = await axios.get(`/api/customers/${customerId.value}/orders`);
+        const response = await axios.get(`/customers/${customerId.value}/orders`);
         orders.value = response.data.data;
       } catch (error) {
         console.error('Error fetching orders:', error);
@@ -582,24 +582,50 @@ export default {
         isLoadingOrders.value = false;
       }
     };
-    
+
     const fetchInvoices = async () => {
-      isLoadingInvoices.value = true;
-      try {
-        const response = await axios.get(`/api/customers/${customerId.value}/invoices`);
-        invoices.value = response.data.data;
-      } catch (error) {
-        console.error('Error fetching invoices:', error);
-        invoices.value = [];
-      } finally {
-        isLoadingInvoices.value = false;
-      }
-    };
-    
+  console.log('fetchInvoices called for customer:', customerId.value);
+
+  isLoadingInvoices.value = true;
+  try {
+    const url = `/api/customers/${customerId.value}/invoices`;
+    console.log('Fetching from URL:', url);
+
+    const response = await axios.get(url);
+    console.log('API Response:', response);
+    console.log('Response data:', response.data);
+
+    // Pastikan struktur data sesuai
+    if (response.data && response.data.data) {
+      invoices.value = response.data.data;
+      console.log('Invoices set to:', invoices.value);
+    } else if (response.data && Array.isArray(response.data)) {
+      // Jika response langsung array
+      invoices.value = response.data;
+      console.log('Invoices set to (direct array):', invoices.value);
+    } else {
+      console.warn('Unexpected response structure:', response.data);
+      invoices.value = [];
+    }
+  } catch (error) {
+    console.error('Error fetching invoices:', error);
+    console.error('Error details:', {
+      message: error.message,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data
+    });
+    invoices.value = [];
+  } finally {
+    isLoadingInvoices.value = false;
+    console.log('fetchInvoices completed. Final invoices:', invoices.value);
+  }
+};
+
     const fetchQuotations = async () => {
       isLoadingQuotations.value = true;
       try {
-        const response = await axios.get(`/api/customers/${customerId.value}/quotations`);
+        const response = await axios.get(`/customers/${customerId.value}/quotations`);
         quotations.value = response.data.data;
       } catch (error) {
         console.error('Error fetching quotations:', error);
@@ -608,11 +634,11 @@ export default {
         isLoadingQuotations.value = false;
       }
     };
-    
+
     const fetchInteractions = async () => {
       isLoadingInteractions.value = true;
       try {
-        const response = await axios.get(`/api/interactions/customer/${customerId.value}`);
+        const response = await axios.get(`/interactions/customer/${customerId.value}`);
         interactions.value = response.data.data;
       } catch (error) {
         console.error('Error fetching interactions:', error);
@@ -621,114 +647,129 @@ export default {
         isLoadingInteractions.value = false;
       }
     };
-    
+
     // Actions
     const goBack = () => {
       router.push('/sales/customers');
     };
-    
+
     const editCustomer = () => {
       router.push(`/sales/customers/edit/${customerId.value}`);
     };
-    
+
     const createNewOrder = () => {
       router.push({
         path: '/sales/orders/create',
         query: { customer_id: customerId.value }
       });
     };
-    
+
     const createNewQuotation = () => {
       router.push({
         path: '/sales/quotations/create',
         query: { customer_id: customerId.value }
       });
     };
-    
+
     const viewOrder = (order) => {
       router.push(`/sales/orders/${order.so_id}`);
     };
-    
+
     const viewInvoice = (invoice) => {
       router.push(`/sales/invoices/${invoice.invoice_id}`);
     };
-    
+
     const viewQuotation = (quotation) => {
       router.push(`/sales/quotations/${quotation.quotation_id}`);
     };
-    
+
     const printInvoice = (invoice) => {
       router.push(`/sales/invoices/${invoice.invoice_id}/print`);
     };
-    
+
     const printQuotation = (quotation) => {
       router.push(`/sales/quotations/${quotation.quotation_id}/print`);
     };
-    
+
     const createDelivery = (order) => {
       router.push({
         path: '/sales/deliveries/create',
         query: { order_id: order.so_id }
       });
     };
-    
+
     const createInvoice = (order) => {
       router.push({
         path: '/sales/invoices/create',
         query: { order_id: order.so_id }
       });
     };
-    
+
     const registerPayment = (invoice) => {
       router.push({
         path: `/sales/invoices/${invoice.invoice_id}/payment`
       });
     };
-    
+
     const convertToOrder = (quotation) => {
       router.push({
         path: '/sales/orders/create-from-quotation',
         query: { quotation_id: quotation.quotation_id }
       });
     };
-    
+
     const canCreateDelivery = (order) => {
       return ['Confirmed'].includes(order.status);
     };
-    
+
     const canCreateInvoice = (order) => {
       return ['Confirmed', 'Delivered'].includes(order.status);
     };
-    
+
     // Handle active tab
     const setActiveTab = async (tab) => {
-      activeTab.value = tab;
-      
-      // Load data for the selected tab if not already loaded
-      switch (tab) {
-        case 'orders':
-          if (orders.value.length === 0) {
-            await fetchOrders();
-          }
-          break;
-        case 'invoices':
-          if (invoices.value.length === 0) {
-            await fetchInvoices();
-          }
-          break;
-        case 'quotations':
-          if (quotations.value.length === 0) {
-            await fetchQuotations();
-          }
-          break;
-        case 'interactions':
-          if (interactions.value.length === 0) {
-            await fetchInteractions();
-          }
-          break;
-      }
-    };
-    
+  console.log('Setting active tab to:', tab);
+  console.log('Current invoices length:', invoices.value?.length);
+
+  activeTab.value = tab;
+
+  // Load data untuk tab yang dipilih
+  try {
+    switch (tab) {
+      case 'orders':
+        if (!orders.value || orders.value.length === 0) {
+          console.log('Fetching orders...');
+          await fetchOrders();
+        }
+        break;
+      case 'invoices':
+        console.log('Invoice tab clicked, checking if need to fetch...');
+        // Pastikan selalu fetch jika belum ada data atau array kosong
+        if (!invoices.value || invoices.value.length === 0) {
+          console.log('Fetching invoices...');
+          await fetchInvoices();
+        } else {
+          console.log('Invoices already loaded:', invoices.value.length);
+        }
+        break;
+      case 'quotations':
+        if (!quotations.value || quotations.value.length === 0) {
+          console.log('Fetching quotations...');
+          await fetchQuotations();
+        }
+        break;
+      case 'interactions':
+        if (!interactions.value || interactions.value.length === 0) {
+          console.log('Fetching interactions...');
+          await fetchInteractions();
+        }
+        break;
+    }
+  } catch (error) {
+    console.error(`Error loading ${tab} data:`, error);
+  }
+};
+
     // Interaction modal
     const addInteraction = () => {
       editingInteraction.value = false;
@@ -739,7 +780,7 @@ export default {
       };
       showInteractionModal.value = true;
     };
-    
+
     const editInteraction = (interaction) => {
       editingInteraction.value = true;
       interactionToEdit.value = interaction;
@@ -750,21 +791,21 @@ export default {
       };
       showInteractionModal.value = true;
     };
-    
+
     const closeInteractionModal = () => {
       showInteractionModal.value = false;
       interactionToEdit.value = null;
     };
-    
+
     const saveInteraction = async () => {
       try {
         if (editingInteraction.value) {
           // Update existing interaction
-          await axios.put(`/api/interactions/${interactionToEdit.value.interaction_id}`, {
+          await axios.put(`/interactions/${interactionToEdit.value.interaction_id}`, {
             ...interactionForm.value,
             customer_id: customerId.value
           });
-          
+
           // Update in the local state
           const index = interactions.value.findIndex(i => i.interaction_id === interactionToEdit.value.interaction_id);
           if (index !== -1) {
@@ -773,48 +814,48 @@ export default {
               ...interactionForm.value
             };
           }
-          
+
           alert('Interaction updated successfully!');
         } else {
           // Create new interaction
-          const response = await axios.post('/api/interactions', {
+          const response = await axios.post('/interactions', {
             ...interactionForm.value,
             customer_id: customerId.value
           });
-          
+
           // Add to local state
           interactions.value.unshift(response.data.data);
-          
+
           alert('Interaction added successfully!');
         }
-        
+
         closeInteractionModal();
       } catch (error) {
         console.error('Error saving interaction:', error);
         alert('An error occurred while saving the interaction. Please try again.');
       }
     };
-    
+
     // Delete interaction
     const deleteInteraction = (interaction) => {
       interactionToDelete.value = interaction;
       showDeleteModal.value = true;
     };
-    
+
     const closeDeleteModal = () => {
       showDeleteModal.value = false;
       interactionToDelete.value = null;
     };
-    
+
     const confirmDeleteInteraction = async () => {
       try {
-        await axios.delete(`/api/interactions/${interactionToDelete.value.interaction_id}`);
-        
+        await axios.delete(`/interactions/${interactionToDelete.value.interaction_id}`);
+
         // Remove from local state
         interactions.value = interactions.value.filter(
           i => i.interaction_id !== interactionToDelete.value.interaction_id
         );
-        
+
         closeDeleteModal();
         alert('Interaction deleted successfully!');
       } catch (error) {
@@ -822,11 +863,11 @@ export default {
         alert('An error occurred while deleting the interaction. Please try again.');
       }
     };
-    
+
     // Helper methods
     const formatDate = (dateString) => {
       if (!dateString) return '-';
-      
+
       const date = new Date(dateString);
       return new Intl.DateTimeFormat('en-US', {
         year: 'numeric',
@@ -834,16 +875,16 @@ export default {
         day: 'numeric'
       }).format(date);
     };
-    
+
     const formatCurrency = (amount) => {
       if (amount === undefined || amount === null) return '-';
-      
+
       return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD'
       }).format(amount);
     };
-    
+
     const getOrderStatusClass = (status) => {
       switch (status) {
         case 'Pending': return 'pending';
@@ -856,7 +897,7 @@ export default {
         default: return '';
       }
     };
-    
+
     const getInvoiceStatusClass = (status) => {
       switch (status) {
         case 'Open': return 'open';
@@ -866,7 +907,7 @@ export default {
         default: return '';
       }
     };
-    
+
     const getQuotationStatusClass = (status) => {
       switch (status) {
         case 'Open': return 'open';
@@ -876,7 +917,7 @@ export default {
         default: return '';
       }
     };
-    
+
     // Initialize
     onMounted(async () => {
       await fetchCustomer();
@@ -884,19 +925,19 @@ export default {
         await fetchOrders();
       }
     });
-    
+
     // Watch for route changes (if navigating between different customers)
     watch(() => route.params.id, async (newId) => {
       if (newId && parseInt(newId) !== customerId.value) {
         customerId.value = parseInt(newId);
-        
+
         // Reset data
         customer.value = null;
         orders.value = [];
         invoices.value = [];
         quotations.value = [];
         interactions.value = [];
-        
+
         // Load new customer data
         await fetchCustomer();
         if (customer.value) {
@@ -904,7 +945,7 @@ export default {
         }
       }
     });
-    
+
     return {
       customer,
       orders,
@@ -1587,20 +1628,20 @@ export default {
     align-items: flex-start;
     gap: 1rem;
   }
-  
+
   .page-actions {
     width: 100%;
     justify-content: flex-end;
   }
-  
+
   .info-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .customer-summary-cards {
     grid-template-columns: 1fr;
   }
-  
+
   .form-row {
     grid-template-columns: 1fr;
   }

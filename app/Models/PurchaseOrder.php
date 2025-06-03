@@ -55,14 +55,14 @@ class PurchaseOrder extends Model
             'receipt_id', // Foreign key on GoodsReceipt table...
             'po_id', // Local key on PurchaseOrder table...
             'receipt_id' // Local key on GoodsReceiptLine table...
-        );
+        )->distinct();
     }
 
     public function invoices()
     {
         return $this->hasMany(VendorInvoice::class, 'po_id');
     }
-    
+
     /**
      * Convert amounts to specified currency.
      *
@@ -73,7 +73,7 @@ class PurchaseOrder extends Model
     public function getAmountsInCurrency($toCurrency, $date = null)
     {
         $date = $date ?? $this->po_date;
-        
+
         // If already in requested currency, return original amounts
         if ($this->currency_code === $toCurrency) {
             return [
@@ -81,7 +81,7 @@ class PurchaseOrder extends Model
                 'tax_amount' => $this->tax_amount
             ];
         }
-        
+
         // Try to convert via base currency first
         if ($toCurrency === $this->base_currency) {
             return [
@@ -89,10 +89,10 @@ class PurchaseOrder extends Model
                 'tax_amount' => $this->base_currency_tax
             ];
         }
-        
+
         // Get rate from base currency to requested currency
         $rate = CurrencyRate::getCurrentRate($this->base_currency, $toCurrency, $date);
-        
+
         if (!$rate) {
             // Try direct conversion
             $rate = CurrencyRate::getCurrentRate($this->currency_code, $toCurrency, $date);
@@ -103,13 +103,13 @@ class PurchaseOrder extends Model
                     'tax_amount' => $this->tax_amount
                 ];
             }
-            
+
             return [
                 'total_amount' => $this->total_amount * $rate,
                 'tax_amount' => $this->tax_amount * $rate
             ];
         }
-        
+
         return [
             'total_amount' => $this->base_currency_total * $rate,
             'tax_amount' => $this->base_currency_tax * $rate

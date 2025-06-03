@@ -332,36 +332,66 @@ export default {
         console.error('Error loading vendors:', error);
       }
     },
-    async loadPurchaseOrders() {
-      this.isLoading = true;
-      try {
-        const params = {
-          page: this.currentPage,
-          per_page: this.paginationInfo.per_page,
-          sort_field: this.sortField,
-          sort_direction: this.sortDirection,
-          ...this.filters
-        };
+   async loadPurchaseOrders() {
+  this.isLoading = true;
+  try {
+    // Prepare parameters - only send non-empty values
+    const params = {
+      page: this.currentPage,
+      per_page: this.paginationInfo.per_page,
+      sort_field: this.sortField,
+      sort_direction: this.sortDirection
+    };
 
-        const response = await axios.get('/purchase-orders', { params });
+    // Add filters only if they have values
+    if (this.filters.status && this.filters.status.trim() !== '') {
+      params.status = this.filters.status;
+    }
 
-        if (response.data.status === 'success') {
-          this.purchaseOrders = response.data.data.data;
-          this.paginationInfo = {
-            total: response.data.data.total,
-            per_page: response.data.data.per_page,
-            current_page: response.data.data.current_page,
-            last_page: response.data.data.last_page,
-            from: response.data.data.from,
-            to: response.data.data.to
-          };
-        }
-      } catch (error) {
-        console.error('Error loading purchase orders:', error);
-      } finally {
-        this.isLoading = false;
-      }
-    },
+    if (this.filters.vendor_id && this.filters.vendor_id.trim() !== '') {
+      params.vendor_id = this.filters.vendor_id;
+    }
+
+    if (this.filters.date_from && this.filters.date_from.trim() !== '') {
+      params.date_from = this.filters.date_from;
+    }
+
+    if (this.filters.date_to && this.filters.date_to.trim() !== '') {
+      params.date_to = this.filters.date_to;
+    }
+
+    if (this.filters.search && this.filters.search.trim() !== '') {
+      params.search = this.filters.search;
+    }
+
+    // Only send has_outstanding if it's true
+    if (this.filters.has_outstanding === true) {
+      params.has_outstanding = true;
+    }
+
+    console.log('Request params:', params); // For debugging
+
+    const response = await axios.get('/purchase-orders', { params });
+
+    if (response.data.status === 'success') {
+      this.purchaseOrders = response.data.data.data;
+      this.paginationInfo = {
+        total: response.data.data.total,
+        per_page: response.data.data.per_page,
+        current_page: response.data.data.current_page,
+        last_page: response.data.data.last_page,
+        from: response.data.data.from,
+        to: response.data.data.to
+      };
+    }
+  } catch (error) {
+    console.error('Error loading purchase orders:', error);
+    // Show error message to user
+    alert('Failed to load purchase orders. Please try again.');
+  } finally {
+    this.isLoading = false;
+  }
+},
     resetFilters() {
       this.filters = {
         status: '',

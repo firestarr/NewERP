@@ -221,42 +221,126 @@
             </div>
           </div>
 
+          <!-- FIXED RECEIPT CARD -->
           <div class="card receipt-card">
             <div class="card-header">
-              <h2 class="card-title">Receipt Information</h2>
+              <div class="card-header-content">
+                <h2 class="card-title">Receipt Information</h2>
+                <div class="header-actions">
+                  <button
+                    @click="refreshReceipts"
+                    class="btn btn-sm btn-outline-secondary"
+                    :disabled="receiptsLoading"
+                    title="Refresh receipts"
+                  >
+                    <i class="fas fa-sync-alt" :class="{ 'fa-spin': receiptsLoading }"></i>
+                  </button>
+                  <!-- Debug button (remove in production) -->
+                  <button
+                    @click="debugReceiptsDetailed"
+                    class="btn btn-sm btn-outline-info ml-1"
+                    title="Debug receipts data"
+                  >
+                    <i class="fas fa-bug"></i>
+                  </button>
+                </div>
+              </div>
             </div>
             <div class="card-body">
-              <div v-if="purchaseOrder.goodsReceipts && purchaseOrder.goodsReceipts.length > 0">
-                <table class="table table-sm receipt-table">
-                  <thead>
-                    <tr>
-                      <th>Receipt #</th>
-                      <th>Date</th>
-                      <th>Status</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="receipt in purchaseOrder.goodsReceipts" :key="receipt.receipt_id">
-                      <td>{{ receipt.receipt_number }}</td>
-                      <td>{{ formatDate(receipt.receipt_date) }}</td>
-                      <td>
-                        <span class="status-badge" :class="getStatusBadgeClass(receipt.status)">
-                          {{ receipt.status }}
-                        </span>
-                      </td>
-                      <td>
-                        <router-link :to="`/purchasing/goods-receipts/${receipt.receipt_id}`" class="btn btn-sm btn-info">
-                          <i class="fas fa-eye"></i>
-                        </router-link>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+              <!-- Loading state untuk receipts -->
+              <div v-if="receiptsLoading" class="text-center py-3">
+                <div class="spinner-border spinner-border-sm" role="status">
+                  <span class="sr-only">Loading receipts...</span>
+                </div>
+                <p class="text-muted mt-2 mb-0">Refreshing receipts...</p>
               </div>
+
+              <!-- Receipt data exists -->
+              <div v-else-if="hasReceipts">
+                <div class="table-responsive">
+                  <table class="table table-sm receipt-table">
+                    <thead>
+                      <tr>
+                        <th>Receipt #</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="(receipt, index) in uniqueReceipts" :key="`receipt-${receipt.receipt_id}-${index}`">
+                        <td>
+                          <strong>{{ receipt.receipt_number }}</strong>
+                          <br>
+                          <!-- <small class="text-muted">ID: {{ receipt.receipt_id }}</small> -->
+                        </td>
+                        <td>{{ formatDate(receipt.receipt_date) }}</td>
+                        <td>
+                          <span class="status-badge" :class="getStatusBadgeClass(receipt.status)">
+                            {{ receipt.status }}
+                          </span>
+                        </td>
+                        <td>
+                          <div class="btn-group">
+                            <router-link
+                              :to="`/purchasing/goods-receipts/${receipt.receipt_id}`"
+                              class="btn btn-sm btn-info"
+                              title="View Receipt Details"
+                            >
+                              <i class="fas fa-eye"></i>
+                            </router-link>
+                            <button
+                              v-if="receipt.status === 'draft'"
+                              @click="editReceipt(receipt.receipt_id)"
+                              class="btn btn-sm btn-warning"
+                              title="Edit Receipt"
+                            >
+                              <i class="fas fa-edit"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- Summary info -->
+                <div class="receipt-summary mt-3">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                      <i class="fas fa-info-circle"></i>
+                      <!-- {{ uniqueReceipts.length }} receipt(s) found -->
+                    </small>
+                  </div>
+
+                  <!-- Show warning if duplicates detected -->
+                  <div v-if="totalReceipts > uniqueReceipts.length" class="alert alert-warning mt-2 py-2">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <small>
+                      Warning: {{ totalReceipts - uniqueReceipts.length }} duplicate receipt(s) detected and filtered out.
+                    </small>
+                  </div>
+                </div>
+              </div>
+
+              <!-- No receipts state -->
               <div v-else class="empty-state">
                 <i class="fas fa-inbox empty-icon"></i>
                 <p class="empty-text">No receipts created yet</p>
+
+                <!-- Action button untuk create receipt -->
+                <div class="mt-3">
+                  <button
+                    v-if="['sent', 'partial'].includes(purchaseOrder.status)"
+                    @click="createGoodsReceipt()"
+                    class="btn btn-primary"
+                  >
+                    <i class="fas fa-plus"></i> Create Receipt
+                  </button>
+                  <p v-else class="text-muted small mt-2 mb-0">
+                    Purchase order must be in 'sent' or 'partial' status to create receipts.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -370,6 +454,7 @@ export default {
   data() {
     return {
       isLoading: true,
+      receiptsLoading: false,
       purchaseOrder: {},
       outstandingItems: [],
       showStatusModal: false,
@@ -388,6 +473,48 @@ export default {
       ]
     };
   },
+  computed: {
+    // Get receipts data dengan fallback ke berbagai property name
+    receiptsData() {
+      return this.purchaseOrder.goods_receipts ||
+             this.purchaseOrder.goodsReceipts ||
+             this.purchaseOrder.receipts ||
+             [];
+    },
+
+    // Remove duplicate receipts berdasarkan receipt_id
+    uniqueReceipts() {
+      const receipts = this.receiptsData;
+      if (!Array.isArray(receipts)) return [];
+
+      // Create Map untuk remove duplicates berdasarkan receipt_id
+      const uniqueMap = new Map();
+
+      receipts.forEach(receipt => {
+        const key = receipt.receipt_id;
+        if (!uniqueMap.has(key)) {
+          uniqueMap.set(key, receipt);
+        }
+      });
+
+      // Convert Map back to array dan sort by date (newest first)
+      return Array.from(uniqueMap.values()).sort((a, b) => {
+        const dateA = new Date(a.receipt_date);
+        const dateB = new Date(b.receipt_date);
+        return dateB - dateA; // Descending order
+      });
+    },
+
+    // Total receipts including duplicates untuk debugging
+    totalReceipts() {
+      return this.receiptsData.length;
+    },
+
+    // Check if receipts exist
+    hasReceipts() {
+      return this.uniqueReceipts.length > 0;
+    }
+  },
   created() {
     const poId = this.$route.params.id;
     if (poId) {
@@ -405,6 +532,17 @@ export default {
         if (response.data.status === 'success') {
           this.purchaseOrder = response.data.data;
 
+          // Normalisasi property names - convert snake_case to camelCase jika diperlukan
+          if (this.purchaseOrder.goods_receipts && !this.purchaseOrder.goodsReceipts) {
+            this.purchaseOrder.goodsReceipts = this.purchaseOrder.goods_receipts;
+          }
+
+        //   // Debug logging
+        //   console.log('Purchase Order loaded:', this.purchaseOrder);
+        //   console.log('Raw goods_receipts:', this.purchaseOrder.goods_receipts);
+        //   console.log('Processed receipts:', this.receiptsData);
+        //   console.log('Unique receipts:', this.uniqueReceipts);
+
           // Set default currency for conversion
           this.newCurrency = this.purchaseOrder.currency_code || 'USD';
 
@@ -413,11 +551,12 @@ export default {
         }
       } catch (error) {
         console.error('Error loading purchase order:', error);
-        alert('Failed to load purchase order data');
+        this.showNotification('Failed to load purchase order data', 'error');
       } finally {
         this.isLoading = false;
       }
     },
+
     async loadOutstandingItems(poId) {
       try {
         const response = await axios.get(`/purchase-orders/${poId}/outstanding`);
@@ -429,10 +568,81 @@ export default {
         console.error('Error loading outstanding items:', error);
       }
     },
+
+    // Method untuk refresh receipts
+    async refreshReceipts() {
+      if (!this.purchaseOrder.po_id) return;
+
+      this.receiptsLoading = true;
+      try {
+        await this.loadGoodsReceipts(this.purchaseOrder.po_id);
+        this.showNotification('Receipts refreshed successfully', 'success');
+      } catch (error) {
+        this.showNotification('Failed to refresh receipts', 'error');
+      } finally {
+        this.receiptsLoading = false;
+      }
+    },
+
+    // Method untuk load receipts secara terpisah
+    async loadGoodsReceipts(poId) {
+      try {
+        const response = await axios.get(`/purchase-orders/${poId}/goods-receipts`);
+
+        if (response.data.status === 'success') {
+          // Update receipts data
+          this.$set(this.purchaseOrder, 'goods_receipts', response.data.data);
+        //   console.log('Receipts loaded separately:', this.purchaseOrder.goods_receipts);
+        }
+      } catch (error) {
+        console.error('Error loading goods receipts:', error);
+
+        // Jika endpoint tidak ada, reload full PO data
+        if (error.response?.status === 404) {
+        //   console.log('Goods receipts endpoint not found, reloading full PO data');
+          await this.loadPurchaseOrder(poId);
+        }
+      }
+    },
+
+    // Method untuk debugging receipts
+    debugReceiptsDetailed() {
+      const debug = {
+        purchaseOrder: this.purchaseOrder,
+        receiptsData: this.receiptsData,
+        uniqueReceipts: this.uniqueReceipts,
+        totalReceipts: this.totalReceipts,
+        hasReceipts: this.hasReceipts,
+        propertyNames: {
+          goods_receipts: !!this.purchaseOrder.goods_receipts,
+          goodsReceipts: !!this.purchaseOrder.goodsReceipts,
+          receipts: !!this.purchaseOrder.receipts
+        }
+      };
+
+      // console.group('Receipt Debug Info');
+    //   console.log('Debug Data:', debug);
+    //   console.log('Raw receipts data:', this.receiptsData);
+    //   console.log('Unique receipts:', this.uniqueReceipts);
+      // console.groupEnd();
+
+      // Show in alert for quick check
+      this.showNotification(`
+Debug Info:
+- Total receipts (raw): ${this.totalReceipts}
+- Unique receipts: ${this.uniqueReceipts.length}
+- Has receipts: ${this.hasReceipts}
+- Properties available: ${Object.keys(debug.propertyNames).filter(k => debug.propertyNames[k]).join(', ')}
+
+Check console for detailed info.
+      `, 'info');
+    },
+
     calculateSubtotal() {
       if (!this.purchaseOrder.lines) return 0;
       return this.purchaseOrder.lines.reduce((sum, line) => sum + (line.subtotal || 0), 0);
     },
+
     formatDate(dateString) {
       if (!dateString) return '-';
       const date = new Date(dateString);
@@ -442,6 +652,7 @@ export default {
         day: 'numeric'
       });
     },
+
     formatCurrency(amount) {
       if (amount === null || amount === undefined) return '-';
       return new Intl.NumberFormat('id-ID', {
@@ -450,6 +661,7 @@ export default {
         maximumFractionDigits: 2
       }).format(amount);
     },
+
     formatNumber(number) {
       if (number === null || number === undefined) return '-';
       return new Intl.NumberFormat('id-ID', {
@@ -457,6 +669,7 @@ export default {
         maximumFractionDigits: 2
       }).format(number);
     },
+
     getStatusBadgeClass(status) {
       const statusClasses = {
         'draft': 'badge-secondary',
@@ -466,14 +679,17 @@ export default {
         'partial': 'badge-info',
         'received': 'badge-success',
         'completed': 'badge-success',
-        'canceled': 'badge-danger'
+        'canceled': 'badge-danger',
+        'confirmed': 'badge-success'
       };
 
       return `badge ${statusClasses[status] || 'badge-secondary'}`;
     },
+
     isStatusActive(status) {
       return this.purchaseOrder.status === status;
     },
+
     isStatusCompleted(status) {
       const statusOrder = ['draft', 'submitted', 'approved', 'sent', 'partial', 'received', 'completed'];
       const currentIndex = statusOrder.indexOf(this.purchaseOrder.status);
@@ -481,10 +697,12 @@ export default {
 
       return statusIndex <= currentIndex;
     },
+
     updateStatus(status) {
       this.newStatus = status;
       this.showStatusModal = true;
     },
+
     async confirmStatusUpdate() {
       try {
         const response = await axios.patch(
@@ -497,35 +715,34 @@ export default {
           this.purchaseOrder.status = this.newStatus;
 
           // Show success message
-          alert(`Purchase order status updated to ${this.newStatus}`);
+          this.showNotification(`Purchase order status updated to ${this.newStatus}`, 'success');
 
           // Reload the purchase order to get the latest data
           this.loadPurchaseOrder(this.purchaseOrder.po_id);
         } else {
-          alert('Failed to update purchase order status');
+          this.showNotification('Failed to update purchase order status', 'error');
         }
       } catch (error) {
         console.error('Error updating status:', error);
 
         // Show error message
-        if (error.response && error.response.data && error.response.data.message) {
-          alert(`Error: ${error.response.data.message}`);
-        } else {
-          alert('An error occurred while updating the purchase order status');
-        }
+        const message = error.response?.data?.message || 'An error occurred while updating the purchase order status';
+        this.showNotification(`Error: ${message}`, 'error');
       } finally {
         this.showStatusModal = false;
       }
     },
+
     openCurrencyModal() {
       this.newCurrency = this.purchaseOrder.currency_code || 'USD';
       this.useExchangeRateDate = true;
       this.showCurrencyModal = true;
     },
+
     async convertCurrency() {
       // Don't convert if selected currency is the same as current
       if (this.newCurrency === this.purchaseOrder.currency_code) {
-        alert('Selected currency is the same as current currency');
+        this.showNotification('Selected currency is the same as current currency', 'warning');
         this.showCurrencyModal = false;
         return;
       }
@@ -544,30 +761,54 @@ export default {
           this.purchaseOrder = response.data.data;
 
           // Show success message
-          alert(`Purchase order currency converted to ${this.newCurrency}`);
+          this.showNotification(`Purchase order currency converted to ${this.newCurrency}`, 'success');
         }
       } catch (error) {
         console.error('Error converting currency:', error);
 
         // Show error message
-        if (error.response && error.response.data && error.response.data.message) {
-          alert(`Error: ${error.response.data.message}`);
-        } else {
-          alert('An error occurred while converting the currency');
-        }
+        const message = error.response?.data?.message || 'An error occurred while converting the currency';
+        this.showNotification(`Error: ${message}`, 'error');
       } finally {
         this.showCurrencyModal = false;
       }
     },
+
     createGoodsReceipt() {
-      this.$router.push(`/purchasing/goods-receipts/create?po_id=${this.purchaseOrder.po_id}`);
+      this.$router.push({
+        path: `/purchasing/goods-receipts/create`,
+        query: {
+          po_id: this.purchaseOrder.po_id,
+          return_to: this.$route.fullPath
+        }
+      });
     },
+
+    editReceipt(receiptId) {
+      this.$router.push(`/purchasing/goods-receipts/${receiptId}/edit`);
+    },
+
     printPurchaseOrder() {
       this.$router.push({
         name: 'PrintPurchaseOrder',
         params: { id: this.purchaseOrder.po_id },
         query: { autoprint: 'false' }
       });
+    },
+
+    // Utility method untuk menampilkan notifikasi
+    showNotification(message, type = 'info') {
+      // Implementasi bisa disesuaikan dengan notification system yang digunakan
+      // Untuk sementara menggunakan alert
+      if (type === 'error') {
+        alert(`Error: ${message}`);
+      } else if (type === 'success') {
+        alert(`Success: ${message}`);
+      } else if (type === 'warning') {
+        alert(`Warning: ${message}`);
+      } else {
+        alert(message);
+      }
     }
   }
 };
@@ -658,8 +899,30 @@ export default {
   margin-top: 0.5rem;
 }
 
+.mt-3 {
+  margin-top: 1rem;
+}
+
 .mt-4 {
   margin-top: 1.5rem;
+}
+
+.py-2 {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.py-3 {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+.mb-0 {
+  margin-bottom: 0;
+}
+
+.ml-1 {
+  margin-left: 0.25rem;
 }
 
 .text-right {
@@ -680,6 +943,22 @@ export default {
 
 .text-center {
   text-align: center;
+}
+
+.d-flex {
+  display: flex;
+}
+
+.justify-content-between {
+  justify-content: space-between;
+}
+
+.align-items-center {
+  align-items: center;
+}
+
+.small {
+  font-size: 0.875rem;
 }
 
 /* ============================================
@@ -710,11 +989,18 @@ export default {
   vertical-align: middle;
   cursor: pointer;
   user-select: none;
+  border: 1px solid transparent;
+  text-decoration: none;
   transition:
     color 0.15s ease-in-out,
     background-color 0.15s ease-in-out,
     border-color 0.15s ease-in-out,
     box-shadow 0.15s ease-in-out;
+}
+
+.btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .btn i {
@@ -727,9 +1013,11 @@ export default {
   border: 1px solid #0d6efd;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   background-color: #0b5ed7;
   border-color: #0a58ca;
+  color: #fff;
+  text-decoration: none;
 }
 
 .btn-secondary {
@@ -738,9 +1026,11 @@ export default {
   border: 1px solid #6c757d;
 }
 
-.btn-secondary:hover {
+.btn-secondary:hover:not(:disabled) {
   background-color: #5c636a;
   border-color: #565e64;
+  color: #fff;
+  text-decoration: none;
 }
 
 .btn-info {
@@ -749,9 +1039,11 @@ export default {
   border: 1px solid #0dcaf0;
 }
 
-.btn-info:hover {
+.btn-info:hover:not(:disabled) {
   background-color: #31d2f2;
   border-color: #25cff2;
+  color: #fff;
+  text-decoration: none;
 }
 
 .btn-success {
@@ -760,9 +1052,11 @@ export default {
   border: 1px solid #198754;
 }
 
-.btn-success:hover {
+.btn-success:hover:not(:disabled) {
   background-color: #157347;
   border-color: #146c43;
+  color: #fff;
+  text-decoration: none;
 }
 
 .btn-warning {
@@ -771,9 +1065,35 @@ export default {
   border: 1px solid #ffc107;
 }
 
-.btn-warning:hover {
+.btn-warning:hover:not(:disabled) {
   background-color: #ffca2c;
   border-color: #ffc720;
+  color: #000;
+  text-decoration: none;
+}
+
+.btn-outline-secondary {
+  color: #6c757d;
+  background-color: transparent;
+  border: 1px solid #6c757d;
+}
+
+.btn-outline-secondary:hover:not(:disabled) {
+  background-color: #6c757d;
+  border-color: #6c757d;
+  color: #fff;
+}
+
+.btn-outline-info {
+  color: #0dcaf0;
+  background-color: transparent;
+  border: 1px solid #0dcaf0;
+}
+
+.btn-outline-info:hover:not(:disabled) {
+  background-color: #0dcaf0;
+  border-color: #0dcaf0;
+  color: #fff;
 }
 
 .btn-sm {
@@ -801,8 +1121,23 @@ export default {
   animation: spinner-border 0.75s linear infinite;
 }
 
+.spinner-border-sm {
+  width: 1rem;
+  height: 1rem;
+  border-width: 0.125rem;
+}
+
 @keyframes spinner-border {
   to { transform: rotate(360deg); }
+}
+
+.fa-spin {
+  animation: fa-spin 2s infinite linear;
+}
+
+@keyframes fa-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 /* ============================================
@@ -841,10 +1176,15 @@ export default {
   padding: 1.25rem;
 }
 
-/* Header with status badge */
+/* Header with status badge and actions */
 .card-header-content {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+}
+
+.header-actions {
+  display: flex;
   align-items: center;
 }
 
@@ -1136,6 +1476,39 @@ export default {
 }
 
 /* ============================================
+   ALERT STYLES
+   ============================================ */
+.alert {
+  position: relative;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid transparent;
+  border-radius: 0.25rem;
+}
+
+.alert-info {
+  color: #055160;
+  background-color: #cff4fc;
+  border-color: #b6effb;
+}
+
+.alert-warning {
+  color: #664d03;
+  background-color: #fff3cd;
+  border-color: #ffecb5;
+}
+
+.alert-info i,
+.alert-warning i {
+  margin-right: 0.5rem;
+}
+
+.currency-info {
+  margin-top: 1.25rem;
+  font-size: 0.875rem;
+}
+
+/* ============================================
    MODAL STYLES
    ============================================ */
 .modal-backdrop {
@@ -1281,27 +1654,27 @@ export default {
   color: var(--gray-700);
 }
 
-.alert {
-  position: relative;
-  padding: 1rem;
-  margin-bottom: 1rem;
-  border: 1px solid transparent;
-  border-radius: 0.25rem;
+/* ============================================
+   RECEIPT SUMMARY STYLES
+   ============================================ */
+.receipt-summary {
+  border-top: 1px solid var(--gray-200);
+  padding-top: 1rem;
 }
 
-.alert-info {
-  color: #055160;
-  background-color: #cff4fc;
-  border-color: #b6effb;
-}
-
-.alert-info i {
-  margin-right: 0.5rem;
-}
-
-.currency-info {
-  margin-top: 1.25rem;
-  font-size: 0.875rem;
+/* ============================================
+   CSS CUSTOM PROPERTIES (VARIABLES)
+   ============================================ */
+:root {
+  --gray-50: #f8f9fa;
+  --gray-200: #e9ecef;
+  --gray-300: #ced4da;
+  --gray-400: #adb5bd;
+  --gray-500: #6c757d;
+  --gray-600: #495057;
+  --gray-700: #343a40;
+  --gray-800: #212529;
+  --gray-900: #000;
 }
 
 /* ============================================
@@ -1350,6 +1723,10 @@ export default {
 
   .modal-container {
     width: 95%;
+  }
+
+  .header-actions {
+    margin-top: 0.5rem;
   }
 }
 

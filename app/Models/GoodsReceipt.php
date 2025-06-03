@@ -10,7 +10,7 @@ class GoodsReceipt extends Model
     use HasFactory;
 
     protected $table = 'goods_receipts';
-    protected $primaryKey = 'receipt_id';  
+    protected $primaryKey = 'receipt_id';
     protected $fillable = [
         'receipt_number',
         'receipt_date',
@@ -33,10 +33,10 @@ class GoodsReceipt extends Model
     /**
      * Get the lines for the goods receipt.
      */
-    public function lines()
-    {
-        return $this->hasMany(GoodsReceiptLine::class, 'receipt_id');
-    }
+    // public function lines()
+    // {
+    //     return $this->hasMany(GoodsReceiptLine::class, 'receipt_id');
+    // }
 
     /**
      * Get all purchase orders associated with this receipt.
@@ -46,6 +46,17 @@ class GoodsReceipt extends Model
         $poIds = $this->lines()->pluck('po_id')->unique();
         return PurchaseOrder::whereIn('po_id', $poIds);
     }
+
+    public function purchaseOrder()
+    {
+        return $this->belongsTo(PurchaseOrder::class, 'po_id', 'po_id');
+    }
+
+    public function lines()
+    {
+        return $this->hasMany(GoodsReceiptLine::class, 'receipt_id', 'receipt_id');
+    }
+
 
     /**
      * Get purchase order numbers related to this receipt.
@@ -72,14 +83,14 @@ class GoodsReceipt extends Model
     {
         return $this->lines()->count();
     }
-    
+
     // Add to your GoodsReceipt model
     public function vendorInvoices()
     {
         return $this->belongsToMany(
-            VendorInvoice::class, 
-            'invoice_receipt_relations', 
-            'receipt_id', 
+            VendorInvoice::class,
+            'invoice_receipt_relations',
+            'receipt_id',
             'invoice_id'
         );
     }
