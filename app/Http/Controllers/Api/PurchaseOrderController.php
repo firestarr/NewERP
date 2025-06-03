@@ -22,6 +22,10 @@ use Illuminate\Support\Facades\Schema;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Font;
 
 class PurchaseOrderController extends Controller
 {
@@ -414,13 +418,26 @@ class PurchaseOrderController extends Controller
             ], 400);
         }
 
-        $purchaseOrder->lines()->delete();
-        $purchaseOrder->delete();
+        try {
+            DB::beginTransaction();
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Purchase Order deleted successfully'
-        ]);
+            $purchaseOrder->lines()->delete();
+            $purchaseOrder->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Purchase Order deleted successfully'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to delete Purchase Order',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -1041,7 +1058,7 @@ class PurchaseOrderController extends Controller
                 $row++;
             }
 
-            // Create Reference Data Sheets (same data source as Sales Order)
+            // Create Reference Data Sheets
             $this->createVendorsReferenceSheet($spreadsheet);
             $this->createItemsReferenceSheet($spreadsheet);
             $this->createUOMReferenceSheet($spreadsheet);
@@ -1061,21 +1078,22 @@ class PurchaseOrderController extends Controller
             // Save to temporary file and return download response
             $writer = new Xlsx($spreadsheet);
             $filename = 'purchase_order_template_' . date('Y-m-d') . '.xlsx';
-            $tempPath = storage_path('app/temp/' . $filename);
 
-            if (!Storage::exists('temp')) {
-                Storage::makeDirectory('temp');
+            // Create temp directory if it doesn't exist
+            $tempDir = storage_path('app/temp');
+            if (!file_exists($tempDir)) {
+                mkdir($tempDir, 0755, true);
             }
 
+            $tempPath = $tempDir . '/' . $filename;
             $writer->save($tempPath);
 
             return response()->download($tempPath, $filename, [
                 'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                 'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-                'Cache-Control' => 'no-cache, must-revalidate',
-                'Access-Control-Allow-Origin' => '*',
-                'Access-Control-Allow-Methods' => 'GET, POST, OPTIONS',
-                'Access-Control-Allow-Headers' => 'Content-Type, Authorization',
+                'Cache-Control' => 'no-cache, must-revalidate, post-check=0, pre-check=0',
+                'Pragma' => 'no-cache',
+                'Expires' => '0'
             ])->deleteFileAfterSend(true);
         } catch (\Exception $e) {
             return response()->json([
@@ -1101,7 +1119,7 @@ class PurchaseOrderController extends Controller
             $vendorsSheet->getColumnDimension($col)->setAutoSize(true);
         }
 
-        $vendors = Vendor::where('is_active', true)->orderBy('vendor_code')->get();
+        $vendors = Vendor::where('status', 'active')->orderBy('vendor_code')->get();
         $row = 2;
         foreach ($vendors as $vendor) {
             $vendorsSheet->setCellValue('A' . $row, $vendor->vendor_code);
@@ -1131,17 +1149,17 @@ class PurchaseOrderController extends Controller
             $itemsSheet->getColumnDimension($col)->setAutoSize(true);
         }
 
-        $items = Item::with(['category', 'baseUOM'])->where('is_active', true)->orderBy('item_code')->get();
+        $items = Item::with(['category', 'unitOfMeasure'])->where('is_purchasable', true)->orderBy('item_code')->get();
         $row = 2;
         foreach ($items as $item) {
             $itemsSheet->setCellValue('A' . $row, $item->item_code);
             $itemsSheet->setCellValue('B' . $row, $item->name);
             $itemsSheet->setCellValue('C' . $row, $item->category->name ?? '');
             $itemsSheet->setCellValue('D' . $row, $item->description ?? '');
-            $itemsSheet->setCellValue('E' . $row, $item->baseUOM->symbol ?? '');
-            $itemsSheet->setCellValue('F' . $row, $item->unit_price ?? 0);
+            $itemsSheet->setCellValue('E' . $row, $item->unitOfMeasure->symbol ?? '');
+            $itemsSheet->setCellValue('F' . $row, $item->sale_price ?? 0);
             $itemsSheet->setCellValue('G' . $row, $item->cost_price ?? 0);
-            $itemsSheet->setCellValue('H' . $row, ucfirst($item->status ?? 'active'));
+            $itemsSheet->setCellValue('H' . $row, 'Active');
             $row++;
         }
     }
@@ -1162,15 +1180,15 @@ class PurchaseOrderController extends Controller
             $uomSheet->getColumnDimension($col)->setAutoSize(true);
         }
 
-        $uoms = UnitOfMeasure::where('is_active', true)->orderBy('symbol')->get();
+        $uoms = UnitOfMeasure::orderBy('symbol')->get();
         $row = 2;
         foreach ($uoms as $uom) {
             $uomSheet->setCellValue('A' . $row, $uom->symbol);
             $uomSheet->setCellValue('B' . $row, $uom->name);
-            $uomSheet->setCellValue('C' . $row, $uom->uom_type ?? 'Standard');
-            $uomSheet->setCellValue('D' . $row, $uom->base_factor ?? 1);
+            $uomSheet->setCellValue('C' . $row, 'Standard');
+            $uomSheet->setCellValue('D' . $row, 1);
             $uomSheet->setCellValue('E' . $row, $uom->description ?? '');
-            $uomSheet->setCellValue('F' . $row, $uom->is_active ? 'Active' : 'Inactive');
+            $uomSheet->setCellValue('F' . $row, 'Active');
             $row++;
         }
     }
@@ -1191,35 +1209,22 @@ class PurchaseOrderController extends Controller
             $currencySheet->getColumnDimension($col)->setAutoSize(true);
         }
 
-        // Get currency data (same as Sales Order)
-        if (class_exists('\App\Models\Currency')) {
-            $currencies = \App\Models\Currency::where('is_active', true)->orderBy('currency_code')->get();
-            $row = 2;
-            foreach ($currencies as $currency) {
-                $rate = CurrencyRate::getCurrentRate($currency->currency_code, config('app.base_currency', 'USD'));
-                $currencySheet->setCellValue('A' . $row, $currency->currency_code);
-                $currencySheet->setCellValue('B' . $row, $currency->currency_name ?? $currency->name);
-                $currencySheet->setCellValue('C' . $row, $currency->symbol ?? '');
-                $currencySheet->setCellValue('D' . $row, $rate ? number_format($rate, 4) : '');
-                $currencySheet->setCellValue('E' . $row, $currency->is_active ? 'Active' : 'Inactive');
-                $row++;
-            }
-        } else {
-            // Fallback to common currencies
-            $currencies = [
-                ['USD', 'US Dollar', '$', '1.0000', 'Active'],
-                ['EUR', 'Euro', '€', '', 'Active'],
-                ['IDR', 'Indonesian Rupiah', 'Rp', '', 'Active'],
-            ];
-            $row = 2;
-            foreach ($currencies as $currency) {
-                $currencySheet->setCellValue('A' . $row, $currency[0]);
-                $currencySheet->setCellValue('B' . $row, $currency[1]);
-                $currencySheet->setCellValue('C' . $row, $currency[2]);
-                $currencySheet->setCellValue('D' . $row, $currency[3]);
-                $currencySheet->setCellValue('E' . $row, $currency[4]);
-                $row++;
-            }
+        // Fallback to common currencies
+        $currencies = [
+            ['USD', 'US Dollar', '$', '1.0000', 'Active'],
+            ['EUR', 'Euro', '€', '', 'Active'],
+            ['IDR', 'Indonesian Rupiah', 'Rp', '', 'Active'],
+            ['SGD', 'Singapore Dollar', 'S$', '', 'Active'],
+            ['MYR', 'Malaysian Ringgit', 'RM', '', 'Active'],
+        ];
+        $row = 2;
+        foreach ($currencies as $currency) {
+            $currencySheet->setCellValue('A' . $row, $currency[0]);
+            $currencySheet->setCellValue('B' . $row, $currency[1]);
+            $currencySheet->setCellValue('C' . $row, $currency[2]);
+            $currencySheet->setCellValue('D' . $row, $currency[3]);
+            $currencySheet->setCellValue('E' . $row, $currency[4]);
+            $row++;
         }
     }
 
@@ -1242,10 +1247,6 @@ class PurchaseOrderController extends Controller
         if (Schema::hasTable('purchase_orders')) {
             $poTerms = PurchaseOrder::whereNotNull('payment_terms')->distinct()->pluck('payment_terms');
             $existingTerms = $existingTerms->merge($poTerms);
-        }
-        if (class_exists('\App\Models\SalesOrder')) {
-            $soTerms = \App\Models\SalesOrder::whereNotNull('payment_terms')->distinct()->pluck('payment_terms');
-            $existingTerms = $existingTerms->merge($soTerms);
         }
 
         $terms = $existingTerms->unique()->filter()->sort()->values();
@@ -1281,10 +1282,6 @@ class PurchaseOrderController extends Controller
             $poTerms = PurchaseOrder::whereNotNull('delivery_terms')->distinct()->pluck('delivery_terms');
             $existingTerms = $existingTerms->merge($poTerms);
         }
-        if (class_exists('\App\Models\SalesOrder')) {
-            $soTerms = \App\Models\SalesOrder::whereNotNull('delivery_terms')->distinct()->pluck('delivery_terms');
-            $existingTerms = $existingTerms->merge($soTerms);
-        }
 
         $terms = $existingTerms->unique()->filter()->sort()->values();
         if ($terms->isEmpty()) {
@@ -1315,7 +1312,7 @@ class PurchaseOrderController extends Controller
             '1. PO_Headers: Contains Purchase Order header information',
             '2. PO_Lines: Contains Purchase Order line items',
             '',
-            'REFERENCE SHEETS (same data source as Sales Order):',
+            'REFERENCE SHEETS:',
             '   - Ref_Vendors: Available vendors with codes and details',
             '   - Ref_Items: Available items with codes and prices',
             '   - Ref_UOM: Available units of measure',
@@ -1332,7 +1329,30 @@ class PurchaseOrderController extends Controller
             'VALIDATION OPTIONS:',
             '- Update existing: Update existing POs with same number',
             '- Validate vendors: Validate vendor codes before import',
-            '- Validate items: Validate item codes before import'
+            '- Validate items: Validate item codes before import',
+            '',
+            'EXCEL TEMPLATE STRUCTURE:',
+            'PO_Headers columns:',
+            '- PO Number: Unique identifier for the purchase order',
+            '- PO Date: Purchase order date (YYYY-MM-DD)',
+            '- Vendor Code: Must exist in Ref_Vendors sheet',
+            '- Vendor Name: For reference only',
+            '- Payment Terms: Optional payment terms',
+            '- Delivery Terms: Optional delivery terms',
+            '- Expected Delivery: Expected delivery date (YYYY-MM-DD)',
+            '- Currency Code: 3-letter currency code (USD, EUR, etc.)',
+            '- Notes: Optional notes',
+            '',
+            'PO_Lines columns:',
+            '- PO Number: Must match PO Number in PO_Headers',
+            '- Item Code: Must exist in Ref_Items sheet',
+            '- Item Name: For reference only',
+            '- Quantity: Ordered quantity (numeric)',
+            '- Unit Price: Price per unit (numeric)',
+            '- UOM Code: Unit of measure code from Ref_UOM',
+            '- UOM Name: For reference only',
+            '- Tax Amount: Tax amount for the line (numeric)',
+            '- Line Notes: Optional line notes'
         ];
 
         $row = 1;
@@ -1666,12 +1686,13 @@ class PurchaseOrderController extends Controller
             // Save and return download
             $writer = new Xlsx($spreadsheet);
             $filename = 'purchase_orders_export_' . date('Y-m-d_H-i-s') . '.xlsx';
-            $tempPath = storage_path('app/temp/' . $filename);
 
-            if (!Storage::exists('temp')) {
-                Storage::makeDirectory('temp');
+            $tempDir = storage_path('app/temp');
+            if (!file_exists($tempDir)) {
+                mkdir($tempDir, 0755, true);
             }
 
+            $tempPath = $tempDir . '/' . $filename;
             $writer->save($tempPath);
 
             return response()->download($tempPath, $filename, [

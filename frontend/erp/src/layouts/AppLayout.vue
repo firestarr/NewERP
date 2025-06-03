@@ -901,12 +901,32 @@
             <!-- Breadcrumb -->
             <div class="breadcrumb-section">
                 <div class="breadcrumb">
+                    <!-- Always start with Dashboard -->
                     <router-link to="/dashboard" class="breadcrumb-item">
                         <i class="fas fa-home"></i>
                         <span>Dashboard</span>
                     </router-link>
-                    <i class="fas fa-chevron-right breadcrumb-separator"></i>
-                    <span class="breadcrumb-current">{{ pageTitle }}</span>
+
+                    <!-- Dynamic breadcrumb items -->
+                    <template v-for="(item, index) in breadcrumbItems" :key="index">
+                        <i class="fas fa-chevron-right breadcrumb-separator"></i>
+                        <router-link
+                            v-if="item.route && index < breadcrumbItems.length - 1"
+                            :to="item.route"
+                            class="breadcrumb-item"
+                        >
+                            <i v-if="item.icon" :class="item.icon"></i>
+                            <span>{{ item.label }}</span>
+                        </router-link>
+                        <span
+                            v-else
+                            class="breadcrumb-current"
+                            :class="{ 'with-icon': item.icon }"
+                        >
+                            <i v-if="item.icon" :class="item.icon"></i>
+                            <span>{{ item.label }}</span>
+                        </span>
+                    </template>
                 </div>
                 <div class="page-actions">
                     <button class="action-button primary" @click="quickCreateItem">
@@ -1012,6 +1032,268 @@ export default {
         const userMenuOpen = ref(false);
         const activeMegaMenu = ref(null);
         const megaMenuTimeout = ref(null);
+
+        // Breadcrumb route hierarchy mapping
+        const routeHierarchy = {
+            // Sales Orders
+            'SalesOrders': [
+                { label: 'Sales Orders', route: '/sales/orders', icon: 'fas fa-shopping-cart' }
+            ],
+            'CreateSalesOrder': [
+                { label: 'Sales Orders', route: '/sales/orders', icon: 'fas fa-shopping-cart' },
+                { label: 'Create Sales Order', icon: 'fas fa-plus' }
+            ],
+            'SalesOrderDetail': [
+                { label: 'Sales Orders', route: '/sales/orders', icon: 'fas fa-shopping-cart' },
+                { label: 'Sales Order Detail', icon: 'fas fa-eye' }
+            ],
+            'EditSalesOrder': [
+                { label: 'Sales Orders', route: '/sales/orders', icon: 'fas fa-shopping-cart' },
+                { label: 'Edit Sales Order', icon: 'fas fa-edit' }
+            ],
+
+            // Sales Quotations
+            'SalesQuotations': [
+                { label: 'Sales Quotations', route: '/sales/quotations', icon: 'fas fa-file-invoice-dollar' }
+            ],
+            'CreateSalesQuotation': [
+                { label: 'Sales Quotations', route: '/sales/quotations', icon: 'fas fa-file-invoice-dollar' },
+                { label: 'Create Quotation', icon: 'fas fa-plus' }
+            ],
+            'SalesQuotationDetail': [
+                { label: 'Sales Quotations', route: '/sales/quotations', icon: 'fas fa-file-invoice-dollar' },
+                { label: 'Quotation Detail', icon: 'fas fa-eye' }
+            ],
+
+            // Customers
+            'customers.index': [
+                { label: 'Customers', route: '/sales/customers', icon: 'fas fa-users' }
+            ],
+            'customers.create': [
+                { label: 'Customers', route: '/sales/customers', icon: 'fas fa-users' },
+                { label: 'Add New Customer', icon: 'fas fa-user-plus' }
+            ],
+            'customers.show': [
+                { label: 'Customers', route: '/sales/customers', icon: 'fas fa-users' },
+                { label: 'Customer Details', icon: 'fas fa-eye' }
+            ],
+            'customers.edit': [
+                { label: 'Customers', route: '/sales/customers', icon: 'fas fa-users' },
+                { label: 'Edit Customer', icon: 'fas fa-edit' }
+            ],
+
+            // Sales Invoices
+            'SalesInvoices': [
+                { label: 'Sales Invoices', route: '/sales/invoices', icon: 'fas fa-file-invoice' }
+            ],
+            'CreateSalesInvoice': [
+                { label: 'Sales Invoices', route: '/sales/invoices', icon: 'fas fa-file-invoice' },
+                { label: 'Create Invoice', icon: 'fas fa-plus' }
+            ],
+            'SalesInvoiceDetail': [
+                { label: 'Sales Invoices', route: '/sales/invoices', icon: 'fas fa-file-invoice' },
+                { label: 'Invoice Detail', icon: 'fas fa-eye' }
+            ],
+
+            // Deliveries
+            'DeliveryList': [
+                { label: 'Deliveries', route: '/sales/deliveries', icon: 'fas fa-truck' }
+            ],
+            'CreateDelivery': [
+                { label: 'Deliveries', route: '/sales/deliveries', icon: 'fas fa-truck' },
+                { label: 'Create Delivery', icon: 'fas fa-plus' }
+            ],
+            'DeliveryDetail': [
+                { label: 'Deliveries', route: '/sales/deliveries', icon: 'fas fa-truck' },
+                { label: 'Delivery Detail', icon: 'fas fa-eye' }
+            ],
+
+            // Purchase Orders
+            'PurchaseOrders': [
+                { label: 'Purchase Orders', route: '/purchasing/orders', icon: 'fas fa-clipboard-list' }
+            ],
+            'CreatePurchaseOrder': [
+                { label: 'Purchase Orders', route: '/purchasing/orders', icon: 'fas fa-clipboard-list' },
+                { label: 'Create Purchase Order', icon: 'fas fa-plus' }
+            ],
+            'PurchaseOrderDetail': [
+                { label: 'Purchase Orders', route: '/purchasing/orders', icon: 'fas fa-clipboard-list' },
+                { label: 'Purchase Order Detail', icon: 'fas fa-eye' }
+            ],
+
+            // Vendors
+            'VendorList': [
+                { label: 'Vendors', route: '/purchasing/vendors', icon: 'fas fa-users' }
+            ],
+            'VendorCreate': [
+                { label: 'Vendors', route: '/purchasing/vendors', icon: 'fas fa-users' },
+                { label: 'Add New Vendor', icon: 'fas fa-user-plus' }
+            ],
+            'VendorDetail': [
+                { label: 'Vendors', route: '/purchasing/vendors', icon: 'fas fa-users' },
+                { label: 'Vendor Details', icon: 'fas fa-eye' }
+            ],
+
+            // Inventory Items
+            'Items': [
+                { label: 'Items Management', route: '/items', icon: 'fas fa-box' }
+            ],
+            'ItemDetail': [
+                { label: 'Items Management', route: '/items', icon: 'fas fa-box' },
+                { label: 'Item Details', icon: 'fas fa-eye' }
+            ],
+
+            // Item Categories
+            'ItemCategories': [
+                { label: 'Item Categories', route: '/item-categories', icon: 'fas fa-tags' }
+            ],
+
+            // Stock Transactions
+            'StockTransactions': [
+                { label: 'Stock Transactions', route: '/stock-transactions', icon: 'fas fa-random' }
+            ],
+            'CreateStockTransaction': [
+                { label: 'Stock Transactions', route: '/stock-transactions', icon: 'fas fa-random' },
+                { label: 'Create Transaction', icon: 'fas fa-plus' }
+            ],
+            'StockTransactionDetail': [
+                { label: 'Stock Transactions', route: '/stock-transactions', icon: 'fas fa-random' },
+                { label: 'Transaction Detail', icon: 'fas fa-eye' }
+            ],
+
+            // Warehouses
+            'Warehouses': [
+                { label: 'Warehouses', route: '/warehouses', icon: 'fas fa-warehouse' }
+            ],
+            'WarehouseDetail': [
+                { label: 'Warehouses', route: '/warehouses', icon: 'fas fa-warehouse' },
+                { label: 'Warehouse Details', icon: 'fas fa-eye' }
+            ],
+
+            // Manufacturing
+            'BOMList': [
+                { label: 'Bill of Materials', route: '/manufacturing/boms', icon: 'fas fa-clipboard-list' }
+            ],
+            'CreateBOM': [
+                { label: 'Bill of Materials', route: '/manufacturing/boms', icon: 'fas fa-clipboard-list' },
+                { label: 'Create BOM', icon: 'fas fa-plus' }
+            ],
+            'BOMDetail': [
+                { label: 'Bill of Materials', route: '/manufacturing/boms', icon: 'fas fa-clipboard-list' },
+                { label: 'BOM Details', icon: 'fas fa-eye' }
+            ],
+
+            // Work Orders
+            'WorkOrders': [
+                { label: 'Work Orders', route: '/manufacturing/work-orders', icon: 'fas fa-clipboard-list' }
+            ],
+            'CreateWorkOrder': [
+                { label: 'Work Orders', route: '/manufacturing/work-orders', icon: 'fas fa-clipboard-list' },
+                { label: 'Create Work Order', icon: 'fas fa-plus' }
+            ],
+            'WorkOrderDetail': [
+                { label: 'Work Orders', route: '/manufacturing/work-orders', icon: 'fas fa-clipboard-list' },
+                { label: 'Work Order Details', icon: 'fas fa-eye' }
+            ],
+
+            // Accounting
+            'CurrencyRates': [
+                { label: 'Exchange Rates', route: '/currency-rates', icon: 'fas fa-money-bill-wave' }
+            ],
+            'CreateCurrencyRate': [
+                { label: 'Exchange Rates', route: '/currency-rates', icon: 'fas fa-money-bill-wave' },
+                { label: 'Create Exchange Rate', icon: 'fas fa-plus' }
+            ],
+
+            // Quality Management
+            'quality-inspections': [
+                { label: 'Quality Inspections', route: '/quality-inspections', icon: 'fas fa-clipboard-check' }
+            ],
+            'quality-inspections-create': [
+                { label: 'Quality Inspections', route: '/quality-inspections', icon: 'fas fa-clipboard-check' },
+                { label: 'Create Inspection', icon: 'fas fa-plus' }
+            ]
+        };
+
+        // Enhanced breadcrumb computation
+        const breadcrumbItems = computed(() => {
+            const routeName = route.name;
+
+            // If route has specific hierarchy, use it
+            if (routeHierarchy[routeName]) {
+                return routeHierarchy[routeName];
+            }
+
+            // Fallback: try to create breadcrumb from route path
+            const pathSegments = route.path.split('/').filter(segment => segment);
+            const items = [];
+
+            if (pathSegments.length > 0) {
+                // Create breadcrumb from path segments
+                let currentPath = '';
+                pathSegments.forEach((segment, index) => {
+                    currentPath += '/' + segment;
+
+                    // Skip if it's just an ID (number)
+                    if (!isNaN(segment)) {
+                        return;
+                    }
+
+                    // Determine if this is the last segment
+                    const isLast = index === pathSegments.length - 1;
+
+                    // Create readable label
+                    const label = segment
+                        .split('-')
+                        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                        .join(' ');
+
+                    items.push({
+                        label: label,
+                        route: isLast ? null : currentPath,
+                        icon: getIconForSegment(segment)
+                    });
+                });
+            }
+
+            // If no items generated, show current page title
+            if (items.length === 0) {
+                items.push({
+                    label: pageTitle.value,
+                    route: null,
+                    icon: 'fas fa-file'
+                });
+            }
+
+            return items;
+        });
+
+        // Helper function to get icon for path segment
+        const getIconForSegment = (segment) => {
+            const iconMap = {
+                'sales': 'fas fa-shopping-cart',
+                'purchasing': 'fas fa-shopping-bag',
+                'inventory': 'fas fa-box',
+                'manufacturing': 'fas fa-industry',
+                'quality': 'fas fa-check-circle',
+                'accounting': 'fas fa-calculator',
+                'customers': 'fas fa-users',
+                'vendors': 'fas fa-users',
+                'orders': 'fas fa-clipboard-list',
+                'quotations': 'fas fa-file-invoice-dollar',
+                'invoices': 'fas fa-file-invoice',
+                'deliveries': 'fas fa-truck',
+                'items': 'fas fa-box',
+                'warehouses': 'fas fa-warehouse',
+                'reports': 'fas fa-chart-bar',
+                'admin': 'fas fa-user-shield',
+                'create': 'fas fa-plus',
+                'edit': 'fas fa-edit',
+                'view': 'fas fa-eye'
+            };
+
+            return iconMap[segment] || 'fas fa-file';
+        };
 
         // Sample data
         const notificationCount = ref(3);
@@ -1452,6 +1734,7 @@ export default {
             viewAnalytics,
             navigateToProfile,
             navigateToSettings,
+            breadcrumbItems,
         };
     },
 };

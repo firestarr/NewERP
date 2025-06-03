@@ -1,15 +1,15 @@
 <!-- frontend/erp/src/views/purchasing/PurchaseOrderExcelImport.vue -->
 <template>
   <div class="purchase-order-import">
-  <div class="page-header">
-      <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
-        <router-link to="/purchasing/orders" class="btn btn-outline-secondary">
-          <i class="fas fa-arrow-left"></i> Back
-        </router-link>
-      </div>
+    <div class="page-header" style="position: relative;">
+      <router-link to="/purchasing/requisitions" class="btn btn-outline-secondary" style="position: absolute; right: 0; top: 0;">
+        <i class="fas fa-arrow-left"></i> Back
+      </router-link>
       <h1>Import Purchase Orders from Excel</h1>
       <p>Upload an Excel file to import multiple purchase orders and their lines</p>
     </div>
+
+
 
     <div class="import-container">
       <!-- Step 1: Download Template -->
@@ -19,7 +19,7 @@
           <h3>Download Template</h3>
         </div>
         <div class="step-content">
-          <p>Download the Excel template with proper format and sample data for Purchase Orders.</p>
+          <p>Download the Excel template with proper format and sample data.</p>
           <button
             @click="downloadTemplate"
             :disabled="downloadingTemplate"
@@ -125,7 +125,7 @@
                   <i class="fas fa-check-circle"></i>
                 </div>
                 <div class="card-content">
-                  <div class="card-number">{{ importResult.summary.successful }}</div>
+                  <div class="card-number">{{ (importResult.summary && importResult.summary.successful) || 0 }}</div>
                   <div class="card-label">Successful</div>
                 </div>
               </div>
@@ -135,7 +135,7 @@
                   <i class="fas fa-exclamation-circle"></i>
                 </div>
                 <div class="card-content">
-                  <div class="card-number">{{ importResult.summary.failed }}</div>
+                  <div class="card-number">{{ (importResult.summary && importResult.summary.failed) || 0 }}</div>
                   <div class="card-label">Failed</div>
                 </div>
               </div>
@@ -145,24 +145,14 @@
                   <i class="fas fa-info-circle"></i>
                 </div>
                 <div class="card-content">
-                  <div class="card-number">{{ importResult.summary.total_processed }}</div>
+                  <div class="card-number">{{ (importResult.summary && importResult.summary.total_processed) || 0 }}</div>
                   <div class="card-label">Total Processed</div>
-                </div>
-              </div>
-
-              <div class="summary-card warning">
-                <div class="card-icon">
-                  <i class="fas fa-exclamation-triangle"></i>
-                </div>
-                <div class="card-content">
-                  <div class="card-number">{{ importResult.summary.warnings || 0 }}</div>
-                  <div class="card-label">Warnings</div>
                 </div>
               </div>
             </div>
 
             <!-- Error Details -->
-            <div v-if="importResult.summary.errors && importResult.summary.errors.length > 0" class="error-details">
+            <div v-if="importResult.summary && importResult.summary.errors && importResult.summary.errors.length > 0" class="error-details">
               <h4>
                 <i class="fas fa-exclamation-triangle"></i>
                 Import Errors ({{ importResult.summary.errors.length }})
@@ -182,55 +172,10 @@
                 Download Error Report
               </button>
             </div>
-
-            <!-- Warning Details -->
-            <div v-if="importResult.summary.warnings_details && importResult.summary.warnings_details.length > 0" class="warning-details">
-              <h4>
-                <i class="fas fa-exclamation-triangle"></i>
-                Import Warnings ({{ importResult.summary.warnings_details.length }})
-              </h4>
-              <div class="warning-list">
-                <div
-                  v-for="(warning, index) in importResult.summary.warnings_details"
-                  :key="index"
-                  class="warning-item"
-                >
-                  <i class="fas fa-exclamation-triangle"></i>
-                  {{ warning }}
-                </div>
-              </div>
-            </div>
-
-            <!-- Successfully Created POs -->
-            <div v-if="importResult.created_pos && importResult.created_pos.length > 0" class="success-details">
-              <h4>
-                <i class="fas fa-check-circle"></i>
-                Successfully Created Purchase Orders
-              </h4>
-              <div class="success-list">
-                <div
-                  v-for="po in importResult.created_pos"
-                  :key="po.po_id"
-                  class="success-item"
-                >
-                  <i class="fas fa-file-invoice"></i>
-                  <span class="po-number">{{ po.po_number }}</span>
-                  <span class="vendor-name">{{ po.vendor_name }}</span>
-                  <span class="po-amount">${{ formatCurrency(po.total_amount) }}</span>
-                  <router-link
-                    :to="`/purchasing/orders/${po.po_id}`"
-                    class="btn-view"
-                    title="View Purchase Order"
-                  >
-                    <i class="fas fa-eye"></i>
-                  </router-link>
-                </div>
-              </div>
-            </div>
           </div>
 
           <div class="result-actions">
-            <router-link to="/purchasing/orders" class="btn btn-primary">
+            <router-link to="/purchasing/purchase-orders" class="btn btn-primary">
               <i class="fas fa-eye"></i>
               View Purchase Orders
             </router-link>
@@ -292,19 +237,23 @@ export default {
         link.remove();
         window.URL.revokeObjectURL(url);
 
-        // Safe toast notification
+        // Safe toast notification - check if toast exists
         if (this.$toast) {
           this.$toast.success('Template downloaded successfully');
         } else {
+          // Fallback notification method
           alert('Template downloaded successfully');
+          // or use console.log for debugging
           console.log('Template downloaded successfully');
         }
       } catch (error) {
         console.error('Download template error:', error);
 
+        // Safe error notification
         if (this.$toast) {
           this.$toast.error('Failed to download template');
         } else {
+          // Fallback error notification
           alert('Failed to download template');
           console.error('Failed to download template');
         }
@@ -332,20 +281,22 @@ export default {
       // Validate file type
       const allowedTypes = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'];
       if (!allowedTypes.includes(file.type)) {
+        const errorMsg = 'Please select a valid Excel file (.xlsx or .xls)';
         if (this.$toast) {
-          this.$toast.error('Please select a valid Excel file (.xlsx or .xls)');
+          this.$toast.error(errorMsg);
         } else {
-          alert('Please select a valid Excel file (.xlsx or .xls)');
+          alert(errorMsg);
         }
         return;
       }
 
       // Validate file size (10MB)
       if (file.size > 10 * 1024 * 1024) {
+        const errorMsg = 'File size must be less than 10MB';
         if (this.$toast) {
-          this.$toast.error('File size must be less than 10MB');
+          this.$toast.error(errorMsg);
         } else {
-          alert('File size must be less than 10MB');
+          alert(errorMsg);
         }
         return;
       }
@@ -387,46 +338,63 @@ export default {
         });
 
         this.importProgress = 100;
-        this.importResult = response.data;
 
-        if (response.data.summary.successful > 0) {
-          if (this.$toast) {
-            this.$toast.success(`Successfully imported ${response.data.summary.successful} purchase orders`);
-          } else {
-            alert(`Successfully imported ${response.data.summary.successful} purchase orders`);
-          }
-        }
+        console.log('Import response:', response.data); // Debug log
 
-        if (response.data.summary.failed > 0) {
-          if (this.$toast) {
-            this.$toast.warning(`${response.data.summary.failed} records failed to import`);
-          } else {
-            alert(`${response.data.summary.failed} records failed to import`);
-          }
-        }
+        // Handle successful response
+        if (response.data && response.data.status === 'success') {
+          this.importResult = response.data;
 
-        if (response.data.summary.warnings > 0) {
-          if (this.$toast) {
-            this.$toast.info(`${response.data.summary.warnings} warnings occurred during import`);
+          // Safe access to summary data
+          const summary = response.data.summary || {};
+          const successful = summary.successful || 0;
+          const failed = summary.failed || 0;
+
+          if (successful > 0) {
+            if (this.$toast) {
+              this.$toast.success(`Successfully imported ${successful} purchase orders`);
+            } else {
+              alert(`Successfully imported ${successful} purchase orders`);
+            }
           }
+
+          if (failed > 0) {
+            if (this.$toast) {
+              this.$toast.warning(`${failed} records failed to import`);
+            } else {
+              alert(`${failed} records failed to import`);
+            }
+          }
+        } else {
+          // Handle unexpected response structure
+          throw new Error('Unexpected response format');
         }
 
       } catch (error) {
         console.error('Import error:', error);
+        console.error('Error response:', error.response);
+
         this.importProgress = 100;
+
+        // Create error result with safe structure
+        const errorMessage = error.response?.data?.message || error.message || 'Import failed';
+        const errors = error.response?.data?.errors || [errorMessage];
+
         this.importResult = {
+          status: 'error',
           summary: {
             successful: 0,
             failed: 1,
             total_processed: 1,
-            errors: [error.response?.data?.message || 'Import failed']
+            errors: Array.isArray(errors) ? errors : [errorMessage]
           }
         };
 
+        // Show error notification
         if (this.$toast) {
-          this.$toast.error('Import failed: ' + (error.response?.data?.message || 'Unknown error'));
+          this.$toast.error('Import failed: ' + errorMessage);
         } else {
-          alert('Import failed: ' + (error.response?.data?.message || 'Unknown error'));
+          alert('Import failed: ' + errorMessage);
         }
       } finally {
         clearInterval(progressInterval);
@@ -435,7 +403,10 @@ export default {
     },
 
     downloadErrorReport() {
-      if (!this.importResult?.summary?.errors) return;
+      if (!this.importResult?.summary?.errors || !Array.isArray(this.importResult.summary.errors)) {
+        console.warn('No errors to download');
+        return;
+      }
 
       const errorText = this.importResult.summary.errors.join('\n');
       const blob = new Blob([errorText], { type: 'text/plain' });
@@ -465,13 +436,6 @@ export default {
       const sizes = ['Bytes', 'KB', 'MB', 'GB'];
       const i = Math.floor(Math.log(bytes) / Math.log(k));
       return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    },
-
-    formatCurrency(amount) {
-      return new Intl.NumberFormat('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      }).format(amount);
     }
   }
 };
@@ -649,7 +613,7 @@ export default {
 
 .summary-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1.5rem;
   margin-bottom: 2rem;
 }
@@ -676,10 +640,6 @@ export default {
   border-left: 4px solid var(--primary-color);
 }
 
-.summary-card.warning {
-  border-left: 4px solid var(--warning-color);
-}
-
 .card-icon {
   font-size: 2rem;
 }
@@ -696,10 +656,6 @@ export default {
   color: var(--primary-color);
 }
 
-.card-icon .fa-exclamation-triangle {
-  color: var(--warning-color);
-}
-
 .card-number {
   font-size: 2rem;
   font-weight: 700;
@@ -711,21 +667,12 @@ export default {
   font-weight: 500;
 }
 
-.error-details,
-.warning-details {
-  border-radius: 8px;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
-}
-
 .error-details {
   background: #fef2f2;
   border: 1px solid #fecaca;
-}
-
-.warning-details {
-  background: #fffbeb;
-  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
 }
 
 .error-details h4 {
@@ -733,109 +680,28 @@ export default {
   margin-bottom: 1rem;
 }
 
-.warning-details h4 {
-  color: #d97706;
-  margin-bottom: 1rem;
-}
-
-.error-list,
-.warning-list {
+.error-list {
   max-height: 200px;
   overflow-y: auto;
   margin-bottom: 1rem;
 }
 
-.error-item,
-.warning-item {
+.error-item {
   display: flex;
   align-items: flex-start;
   padding: 0.5rem 0;
-  border-bottom: 1px solid transparent;
-}
-
-.error-item {
-  border-bottom-color: #fecaca;
+  border-bottom: 1px solid #fecaca;
   color: #991b1b;
 }
 
-.warning-item {
-  border-bottom-color: #fed7aa;
-  color: #92400e;
-}
-
-.error-item:last-child,
-.warning-item:last-child {
+.error-item:last-child {
   border-bottom: none;
 }
 
-.error-item i,
-.warning-item i {
+.error-item i {
   margin-right: 0.5rem;
   margin-top: 0.2rem;
   flex-shrink: 0;
-}
-
-.success-details {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  border-radius: 8px;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.success-details h4 {
-  color: #059669;
-  margin-bottom: 1rem;
-}
-
-.success-list {
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.success-item {
-  display: flex;
-  align-items: center;
-  padding: 0.75rem;
-  background: white;
-  border-radius: 6px;
-  margin-bottom: 0.5rem;
-  border: 1px solid #bbf7d0;
-  gap: 1rem;
-}
-
-.success-item i {
-  color: var(--success-color);
-}
-
-.po-number {
-  font-weight: 600;
-  color: var(--text-primary);
-  min-width: 120px;
-}
-
-.vendor-name {
-  flex: 1;
-  color: var(--text-secondary);
-}
-
-.po-amount {
-  font-weight: 600;
-  color: var(--success-color);
-  min-width: 100px;
-  text-align: right;
-}
-
-.btn-view {
-  color: var(--primary-color);
-  text-decoration: none;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  transition: background-color 0.2s ease;
-}
-
-.btn-view:hover {
-  background-color: rgba(99, 102, 241, 0.1);
 }
 
 .result-actions {
@@ -974,27 +840,15 @@ export default {
   }
 
   .summary-cards {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
   }
 
   .result-actions {
     flex-direction: column;
   }
 
-  .success-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-
-  .po-amount {
-    text-align: left;
-  }
-}
-
-@media (max-width: 480px) {
-  .summary-cards {
-    grid-template-columns: 1fr;
+  .import-options {
+    gap: 1rem;
   }
 }
 </style>

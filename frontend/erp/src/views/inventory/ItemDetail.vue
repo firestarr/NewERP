@@ -8,7 +8,7 @@
         </button>
         <h1 class="page-title">Item Details</h1>
       </div>
-      
+
       <div class="header-actions">
         <button class="btn btn-secondary" @click="openEditModal">
           <i class="fas fa-edit"></i> Edit
@@ -141,8 +141,8 @@
       <div class="detail-card">
         <div class="card-header">
           <h2 class="card-title">Pricing Information</h2>
-          <button 
-            v-if="!showMultiCurrencyPrices && (item.cost_price > 0 || item.sale_price > 0)" 
+          <button
+            v-if="!showMultiCurrencyPrices && (item.cost_price > 0 || item.sale_price > 0)"
             class="card-action"
             @click="fetchPricesInCurrencies"
           >
@@ -401,53 +401,68 @@ export default {
 
     const canDelete = computed(() => {
       if (!item.value) return false;
-      
+
       // Check if item has transactions or batches
       const hasTransactions = transactions.value.length > 0;
       const hasBatches = item.value.batches && item.value.batches.length > 0;
-      
+
       return !hasTransactions && !hasBatches;
     });
 
-    const fetchItem = async () => {
-      isLoading.value = true;
-      try {
-        const response = await ItemService.getItemById(props.id);
-        item.value = response.data.data;
-        bomComponents.value = response.data.bom_components || [];
-        
-        // Populate form for potential edit
-        Object.assign(itemForm.value, {
-          item_id: item.value.item_id,
-          item_code: item.value.item_code,
-          name: item.value.name,
-          description: item.value.description || '',
-          category_id: item.value.category_id || '',
-          uom_id: item.value.uom_id || '',
-          minimum_stock: item.value.minimum_stock,
-          maximum_stock: item.value.maximum_stock,
-          is_purchasable: item.value.is_purchasable || false,
-          is_sellable: item.value.is_sellable || false,
-          cost_price: item.value.cost_price || 0,
-          sale_price: item.value.sale_price || 0,
-          cost_price_currency: item.value.cost_price_currency || 'USD',
-          sale_price_currency: item.value.sale_price_currency || 'USD',
-          length: item.value.length || '',
-          width: item.value.width || '',
-          thickness: item.value.thickness || '',
-          weight: item.value.weight || ''
-        });
-      } catch (error) {
-        console.error('Error fetching item:', error);
-        item.value = null;
-      } finally {
-        isLoading.value = false;
-      }
-    };
+    // Update fetchItem method di ItemDetail.vue
+const fetchItem = async () => {
+  isLoading.value = true;
+  try {
+    console.log('Fetching item with ID:', props.id);
+    const response = await ItemService.getItemById(props.id);
+
+    // Debug: Log full response
+    console.log('Full API Response:', response);
+    console.log('Response data:', response.data);
+    console.log('Item data:', response.data.data);
+    console.log('BOM Components from response:', response.data.bom_components);
+
+    item.value = response.data.data;
+    bomComponents.value = response.data.bom_components || [];
+
+    // Debug: Log final values
+    console.log('Item category:', item.value.category);
+    console.log('Item category_id:', item.value.category_id);
+    console.log('Final bomComponents.value:', bomComponents.value);
+    console.log('bomComponents length:', bomComponents.value.length);
+
+    // Populate form for potential edit
+    Object.assign(itemForm.value, {
+      item_id: item.value.item_id,
+      item_code: item.value.item_code,
+      name: item.value.name,
+      description: item.value.description || '',
+      category_id: item.value.category_id || '',
+      uom_id: item.value.uom_id || '',
+      minimum_stock: item.value.minimum_stock,
+      maximum_stock: item.value.maximum_stock,
+      is_purchasable: item.value.is_purchasable || false,
+      is_sellable: item.value.is_sellable || false,
+      cost_price: item.value.cost_price || 0,
+      sale_price: item.value.sale_price || 0,
+      cost_price_currency: item.value.cost_price_currency || 'USD',
+      sale_price_currency: item.value.sale_price_currency || 'USD',
+      length: item.value.length || '',
+      width: item.value.width || '',
+      thickness: item.value.thickness || '',
+      weight: item.value.weight || ''
+    });
+  } catch (error) {
+    console.error('Error fetching item:', error);
+    item.value = null;
+  } finally {
+    isLoading.value = false;
+  }
+};
 
     const fetchTransactions = async () => {
       if (!props.id) return;
-      
+
       isLoadingTransactions.value = true;
       try {
         const response = await ItemService.getItemTransactions(props.id, { limit: 10 });
@@ -462,16 +477,16 @@ export default {
 
     const fetchPricesInCurrencies = async () => {
       if (isLoadingCurrencies.value || !item.value?.item_id) return;
-      
+
       showMultiCurrencyPrices.value = true;
       isLoadingCurrencies.value = true;
-      
+
       try {
         const response = await ItemService.getPricesInCurrencies(
-          item.value.item_id, 
+          item.value.item_id,
           ['USD', 'IDR', 'EUR', 'SGD', 'JPY']
         );
-        
+
         if (response.data.success) {
           multiCurrencyPrices.value = response.data.data;
         }
@@ -560,18 +575,18 @@ export default {
     const saveItem = async (formData) => {
       try {
         await ItemService.updateItem(formData.get('item_id'), formData);
-        
+
         // Refresh item data
         await fetchItem();
-        
+
         // Close modal
         closeEditModal();
-        
+
         // Show success message
         alert('Item updated successfully!');
       } catch (error) {
         console.error('Error updating item:', error);
-        
+
         if (error.validationErrors) {
           alert('Please check the form for errors: ' + Object.values(error.validationErrors).join(', '));
         } else {
@@ -591,18 +606,18 @@ export default {
     const deleteItem = async () => {
       try {
         await ItemService.deleteItem(props.id);
-        
+
         // Close modal
         closeDeleteModal();
-        
+
         // Show success message
         alert('Item deleted successfully!');
-        
+
         // Navigate back to items list
         router.push('/items');
       } catch (error) {
         console.error('Error deleting item:', error);
-        
+
         if (error.response && error.response.status === 422) {
           alert('This item cannot be deleted because it has related transactions or batches.');
         } else {
@@ -1038,21 +1053,21 @@ export default {
   .item-detail-container {
     grid-template-columns: 1fr;
   }
-  
+
   .page-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 1rem;
   }
-  
+
   .header-actions {
     align-self: flex-end;
   }
-  
+
   .stock-summary {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .currency-prices {
     flex-direction: column;
   }

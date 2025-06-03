@@ -22,7 +22,7 @@ class ItemController extends Controller
     public function index()
     {
         $items = Item::with(['category', 'unitOfMeasure'])->get();
-        
+
         return response()->json([
             'success' => true,
             'data' => $items
@@ -78,7 +78,7 @@ class ItemController extends Controller
         $itemData = $validator->validated();
         unset($itemData['document']); // Remove file from validated data
         $itemData['document_path'] = $documentPath;
-        
+
         // Set default currencies if not provided
         $baseCurrency = config('app.base_currency', 'USD');
         $itemData['cost_price_currency'] = $request->cost_price_currency ?? $baseCurrency;
@@ -96,7 +96,7 @@ class ItemController extends Controller
                     $baseCostPrice = $request->cost_price * $rate;
                 }
             }
-            
+
             ItemPrice::create([
                 'item_id' => $item->item_id,
                 'price_type' => 'purchase',
@@ -119,7 +119,7 @@ class ItemController extends Controller
                     $baseSalePrice = $request->sale_price * $rate;
                 }
             }
-            
+
             ItemPrice::create([
                 'item_id' => $item->item_id,
                 'price_type' => 'sale',
@@ -145,10 +145,11 @@ class ItemController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
+    // Update method show() di ItemController.php
     public function show($id)
     {
         $item = Item::with(['category', 'unitOfMeasure', 'batches', 'stockTransactions'])->find($id);
-        
+
         if (!$item) {
             return response()->json([
                 'success' => false,
@@ -158,37 +159,59 @@ class ItemController extends Controller
 
         // Add stock status to the response
         $item->stock_status = $item->stock_status;
-        
+
+        // Debug: Log item category
+        \Log::info('Item Category Debug', [
+            'item_id' => $item->item_id,
+            'category_id' => $item->category_id,
+            'category' => $item->category,
+            'has_category' => !is_null($item->category)
+        ]);
+
         // Get BOM components if this is a Finished Good
         $bomComponents = [];
         if ($item->category && $item->category->category_id === '1') {
+            \Log::info('Looking for BOM for item', ['item_id' => $item->item_id]);
+
             // Get the active BOM
             $activeBom = BOM::where('item_id', $item->item_id)
                 ->where('status', 'Active')
                 ->orderBy('effective_date', 'desc')
                 ->first();
-                
+
+            \Log::info('Active BOM found', ['bom' => $activeBom]);
+
             if ($activeBom) {
-                $bomComponents = BOMLine::with(['item', 'unitOfMeasure'])
+                $bomLines = BOMLine::with(['item', 'unitOfMeasure'])
                     ->where('bom_id', $activeBom->bom_id)
-                    ->get()
-                    ->map(function ($line) {
-                        return [
-                            'component_id' => $line->item_id,
-                            'component_code' => $line->item->item_code,
-                            'component_name' => $line->item->name,
-                            'quantity' => $line->quantity,
-                            'uom' => $line->unitOfMeasure ? $line->unitOfMeasure->symbol : null,
-                            'is_critical' => $line->is_critical
-                        ];
-                    });
+                    ->get();
+
+                \Log::info('BOM Lines found', ['count' => $bomLines->count(), 'lines' => $bomLines]);
+
+                $bomComponents = $bomLines->map(function ($line) {
+                    return [
+                        'component_id' => $line->item_id,
+                        'component_code' => $line->item->item_code,
+                        'component_name' => $line->item->name,
+                        'quantity' => $line->quantity,
+                        'uom' => $line->unitOfMeasure ? $line->unitOfMeasure->symbol : null,
+                        'is_critical' => $line->is_critical
+                    ];
+                });
             }
+        } else {
+            \Log::info('Item is not Finished Good or no category', [
+                'category_id' => $item->category_id,
+                'category' => $item->category
+            ]);
         }
 
         // Add document URL if document exists
         if ($item->document_path) {
             $item->document_url = url('storage/' . $item->document_path);
         }
+
+        \Log::info('Final BOM Components', ['count' => count($bomComponents), 'components' => $bomComponents]);
 
         return response()->json([
             'success' => true,
@@ -207,7 +230,7 @@ class ItemController extends Controller
     public function update(Request $request, $id)
     {
         $item = Item::find($id);
-        
+
         if (!$item) {
             return response()->json([
                 'success' => false,
@@ -254,36 +277,37 @@ class ItemController extends Controller
         if (isset($validated['is_sellable'])) {
             $validated['is_sellable'] = filter_var($validated['is_sellable'], FILTER_VALIDATE_BOOLEAN);
         }
-        
+
         // Update default prices if provided
         $oldCostPrice = $item->cost_price;
         $oldSalePrice = $item->sale_price;
         $oldCostPriceCurrency = $item->cost_price_currency;
         $oldSalePriceCurrency = $item->sale_price_currency;
         $baseCurrency = config('app.base_currency', 'USD');
-        
+
         // Handle document upload if present
         if ($request->hasFile('document') && $request->file('document')->isValid()) {
             // Delete old document if exists
             if ($item->document_path && Storage::disk('public')->exists($item->document_path)) {
                 Storage::disk('public')->delete($item->document_path);
             }
-            
+
             $file = $request->file('document');
             $fileName = 'item_' . time() . '_' . $file->getClientOriginalName();
             $documentPath = $file->storeAs('item_documents', $fileName, 'public');
             $validated['document_path'] = $documentPath;
         }
-        
+
         $item->update($validated);
-        
+
         // Update default purchase price record if it exists and price has changed
         if ((isset($validated['cost_price']) && $validated['cost_price'] != $oldCostPrice) ||
-            (isset($validated['cost_price_currency']) && $validated['cost_price_currency'] != $oldCostPriceCurrency)) {
-            
+            (isset($validated['cost_price_currency']) && $validated['cost_price_currency'] != $oldCostPriceCurrency)
+        ) {
+
             $costPrice = $validated['cost_price'] ?? $oldCostPrice;
             $costPriceCurrency = $validated['cost_price_currency'] ?? $oldCostPriceCurrency ?? $baseCurrency;
-            
+
             // Convert to base currency if needed
             $baseCostPrice = $costPrice;
             if ($costPriceCurrency !== $baseCurrency) {
@@ -292,13 +316,13 @@ class ItemController extends Controller
                     $baseCostPrice = $costPrice * $rate;
                 }
             }
-            
+
             $defaultPurchasePrice = ItemPrice::where('item_id', $item->item_id)
                 ->where('price_type', 'purchase')
                 ->whereNull('vendor_id')
                 ->where('min_quantity', 1)
                 ->first();
-                
+
             if ($defaultPurchasePrice) {
                 $defaultPurchasePrice->update([
                     'price' => $costPrice,
@@ -320,14 +344,15 @@ class ItemController extends Controller
                 ]);
             }
         }
-        
+
         // Update default sale price record if it exists and price has changed
         if ((isset($validated['sale_price']) && $validated['sale_price'] != $oldSalePrice) ||
-            (isset($validated['sale_price_currency']) && $validated['sale_price_currency'] != $oldSalePriceCurrency)) {
-            
+            (isset($validated['sale_price_currency']) && $validated['sale_price_currency'] != $oldSalePriceCurrency)
+        ) {
+
             $salePrice = $validated['sale_price'] ?? $oldSalePrice;
             $salePriceCurrency = $validated['sale_price_currency'] ?? $oldSalePriceCurrency ?? $baseCurrency;
-            
+
             // Convert to base currency if needed
             $baseSalePrice = $salePrice;
             if ($salePriceCurrency !== $baseCurrency) {
@@ -336,13 +361,13 @@ class ItemController extends Controller
                     $baseSalePrice = $salePrice * $rate;
                 }
             }
-            
+
             $defaultSalePrice = ItemPrice::where('item_id', $item->item_id)
                 ->where('price_type', 'sale')
                 ->whereNull('customer_id')
                 ->where('min_quantity', 1)
                 ->first();
-                
+
             if ($defaultSalePrice) {
                 $defaultSalePrice->update([
                     'price' => $salePrice,
@@ -381,7 +406,7 @@ class ItemController extends Controller
     public function destroy($id)
     {
         $item = Item::find($id);
-        
+
         if (!$item) {
             return response()->json([
                 'success' => false,
@@ -433,7 +458,7 @@ class ItemController extends Controller
     public function downloadDocument($id)
     {
         $item = Item::find($id);
-        
+
         if (!$item) {
             return response()->json([
                 'success' => false,
@@ -468,13 +493,13 @@ class ItemController extends Controller
         $items = Item::with(['category', 'unitOfMeasure'])
             ->where('is_purchasable', true)
             ->get();
-        
+
         return response()->json([
             'success' => true,
             'data' => $items
         ]);
     }
-    
+
     /**
      * Get all sellable items.
      *
@@ -485,7 +510,7 @@ class ItemController extends Controller
         $items = Item::with(['category', 'unitOfMeasure'])
             ->where('is_sellable', true)
             ->get();
-        
+
         return response()->json([
             'success' => true,
             'data' => $items
@@ -503,22 +528,22 @@ class ItemController extends Controller
         $items = Item::with(['category', 'unitOfMeasure'])
             ->select('item_id', 'item_code', 'name', 'category_id', 'uom_id', 'current_stock', 'minimum_stock', 'maximum_stock', 'cost_price', 'cost_price_currency')
             ->get();
-        
+
         $baseCurrency = config('app.base_currency', 'USD');
         $reportCurrency = $request->currency ?? $baseCurrency;
-        
+
         $stockLevels = $items->map(function ($item) use ($reportCurrency, $baseCurrency) {
             // Get cost price in report currency
             $costPrice = $item->cost_price;
             $costPriceCurrency = $item->cost_price_currency ?? $baseCurrency;
-            
+
             if ($costPriceCurrency !== $reportCurrency) {
                 $costPrice = $item->getDefaultPurchasePriceInCurrency($reportCurrency);
             }
-            
+
             // Calculate stock value
             $stockValue = $item->current_stock * $costPrice;
-            
+
             return [
                 'item_id' => $item->item_id,
                 'item_code' => $item->item_code,
@@ -553,7 +578,7 @@ class ItemController extends Controller
     public function updateStock(Request $request, $id)
     {
         $item = Item::find($id);
-        
+
         if (!$item) {
             return response()->json([
                 'success' => false,
@@ -603,7 +628,7 @@ class ItemController extends Controller
             ]
         ]);
     }
-    
+
     /**
      * Get item price in multiple currencies
      *
@@ -614,14 +639,14 @@ class ItemController extends Controller
     public function getPricesInCurrencies(Request $request, $id)
     {
         $item = Item::find($id);
-        
+
         if (!$item) {
             return response()->json([
                 'success' => false,
                 'message' => 'Item not found'
             ], 404);
         }
-        
+
         $validator = Validator::make($request->all(), [
             'currencies' => 'required|array',
             'currencies.*' => 'required|string|size:3',
@@ -634,27 +659,27 @@ class ItemController extends Controller
                 'errors' => $validator->errors()
             ], 422);
         }
-        
+
         $date = $request->date ?? now()->format('Y-m-d');
         $currencies = $request->currencies;
         $baseCurrency = config('app.base_currency', 'USD');
-        
+
         $priceData = [];
-        
+
         foreach ($currencies as $currency) {
             // Get purchase price in requested currency
             $purchasePrice = $item->getDefaultPurchasePriceInCurrency($currency, $date);
-            
+
             // Get sale price in requested currency
             $salePrice = $item->getDefaultSalePriceInCurrency($currency, $date);
-            
+
             $priceData[$currency] = [
                 'purchase_price' => $purchasePrice,
                 'sale_price' => $salePrice,
                 'is_base_currency' => ($currency === $baseCurrency)
             ];
         }
-        
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -667,111 +692,111 @@ class ItemController extends Controller
         ]);
     }
     /**
- * Display item with all prices including customer-specific prices
- *
- * @param  int  $id
- * @return \Illuminate\Http\Response
- */
-public function showAllPrices($id)
-{
-    $item = Item::with([
-        'category', 
-        'unitOfMeasure',
-        'prices' => function($query) {
-            $query->with(['customer', 'vendor'])
-                  ->orderBy('price_type', 'asc')
-                  ->orderBy('customer_id', 'asc')
-                  ->orderBy('vendor_id', 'asc')
-                  ->orderBy('min_quantity', 'asc');
+     * Display item with all prices including customer-specific prices
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function showAllPrices($id)
+    {
+        $item = Item::with([
+            'category',
+            'unitOfMeasure',
+            'prices' => function ($query) {
+                $query->with(['customer', 'vendor'])
+                    ->orderBy('price_type', 'asc')
+                    ->orderBy('customer_id', 'asc')
+                    ->orderBy('vendor_id', 'asc')
+                    ->orderBy('min_quantity', 'asc');
+            }
+        ])->find($id);
+
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Item not found'
+            ], 404);
         }
-    ])->find($id);
-    
-    if (!$item) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Item not found'
-        ], 404);
-    }
 
-    // Organize prices by type and customer/vendor
-    $pricesOrganized = [
-        'sales' => [
-            'default' => [],
-            'by_customer' => []
-        ],
-        'purchases' => [
-            'default' => [],  
-            'by_vendor' => []
-        ]
-    ];
-
-    foreach ($item->prices as $price) {
-        $priceData = [
-            'price_id' => $price->price_id,
-            'price' => $price->price,
-            'currency_code' => $price->currency_code,
-            'min_quantity' => $price->min_quantity,
-            'start_date' => $price->start_date,
-            'end_date' => $price->end_date,
-            'is_active' => $price->is_active
+        // Organize prices by type and customer/vendor
+        $pricesOrganized = [
+            'sales' => [
+                'default' => [],
+                'by_customer' => []
+            ],
+            'purchases' => [
+                'default' => [],
+                'by_vendor' => []
+            ]
         ];
 
-        if ($price->price_type === 'sale') {
-            if ($price->customer_id) {
-                $customerId = (string) $price->customer_id;
-                $customerName = $price->customer ? $price->customer->name : "Customer {$customerId}";
-                
-                if (!isset($pricesOrganized['sales']['by_customer'][$customerName])) {
-                    $pricesOrganized['sales']['by_customer'][$customerName] = [
-                        'customer_id' => $customerId,
-                        'customer_name' => $customerName,
-                        'prices' => []
-                    ];
+        foreach ($item->prices as $price) {
+            $priceData = [
+                'price_id' => $price->price_id,
+                'price' => $price->price,
+                'currency_code' => $price->currency_code,
+                'min_quantity' => $price->min_quantity,
+                'start_date' => $price->start_date,
+                'end_date' => $price->end_date,
+                'is_active' => $price->is_active
+            ];
+
+            if ($price->price_type === 'sale') {
+                if ($price->customer_id) {
+                    $customerId = (string) $price->customer_id;
+                    $customerName = $price->customer ? $price->customer->name : "Customer {$customerId}";
+
+                    if (!isset($pricesOrganized['sales']['by_customer'][$customerName])) {
+                        $pricesOrganized['sales']['by_customer'][$customerName] = [
+                            'customer_id' => $customerId,
+                            'customer_name' => $customerName,
+                            'prices' => []
+                        ];
+                    }
+
+                    $pricesOrganized['sales']['by_customer'][$customerName]['prices'][] = $priceData;
+                } else {
+                    $pricesOrganized['sales']['default'][] = $priceData;
                 }
-                
-                $pricesOrganized['sales']['by_customer'][$customerName]['prices'][] = $priceData;
-            } else {
-                $pricesOrganized['sales']['default'][] = $priceData;
-            }
-        } else { // purchase
-            if ($price->vendor_id) {
-                $vendorId = (string) $price->vendor_id;
-                $vendorName = $price->vendor ? $price->vendor->name : "Vendor {$vendorId}";
-                
-                if (!isset($pricesOrganized['purchases']['by_vendor'][$vendorName])) {
-                    $pricesOrganized['purchases']['by_vendor'][$vendorName] = [
-                        'vendor_id' => $vendorId,
-                        'vendor_name' => $vendorName,
-                        'prices' => []
-                    ];
+            } else { // purchase
+                if ($price->vendor_id) {
+                    $vendorId = (string) $price->vendor_id;
+                    $vendorName = $price->vendor ? $price->vendor->name : "Vendor {$vendorId}";
+
+                    if (!isset($pricesOrganized['purchases']['by_vendor'][$vendorName])) {
+                        $pricesOrganized['purchases']['by_vendor'][$vendorName] = [
+                            'vendor_id' => $vendorId,
+                            'vendor_name' => $vendorName,
+                            'prices' => []
+                        ];
+                    }
+
+                    $pricesOrganized['purchases']['by_vendor'][$vendorName]['prices'][] = $priceData;
+                } else {
+                    $pricesOrganized['purchases']['default'][] = $priceData;
                 }
-                
-                $pricesOrganized['purchases']['by_vendor'][$vendorName]['prices'][] = $priceData;
-            } else {
-                $pricesOrganized['purchases']['default'][] = $priceData;
             }
         }
-    }
 
-    return response()->json([
-        'success' => true,
-        'data' => [
-            'item' => $item,
-            'default_prices' => [
-                'cost_price' => $item->cost_price,
-                'cost_price_currency' => $item->cost_price_currency,
-                'sale_price' => $item->sale_price,
-                'sale_price_currency' => $item->sale_price_currency,
-            ],
-            'all_prices' => $pricesOrganized,
-            'price_summary' => [
-                'total_prices' => $item->prices->count(),
-                'active_prices' => $item->prices->where('is_active', true)->count(),
-                'customers_with_custom_prices' => count($pricesOrganized['sales']['by_customer']),
-                'vendors_with_custom_prices' => count($pricesOrganized['purchases']['by_vendor'])
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'item' => $item,
+                'default_prices' => [
+                    'cost_price' => $item->cost_price,
+                    'cost_price_currency' => $item->cost_price_currency,
+                    'sale_price' => $item->sale_price,
+                    'sale_price_currency' => $item->sale_price_currency,
+                ],
+                'all_prices' => $pricesOrganized,
+                'price_summary' => [
+                    'total_prices' => $item->prices->count(),
+                    'active_prices' => $item->prices->where('is_active', true)->count(),
+                    'customers_with_custom_prices' => count($pricesOrganized['sales']['by_customer']),
+                    'vendors_with_custom_prices' => count($pricesOrganized['purchases']['by_vendor'])
+                ]
             ]
-        ]
-    ]);
+        ]);
     }
 
     /**
@@ -782,28 +807,28 @@ public function showAllPrices($id)
      */
     public function customerPriceMatrix($id)
     {
-        $item = Item::with(['prices' => function($query) {
+        $item = Item::with(['prices' => function ($query) {
             $query->where('price_type', 'sale')
                 ->with('customer')
                 ->where('is_active', true)
                 ->orderBy('customer_id')
                 ->orderBy('min_quantity');
         }])->find($id);
-        
+
         if (!$item) {
             return response()->json([
                 'success' => false,
                 'message' => 'Item not found'
             ], 404);
         }
-        
+
         // Create price matrix
         $priceMatrix = [];
-        
+
         foreach ($item->prices as $price) {
             if ($price->customer_id) {
                 $customerKey = $price->customer_id;
-                
+
                 if (!isset($priceMatrix[$customerKey])) {
                     $priceMatrix[$customerKey] = [
                         'customer_id' => $price->customer_id,
@@ -812,7 +837,7 @@ public function showAllPrices($id)
                         'prices' => []
                     ];
                 }
-                
+
                 $priceMatrix[$customerKey]['prices'][] = [
                     'price' => $price->price,
                     'currency' => $price->currency_code,
@@ -822,7 +847,7 @@ public function showAllPrices($id)
                 ];
             }
         }
-        
+
         return response()->json([
             'success' => true,
             'data' => [

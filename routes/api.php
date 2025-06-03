@@ -460,6 +460,9 @@ Route::middleware('auth:sanctum')->group(function () {
         // Transfer operations (simplified like Odoo)
         Route::post('/transfer', [StockTransactionController::class, 'transfer']);
 
+        // Item transactions (new route)
+        Route::get('/item/{itemId}', [StockTransactionController::class, 'itemTransactions']);
+
         // Item movement history
         Route::get('/item/{itemId}/movement', [StockTransactionController::class, 'itemMovement']);
 
@@ -505,10 +508,35 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('work-orders/{workOrderId}/operations', WorkOrderOperationController::class)
         ->except(['store', 'destroy']);
 
-    // Production Orders
-    Route::apiResource('production-orders', ProductionOrderController::class);
-    Route::patch('production-orders/{id}/status', [ProductionOrderController::class, 'updateStatus']); // ← NEW ROUTE
-    Route::post('production-orders/{id}/complete', [ProductionOrderController::class, 'complete']);
+    // Production Orders - Updated with separated flow
+    Route::prefix('production-orders')->group(function () {
+        // Basic CRUD
+        Route::get('/', [ProductionOrderController::class, 'index']);
+        Route::post('/', [ProductionOrderController::class, 'store']);
+        Route::get('/{id}', [ProductionOrderController::class, 'show']);
+        Route::put('/{id}', [ProductionOrderController::class, 'update']);
+        Route::delete('/{id}', [ProductionOrderController::class, 'destroy']);
+
+        // Status management
+        Route::patch('/{id}/status', [ProductionOrderController::class, 'updateStatus']);
+
+        // New separated production flow endpoints
+        Route::post('/{id}/issue-materials', [ProductionOrderController::class, 'issueMaterials']);
+        Route::post('/{id}/start-production', [ProductionOrderController::class, 'startProduction']);
+        Route::post('/{id}/complete', [ProductionOrderController::class, 'complete']);
+
+        // Additional utility endpoints
+        Route::get('/{id}/material-status', [ProductionOrderController::class, 'getMaterialStatus']);
+        Route::get('/{id}/production-summary', [ProductionOrderController::class, 'getProductionSummary']);
+
+        // Bulk operations
+        Route::post('/bulk/issue-materials', [ProductionOrderController::class, 'bulkIssueMaterials']);
+        Route::post('/bulk/start-production', [ProductionOrderController::class, 'bulkStartProduction']);
+
+        // Reports
+        Route::get('/reports/material-consumption', [ProductionOrderController::class, 'materialConsumptionReport']);
+        Route::get('/reports/production-efficiency', [ProductionOrderController::class, 'productionEfficiencyReport']);
+    });
     Route::apiResource('production-orders/{productionId}/consumptions', ProductionConsumptionController::class);
 
     // Maintenance Schedules

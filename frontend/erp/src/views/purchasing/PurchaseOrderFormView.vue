@@ -275,7 +275,7 @@
           <span v-if="isSaving">
             <i class="fas fa-spinner fa-spin"></i> Saving...
           </span>
-          <span v-else">
+          <span v-else>
             <i class="fas fa-save"></i> {{ isEditMode ? 'Update' : 'Create' }} Purchase Order
           </span>
         </button>
