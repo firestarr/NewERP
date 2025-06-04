@@ -1,5 +1,5 @@
 // src/services/SalesOrderService.js
-import api from "./api";
+import axios from "axios";
 
 /**
  * Service for sales order operations
@@ -11,7 +11,7 @@ const SalesOrderService = {
      * @returns {Promise} Promise with sales orders response
      */
     getSalesOrders: async (params = {}) => {
-        const response = await api.get("/sales/orders", { params });
+        const response = await axios.get("/sales/orders", { params });
         return response.data;
         // try {
         // } catch (error) {
@@ -25,7 +25,7 @@ const SalesOrderService = {
      * @returns {Promise} Promise with sales order response
      */
     getSalesOrderById: async (id) => {
-        const response = await api.get(`/sales/orders/${id}`);
+        const response = await axios.get(`/sales/orders/${id}`);
         return response.data;
         // try {
         // } catch (error) {
@@ -39,7 +39,7 @@ const SalesOrderService = {
      * @returns {Promise} Promise with create sales order response
      */
     createSalesOrder: async (orderData) => {
-        const response = await api.post("/sales/orders", orderData);
+        const response = await axios.post("/sales/orders", orderData);
         return response.data;
         // try {
         // } catch (error) {
@@ -53,7 +53,7 @@ const SalesOrderService = {
      * @returns {Promise} Promise with create sales order response
      */
     createFromQuotation: async (orderData) => {
-        const response = await api.post(
+        const response = await axios.post(
             "/sales/orders/create-from-quotation",
             orderData
         );
@@ -71,7 +71,7 @@ const SalesOrderService = {
      * @returns {Promise} Promise with update sales order response
      */
     updateSalesOrder: async (id, orderData) => {
-        const response = await api.put(`/sales/orders/${id}`, orderData);
+        const response = await axios.put(`/sales/orders/${id}`, orderData);
         return response.data;
         // try {
         // } catch (error) {
@@ -85,7 +85,7 @@ const SalesOrderService = {
      * @returns {Promise} Promise with delete sales order response
      */
     deleteSalesOrder: async (id) => {
-        const response = await api.delete(`/sales/orders/${id}`);
+        const response = await axios.delete(`/sales/orders/${id}`);
         return response.data;
         // try {
         // } catch (error) {
@@ -100,7 +100,7 @@ const SalesOrderService = {
      * @returns {Promise} Promise with add line response
      */
     addOrderLine: async (orderId, lineData) => {
-        const response = await api.post(
+        const response = await axios.post(
             `/sales/orders/${orderId}/lines`,
             lineData
         );
@@ -119,7 +119,7 @@ const SalesOrderService = {
      * @returns {Promise} Promise with update line response
      */
     updateOrderLine: async (orderId, lineId, lineData) => {
-        const response = await api.put(
+        const response = await axios.put(
             `/sales/orders/${orderId}/lines/${lineId}`,
             lineData
         );
@@ -137,7 +137,7 @@ const SalesOrderService = {
      * @returns {Promise} Promise with remove line response
      */
     removeOrderLine: async (orderId, lineId) => {
-        const response = await api.delete(
+        const response = await axios.delete(
             `/sales/orders/${orderId}/lines/${lineId}`
         );
         return response.data;

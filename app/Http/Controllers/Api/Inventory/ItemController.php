@@ -145,7 +145,6 @@ class ItemController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    // Update method show() di ItemController.php
     public function show($id)
     {
         $item = Item::with(['category', 'unitOfMeasure', 'batches', 'stockTransactions'])->find($id);
@@ -160,58 +159,42 @@ class ItemController extends Controller
         // Add stock status to the response
         $item->stock_status = $item->stock_status;
 
-        // Debug: Log item category
-        \Log::info('Item Category Debug', [
-            'item_id' => $item->item_id,
-            'category_id' => $item->category_id,
-            'category' => $item->category,
-            'has_category' => !is_null($item->category)
-        ]);
-
-        // Get BOM components if this is a Finished Good
+        // Get BOM components - PERBAIKI LOGIKA INI
         $bomComponents = [];
-        if ($item->category && $item->category->category_id === '1') {
-            \Log::info('Looking for BOM for item', ['item_id' => $item->item_id]);
 
-            // Get the active BOM
-            $activeBom = BOM::where('item_id', $item->item_id)
-                ->where('status', 'Active')
-                ->orderBy('effective_date', 'desc')
-                ->first();
+        // Cari BOM aktif untuk item ini (tanpa hard-coded category check)
+        $activeBom = BOM::where('item_id', $item->item_id)
+            ->where('status', 'Active')
+            ->orderBy('effective_date', 'desc')
+            ->first();
 
-            \Log::info('Active BOM found', ['bom' => $activeBom]);
-
-            if ($activeBom) {
-                $bomLines = BOMLine::with(['item', 'unitOfMeasure'])
-                    ->where('bom_id', $activeBom->bom_id)
-                    ->get();
-
-                \Log::info('BOM Lines found', ['count' => $bomLines->count(), 'lines' => $bomLines]);
-
-                $bomComponents = $bomLines->map(function ($line) {
+        if ($activeBom) {
+            $bomComponents = BOMLine::with(['item', 'unitOfMeasure'])
+                ->where('bom_id', $activeBom->bom_id)
+                ->get()
+                ->map(function ($line) {
                     return [
                         'component_id' => $line->item_id,
                         'component_code' => $line->item->item_code,
                         'component_name' => $line->item->name,
                         'quantity' => $line->quantity,
                         'uom' => $line->unitOfMeasure ? $line->unitOfMeasure->symbol : null,
-                        'is_critical' => $line->is_critical
+                        'is_critical' => $line->is_critical,
+                        'yield_based' => $line->is_yield_based ?? false, // Fix field name to match model
+                        'yield_ratio' => $line->yield_ratio ?? 1.0,   // Tambahkan field ini
+                        // Field tambahan lain yang mungkin diperlukan:
+                        'waste_percentage' => $line->waste_percentage ?? 0,
+                        'scrap_rate' => $line->scrap_rate ?? 0,
+                        'setup_time' => $line->setup_time ?? 0,
+                        'operation_time' => $line->operation_time ?? 0
                     ];
                 });
-            }
-        } else {
-            \Log::info('Item is not Finished Good or no category', [
-                'category_id' => $item->category_id,
-                'category' => $item->category
-            ]);
         }
 
         // Add document URL if document exists
         if ($item->document_path) {
             $item->document_url = url('storage/' . $item->document_path);
         }
-
-        \Log::info('Final BOM Components', ['count' => count($bomComponents), 'components' => $bomComponents]);
 
         return response()->json([
             'success' => true,

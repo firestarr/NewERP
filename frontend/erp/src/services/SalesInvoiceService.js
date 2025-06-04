@@ -1,5 +1,5 @@
 // src/services/SalesInvoiceService.js
-import api from "./api";
+import axios from "axios";
 
 /**
  * Service for Sales Invoice operations
@@ -12,7 +12,7 @@ const SalesInvoiceService = {
      */
     getInvoices: async (params = {}) => {
         try {
-            const response = await api.get("/sales/invoices", { params });
+            const response = await axios.get("/sales/invoices", { params });
             return response.data;
         } catch (error) {
             console.error("Error fetching sales invoices:", error);
@@ -27,7 +27,7 @@ const SalesInvoiceService = {
      */
     getInvoiceById: async (id) => {
         try {
-            const response = await api.get(`/sales/invoices/${id}`);
+            const response = await axios.get(`/sales/invoices/${id}`);
             return response.data;
         } catch (error) {
             console.error(`Error fetching sales invoice ${id}:`, error);
@@ -42,7 +42,7 @@ const SalesInvoiceService = {
      */
     createInvoice: async (invoiceData) => {
         try {
-            const response = await api.post("/sales/invoices", invoiceData);
+            const response = await axios.post("/sales/invoices", invoiceData);
             return response.data;
         } catch (error) {
             console.error("Error creating sales invoice:", error);
@@ -58,7 +58,7 @@ const SalesInvoiceService = {
      */
     updateInvoice: async (id, invoiceData) => {
         try {
-            const response = await api.put(
+            const response = await axios.put(
                 `/sales/invoices/${id}`,
                 invoiceData
             );
@@ -76,7 +76,7 @@ const SalesInvoiceService = {
      */
     deleteInvoice: async (id) => {
         try {
-            const response = await api.delete(`/sales/invoices/${id}`);
+            const response = await axios.delete(`/sales/invoices/${id}`);
             return response.data;
         } catch (error) {
             console.error(`Error deleting sales invoice ${id}:`, error);
@@ -92,7 +92,7 @@ const SalesInvoiceService = {
      */
     updateStatus: async (id, status) => {
         try {
-            const response = await api.put(`/sales/invoices/${id}/status`, {
+            const response = await axios.put(`/sales/invoices/${id}/status`, {
                 status,
             });
             return response.data;
@@ -110,7 +110,7 @@ const SalesInvoiceService = {
      */
     recordPayment: async (id, paymentData) => {
         try {
-            const response = await api.post(
+            const response = await axios.post(
                 `/sales/invoices/${id}/payments`,
                 paymentData
             );
@@ -131,7 +131,7 @@ const SalesInvoiceService = {
      */
     getPaymentHistory: async (id) => {
         try {
-            const response = await api.get(`/sales/invoices/${id}/payments`);
+            const response = await axios.get(`/sales/invoices/${id}/payments`);
             return response.data;
         } catch (error) {
             console.error(
@@ -150,7 +150,7 @@ const SalesInvoiceService = {
      */
     createFromOrder: async (orderId, invoiceData) => {
         try {
-            const response = await api.post(
+            const response = await axios.post(
                 `/sales/orders/${orderId}/invoices`,
                 invoiceData
             );

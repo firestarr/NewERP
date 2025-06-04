@@ -1,5 +1,5 @@
 // src/services/SalesForecastService.js
-import api from "./api";
+import axios from "axios";
 
 /**
  * Service for Sales Forecast operations
@@ -12,7 +12,7 @@ const SalesForecastService = {
      */
     getForecasts: async (params = {}) => {
         try {
-            const response = await api.get("/sales-forecasts", { params });
+            const response = await axios.get("/sales-forecasts", { params });
             return response.data;
         } catch (error) {
             throw error;
@@ -26,7 +26,7 @@ const SalesForecastService = {
      */
     getForecastById: async (id) => {
         try {
-            const response = await api.get(`/sales-forecasts/${id}`);
+            const response = await axios.get(`/sales-forecasts/${id}`);
             return response.data;
         } catch (error) {
             throw error;
@@ -40,7 +40,7 @@ const SalesForecastService = {
      */
     createForecast: async (forecastData) => {
         try {
-            const response = await api.post("/sales-forecasts", forecastData);
+            const response = await axios.post("/sales-forecasts", forecastData);
             return response.data;
         } catch (error) {
             throw error;
@@ -55,7 +55,7 @@ const SalesForecastService = {
      */
     updateForecast: async (id, forecastData) => {
         try {
-            const response = await api.put(
+            const response = await axios.put(
                 `/sales-forecasts/${id}`,
                 forecastData
             );
@@ -72,7 +72,7 @@ const SalesForecastService = {
      */
     deleteForecast: async (id) => {
         try {
-            const response = await api.delete(`/sales-forecasts/${id}`);
+            const response = await axios.delete(`/sales-forecasts/${id}`);
             return response.data;
         } catch (error) {
             throw error;
@@ -86,7 +86,7 @@ const SalesForecastService = {
      */
     generateForecasts: async (params) => {
         try {
-            const response = await api.post(
+            const response = await axios.post(
                 "/sales-forecasts/generate",
                 params
             );
@@ -103,7 +103,7 @@ const SalesForecastService = {
      */
     updateActuals: async (params) => {
         try {
-            const response = await api.post(
+            const response = await axios.post(
                 "/sales-forecasts/update-actuals",
                 params
             );
@@ -120,7 +120,7 @@ const SalesForecastService = {
      */
     getForecastAccuracy: async (params) => {
         try {
-            const response = await api.get("/sales-forecasts/accuracy", {
+            const response = await axios.get("/sales-forecasts/accuracy", {
                 params,
             });
             return response.data;
@@ -136,7 +136,7 @@ const SalesForecastService = {
      */
     getHistoricalData: async (params) => {
         try {
-            const response = await api.get("/sales-forecasts/historical", {
+            const response = await axios.get("/sales-forecasts/historical", {
                 params,
             });
             return response.data;

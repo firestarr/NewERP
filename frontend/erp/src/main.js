@@ -10,10 +10,9 @@ import Pagination from "@/components/common/Pagination.vue";
 import ConfirmationModal from "@/components/common/ConfirmationModal.vue";
 import DataTable from "@/components/common/DataTable.vue";
 
-
 // Configure axios
 axios.defaults.baseURL =
-    process.env.VUE_APP_API_URL || "http://127.0.0.1:8020/api";
+    process.env.VUE_APP_API_URL || "http://192.168.1.59:8020/api";
 
 // Add token to requests if it exists
 axios.interceptors.request.use((config) => {
@@ -49,3 +48,5 @@ app.component("SearchFilter", SearchFilter);
 app.component("PaginationComponent", Pagination);
 app.component("ConfirmationModal", ConfirmationModal);
 app.component("DataTable", DataTable);
+
+axios.defaults.baseURL = "http://192.168.1.59:8020/api";

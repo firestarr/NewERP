@@ -60,6 +60,10 @@
                 {{ item.unitOfMeasure ? `${item.unitOfMeasure.name} (${item.unitOfMeasure.symbol})` : '-' }}
               </div>
             </div>
+            <div class="detail-row">
+              <div class="detail-label">HS Code</div>
+              <div class="detail-value">{{ item.hs_code || '-' }}</div>
+            </div>
             <div class="detail-row" v-if="item.description">
               <div class="detail-label">Description</div>
               <div class="detail-value description">{{ item.description }}</div>
@@ -234,15 +238,19 @@
         </div>
       </div>
 
-      <!-- Debug: Show BOM Components length -->
-      <div class="debug-info">
-        BOM Components length: {{ bomComponents.length }}
+      <!-- Debug: Show BOM Components data -->
+      <div class="debug-info" v-if="debugMode">
+        <h4>Debug Info:</h4>
+        <p>BOM Components from API: {{ JSON.stringify(bomComponents) }}</p>
+        <p>BOM Components length: {{ bomComponents.length }}</p>
+        <p>Item ID: {{ item.item_id }}</p>
       </div>
 
-      <!-- BOM Components Card -->
-      <div class="detail-card" v-if="bomComponents.length > 0">
+      <!-- BOM Components Card - UPDATED -->
+      <div class="detail-card" v-if="bomComponents && bomComponents.length > 0">
         <div class="card-header">
           <h2 class="card-title">BOM Components</h2>
+          <span class="component-count">{{ bomComponents.length }} component(s)</span>
         </div>
         <div class="card-body">
           <div class="card-table">
@@ -254,6 +262,9 @@
                   <th>Quantity</th>
                   <th>UOM</th>
                   <th>Critical</th>
+                  <th>Yield Based</th>
+                  <th>Yield Details</th>
+                  <th>Notes</th>
                 </tr>
               </thead>
               <tbody>
@@ -267,9 +278,49 @@
                       {{ component.is_critical ? 'Yes' : 'No' }}
                     </span>
                   </td>
+                  <td>
+                    <span :class="component.yield_based ? 'badge-info' : 'badge-secondary'" class="badge">
+                      {{ component.yield_based ? 'Yes' : 'No' }}
+                    </span>
+                  </td>
+                  <td>
+                    <div v-if="component.yield_based" class="yield-details">
+                      <div class="yield-ratio">
+                        <small><strong>Ratio:</strong> {{ component.yield_ratio || 1.0 }}</small>
+                      </div>
+                      <div v-if="component.waste_percentage" class="waste-info">
+                        <small><strong>Waste:</strong> {{ component.waste_percentage }}%</small>
+                      </div>
+                      <div v-if="component.scrap_rate" class="scrap-info">
+                        <small><strong>Scrap:</strong> {{ component.scrap_rate }}%</small>
+                      </div>
+                      <div v-if="component.setup_time" class="setup-info">
+                        <small><strong>Setup:</strong> {{ component.setup_time }}min</small>
+                      </div>
+                      <div v-if="component.operation_time" class="operation-info">
+                        <small><strong>Operation:</strong> {{ component.operation_time }}min</small>
+                      </div>
+                    </div>
+                    <span v-else class="no-yield">-</span>
+                  </td>
+                  <td>{{ component.notes || '-' }}</td>
                 </tr>
               </tbody>
             </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- No BOM Message -->
+      <div class="detail-card" v-else>
+        <div class="card-header">
+          <h2 class="card-title">BOM Components</h2>
+        </div>
+        <div class="card-body">
+          <div class="empty-state">
+            <i class="fas fa-cog"></i>
+            <p>No BOM components found for this item.</p>
+            <p><small>This item either doesn't have an active BOM or is not a manufactured item.</small></p>
           </div>
         </div>
       </div>
@@ -378,6 +429,8 @@ export default {
     const showMultiCurrencyPrices = ref(false);
     const multiCurrencyPrices = ref(null);
     const bomComponents = ref([]);
+    const debugMode = ref(false); // Set to true for debugging
+
     const itemForm = ref({
       item_id: null,
       item_code: '',
@@ -396,7 +449,8 @@ export default {
       length: '',
       width: '',
       thickness: '',
-      weight: ''
+      weight: '',
+      hs_code: '' // Tambahan HS Code
     });
 
     const canDelete = computed(() => {
@@ -409,56 +463,53 @@ export default {
       return !hasTransactions && !hasBatches;
     });
 
-    // Update fetchItem method di ItemDetail.vue
-const fetchItem = async () => {
-  isLoading.value = true;
-  try {
-    console.log('Fetching item with ID:', props.id);
-    const response = await ItemService.getItemById(props.id);
+    const fetchItem = async () => {
+      isLoading.value = true;
+      try {
+        console.log('Fetching item with ID:', props.id);
+      const response = await ItemService.getItemById(props.id);
+      console.log('API Response:', response);
 
-    // Debug: Log full response
-    console.log('Full API Response:', response);
-    console.log('Response data:', response.data);
-    console.log('Item data:', response.data.data);
-    console.log('BOM Components from response:', response.data.bom_components);
+      item.value = response.data.data;
 
-    item.value = response.data.data;
-    bomComponents.value = response.data.bom_components || [];
+      // Set BOM components dari response API
+      if (response.data.bom_components) {
+        bomComponents.value = response.data.bom_components;
+        console.log('BOM Components found:', bomComponents.value);
+      } else {
+        console.log('No BOM components found in API response');
+        bomComponents.value = [];
+      }
 
-    // Debug: Log final values
-    console.log('Item category:', item.value.category);
-    console.log('Item category_id:', item.value.category_id);
-    console.log('Final bomComponents.value:', bomComponents.value);
-    console.log('bomComponents length:', bomComponents.value.length);
-
-    // Populate form for potential edit
-    Object.assign(itemForm.value, {
-      item_id: item.value.item_id,
-      item_code: item.value.item_code,
-      name: item.value.name,
-      description: item.value.description || '',
-      category_id: item.value.category_id || '',
-      uom_id: item.value.uom_id || '',
-      minimum_stock: item.value.minimum_stock,
-      maximum_stock: item.value.maximum_stock,
-      is_purchasable: item.value.is_purchasable || false,
-      is_sellable: item.value.is_sellable || false,
-      cost_price: item.value.cost_price || 0,
-      sale_price: item.value.sale_price || 0,
-      cost_price_currency: item.value.cost_price_currency || 'USD',
-      sale_price_currency: item.value.sale_price_currency || 'USD',
-      length: item.value.length || '',
-      width: item.value.width || '',
-      thickness: item.value.thickness || '',
-      weight: item.value.weight || ''
-    });
-  } catch (error) {
-    console.error('Error fetching item:', error);
-    item.value = null;
-  } finally {
-    isLoading.value = false;
-  }
-};
+        // Populate form for potential edit
+        Object.assign(itemForm.value, {
+          item_id: item.value.item_id,
+          item_code: item.value.item_code,
+          name: item.value.name,
+          description: item.value.description || '',
+          category_id: item.value.category_id || '',
+          uom_id: item.value.uom_id || '',
+          minimum_stock: item.value.minimum_stock,
+          maximum_stock: item.value.maximum_stock,
+          is_purchasable: item.value.is_purchasable || false,
+          is_sellable: item.value.is_sellable || false,
+          cost_price: item.value.cost_price || 0,
+          sale_price: item.value.sale_price || 0,
+          cost_price_currency: item.value.cost_price_currency || 'USD',
+          sale_price_currency: item.value.sale_price_currency || 'USD',
+          length: item.value.length || '',
+          width: item.value.width || '',
+          thickness: item.value.thickness || '',
+          weight: item.value.weight || '',
+          hs_code: item.value.hs_code || '' // Tambahan HS Code
+        });
+      } catch (error) {
+        console.error('Error fetching item:', error);
+        item.value = null;
+      } finally {
+        isLoading.value = false;
+      }
+    };
 
     const fetchTransactions = async () => {
       if (!props.id) return;
@@ -487,8 +538,8 @@ const fetchItem = async () => {
           ['USD', 'IDR', 'EUR', 'SGD', 'JPY']
         );
 
-        if (response.data.success) {
-          multiCurrencyPrices.value = response.data.data;
+        if (response.success) {
+          multiCurrencyPrices.value = response.data;
         }
       } catch (error) {
         console.error('Error fetching prices in currencies:', error);
@@ -648,6 +699,7 @@ const fetchItem = async () => {
       itemForm,
       canDelete,
       bomComponents,
+      debugMode,
       formatDate,
       getStockStatus,
       getStockStatusClass,
@@ -741,6 +793,14 @@ const fetchItem = async () => {
   font-weight: 600;
   margin: 0;
   color: #1e293b;
+}
+
+.component-count {
+  font-size: 0.875rem;
+  color: #64748b;
+  background-color: #e2e8f0;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
 }
 
 .card-action {
@@ -954,6 +1014,17 @@ const fetchItem = async () => {
   color: #1e293b;
 }
 
+/* Enhanced table styling for BOM components */
+.card-table table th:nth-child(6),
+.card-table table th:nth-child(7) {
+  min-width: 120px;
+}
+
+.card-table table td:nth-child(7) {
+  vertical-align: top;
+  padding-top: 0.5rem;
+}
+
 .transaction-type {
   display: inline-block;
   padding: 0.25rem 0.5rem;
@@ -980,13 +1051,83 @@ const fetchItem = async () => {
   color: #dc2626;
 }
 
+/* Yield details styling - UPDATED */
+.yield-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 140px;
+}
+
+.yield-details small {
+  font-size: 0.75rem;
+  color: #64748b;
+  line-height: 1.3;
+}
+
+.yield-ratio {
+  color: #2563eb;
+}
+
+.yield-ratio strong {
+  color: #1e40af;
+}
+
+.waste-info {
+  color: #dc2626;
+}
+
+.waste-info strong {
+  color: #b91c1c;
+}
+
+.scrap-info {
+  color: #d97706;
+}
+
+.scrap-info strong {
+  color: #c2410c;
+}
+
+.setup-info {
+  color: #059669;
+}
+
+.setup-info strong {
+  color: #047857;
+}
+
+.operation-info {
+  color: #7c3aed;
+}
+
+.operation-info strong {
+  color: #6d28d9;
+}
+
+.no-yield {
+  color: #9ca3af;
+  font-style: italic;
+}
+
 .empty-state {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   padding: 2rem 0;
   color: #64748b;
-  font-style: italic;
+  text-align: center;
+}
+
+.empty-state i {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: #94a3b8;
+}
+
+.empty-state p {
+  margin: 0.25rem 0;
 }
 
 .loading-indicator {
@@ -1049,6 +1190,83 @@ const fetchItem = async () => {
   color: #d97706;
 }
 
+.badge-info {
+  background-color: #dbeafe;
+  color: #2563eb;
+}
+
+.debug-info {
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 0.375rem;
+  padding: 1rem;
+  margin: 1rem 0;
+  font-family: monospace;
+  font-size: 0.875rem;
+}
+
+.debug-info h4 {
+  margin: 0 0 0.5rem 0;
+  color: #856404;
+}
+
+.debug-info p {
+  margin: 0.25rem 0;
+  word-break: break-all;
+}
+
+.btn {
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: none;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-sm {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.btn-primary {
+  background-color: #2563eb;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #1d4ed8;
+}
+
+.btn-secondary {
+  background-color: #f8fafc;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: #f1f5f9;
+  border-color: #9ca3af;
+}
+
+.btn-danger {
+  background-color: #dc2626;
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: #b91c1c;
+}
+
 @media (max-width: 768px) {
   .item-detail-container {
     grid-template-columns: 1fr;
@@ -1070,6 +1288,18 @@ const fetchItem = async () => {
 
   .currency-prices {
     flex-direction: column;
+  }
+
+  .card-table {
+    overflow-x: auto;
+  }
+
+  .yield-details {
+    min-width: 100px;
+  }
+
+  .yield-details small {
+    font-size: 0.6875rem;
   }
 }
 </style>

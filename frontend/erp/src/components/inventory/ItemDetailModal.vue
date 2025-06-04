@@ -33,9 +33,13 @@
                   {{ item.unitOfMeasure ? `${item.unitOfMeasure.name} (${item.unitOfMeasure.symbol})` : '-' }}
                 </div>
               </div>
+              <div class="detail-item">
+                <div class="detail-label">HS Code</div>
+                <div class="detail-value">{{ item.hs_code || '-' }}</div>
+              </div>
             </div>
           </div>
-          
+
           <!-- Description Section -->
           <div class="detail-section" v-if="item.description">
             <h3 class="section-title">Description</h3>
@@ -43,7 +47,7 @@
               {{ item.description }}
             </div>
           </div>
-          
+
           <!-- Physical Properties Section -->
           <div class="detail-section">
             <h3 class="section-title">Physical Properties</h3>
@@ -74,7 +78,7 @@
               </div>
             </div>
           </div>
-          
+
           <!-- Stock Information Section -->
           <div class="detail-section">
             <h3 class="section-title">Stock Information</h3>
@@ -101,7 +105,7 @@
               </div>
             </div>
           </div>
-          
+
           <!-- Pricing Information Section -->
           <div class="detail-section">
             <h3 class="section-title">Pricing Information</h3>
@@ -133,8 +137,9 @@
               <div class="detail-item" v-if="showMultiCurrencyPrices">
                 <div class="detail-label">View Prices in Other Currencies</div>
                 <div class="detail-value">
-                  <button @click="fetchPricesInCurrencies" class="btn btn-sm btn-secondary">
-                    <i class="fas fa-money-bill-wave"></i> Show Prices
+                  <button @click="fetchPricesInCurrencies" class="btn btn-sm btn-secondary" :disabled="isLoadingCurrencies">
+                    <i class="fas fa-money-bill-wave"></i>
+                    {{ isLoadingCurrencies ? 'Loading...' : 'Show Prices' }}
                   </button>
                 </div>
               </div>
@@ -161,10 +166,10 @@
               </div>
             </div>
           </div>
-          
-          <!-- BOM Components Section -->
+
+          <!-- BOM Components Section - UPDATED -->
           <div class="detail-section" v-if="bomComponents && bomComponents.length > 0">
-            <h3 class="section-title">BOM Components</h3>
+            <h3 class="section-title">BOM Components ({{ bomComponents.length }})</h3>
             <div class="components-table">
               <table>
                 <thead>
@@ -174,6 +179,8 @@
                     <th>Quantity</th>
                     <th>UOM</th>
                     <th>Critical</th>
+                    <th>Yield Based</th>
+                    <th>Yield Details</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -187,12 +194,37 @@
                         {{ component.is_critical ? 'Yes' : 'No' }}
                       </span>
                     </td>
+                    <td>
+                      <span :class="component.yield_based ? 'badge-info' : 'badge-secondary'" class="badge">
+                        {{ component.yield_based ? 'Yes' : 'No' }}
+                      </span>
+                    </td>
+                    <td>
+                      <div v-if="component.yield_based" class="yield-info-modal">
+                        <div class="yield-item">
+                          <strong>Ratio:</strong> {{ component.yield_ratio || 1.0 }}
+                        </div>
+                        <div v-if="component.waste_percentage" class="yield-item waste">
+                          <strong>Waste:</strong> {{ component.waste_percentage }}%
+                        </div>
+                        <div v-if="component.scrap_rate" class="yield-item scrap">
+                          <strong>Scrap:</strong> {{ component.scrap_rate }}%
+                        </div>
+                        <div v-if="component.setup_time" class="yield-item setup">
+                          <strong>Setup:</strong> {{ component.setup_time }}min
+                        </div>
+                        <div v-if="component.operation_time" class="yield-item operation">
+                          <strong>Operation:</strong> {{ component.operation_time }}min
+                        </div>
+                      </div>
+                      <span v-else class="no-yield-modal">-</span>
+                    </td>
                   </tr>
                 </tbody>
               </table>
             </div>
           </div>
-          
+
           <!-- Batches Section -->
           <div class="detail-section" v-if="item.batches && item.batches.length > 0">
             <h3 class="section-title">Batches</h3>
@@ -217,7 +249,7 @@
               </table>
             </div>
           </div>
-          
+
           <!-- Recent Transactions Section -->
           <div class="detail-section" v-if="recentTransactions.length > 0">
             <h3 class="section-title">Recent Transactions</h3>
@@ -255,7 +287,7 @@
               </div>
             </div>
           </div>
-          
+
           <div class="form-actions">
             <button class="btn btn-secondary" @click="$emit('close')">Close</button>
             <button class="btn btn-primary" @click="editItem">Edit Item</button>
@@ -268,7 +300,7 @@
 
 <script>
 import { ref, onMounted, computed } from 'vue';
-import api from '@/services/api';
+import axios from 'axios';
 
 export default {
   name: 'ItemDetailModal',
@@ -284,7 +316,10 @@ export default {
     const hasMoreTransactions = ref(false);
     const multiCurrencyPrices = ref(null);
     const isLoadingCurrencies = ref(false);
+
+    // BOM Components dari props item - UPDATED
     const bomComponents = computed(() => {
+      console.log('ItemDetailModal - props.item:', props.item);
       return props.item && props.item.bom_components ? props.item.bom_components : [];
     });
 
@@ -292,13 +327,13 @@ export default {
     const showMultiCurrencyPrices = computed(() => {
       return props.item && (props.item.cost_price > 0 || props.item.sale_price > 0);
     });
-    
+
     const fetchRecentTransactions = async () => {
       try {
         if (props.item && props.item.item_id) {
-          const response = await api.get(`/stock-transactions/item/${props.item.item_id}?limit=5`);
+          const response = await axios.get(`/transactions/items/${props.item.item_id}/movement?limit=5`);
           recentTransactions.value = response.data.data || [];
-          
+
           // Check if there are more transactions than what we fetched
           hasMoreTransactions.value = response.data.meta && response.data.meta.total > 5;
         }
@@ -309,23 +344,25 @@ export default {
 
     const fetchPricesInCurrencies = async () => {
       if (isLoadingCurrencies.value || !props.item?.item_id) return;
-      
+
       isLoadingCurrencies.value = true;
       try {
-        const response = await api.get(`/items/${props.item.item_id}/prices-in-currencies`, {
+        const response = await axios.get(`/items/${props.item.item_id}/prices-in-currencies`, {
           params: {
             currencies: ['USD', 'IDR', 'EUR', 'SGD', 'JPY']
           }
         });
-        
-        multiCurrencyPrices.value = response.data.data;
+
+        if (response.data.success) {
+          multiCurrencyPrices.value = response.data.data;
+        }
       } catch (error) {
         console.error('Error fetching prices in currencies:', error);
       } finally {
         isLoadingCurrencies.value = false;
       }
     };
-    
+
     const formatDate = (dateString) => {
       if (!dateString) return '-';
       const date = new Date(dateString);
@@ -335,7 +372,7 @@ export default {
         day: 'numeric'
       });
     };
-    
+
     const getStockStatus = (item) => {
       if (item.current_stock <= item.minimum_stock) {
         return 'Low Stock';
@@ -345,7 +382,7 @@ export default {
         return 'Normal';
       }
     };
-    
+
     const getStockStatusClass = (item) => {
       const status = getStockStatus(item);
       switch (status) {
@@ -354,7 +391,7 @@ export default {
         default: return 'normal';
       }
     };
-    
+
     const getTransactionTypeClass = (type) => {
       if (['IN', 'RECEIPT', 'RETURN', 'ADJUSTMENT_IN', 'receive', 'return', 'adjustment'].includes(type)) {
         return 'type-in';
@@ -363,7 +400,7 @@ export default {
       }
       return '';
     };
-    
+
     const getQuantityClass = (type) => {
       if (['IN', 'RECEIPT', 'RETURN', 'ADJUSTMENT_IN', 'receive', 'return'].includes(type)) {
         return 'quantity-in';
@@ -372,16 +409,16 @@ export default {
       }
       return '';
     };
-    
+
     const editItem = () => {
       emit('close');
       emit('edit', props.item);
     };
-    
+
     onMounted(() => {
       fetchRecentTransactions();
     });
-    
+
     return {
       recentTransactions,
       hasMoreTransactions,
@@ -429,7 +466,7 @@ export default {
   border-radius: 0.5rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   width: 100%;
-  max-width: 800px;
+  max-width: 900px;
   max-height: 90vh;
   z-index: 60;
   overflow: hidden;
@@ -643,6 +680,75 @@ export default {
   color: #1e293b;
 }
 
+/* Enhanced modal table styling */
+.components-table table th:nth-child(6),
+.components-table table th:nth-child(7) {
+  min-width: 110px;
+}
+
+.components-table table td:nth-child(7) {
+  vertical-align: top;
+  padding-top: 0.5rem;
+}
+
+/* Yield info styling for modal - UPDATED */
+.yield-info-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 120px;
+}
+
+.yield-item {
+  font-size: 0.75rem;
+  color: #1e293b;
+  line-height: 1.3;
+}
+
+.yield-item strong {
+  color: #64748b;
+  font-weight: 500;
+  margin-right: 0.25rem;
+}
+
+.yield-item.waste {
+  color: #dc2626;
+}
+
+.yield-item.waste strong {
+  color: #b91c1c;
+}
+
+.yield-item.scrap {
+  color: #d97706;
+}
+
+.yield-item.scrap strong {
+  color: #c2410c;
+}
+
+.yield-item.setup {
+  color: #059669;
+}
+
+.yield-item.setup strong {
+  color: #047857;
+}
+
+.yield-item.operation {
+  color: #7c3aed;
+}
+
+.yield-item.operation strong {
+  color: #6d28d9;
+}
+
+.no-yield-modal {
+  color: #9ca3af;
+  font-style: italic;
+  font-size: 0.875rem;
+}
+
 .transaction-type {
   display: inline-block;
   padding: 0.25rem 0.5rem;
@@ -691,6 +797,49 @@ export default {
   margin-top: 1rem;
 }
 
+.btn {
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: none;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-sm {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.btn-primary {
+  background-color: #2563eb;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #1d4ed8;
+}
+
+.btn-secondary {
+  background-color: #f8fafc;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: #f1f5f9;
+  border-color: #9ca3af;
+}
+
 .badge {
   display: inline-block;
   padding: 0.25rem 0.5rem;
@@ -714,13 +863,31 @@ export default {
   color: #d97706;
 }
 
+.badge-info {
+  background-color: #dbeafe;
+  color: #2563eb;
+}
+
+/* Responsive modal styling */
 @media (max-width: 640px) {
   .detail-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .multi-currency-prices {
     flex-direction: column;
+  }
+
+  .components-table {
+    overflow-x: auto;
+  }
+
+  .yield-info-modal {
+    min-width: 90px;
+  }
+
+  .yield-item {
+    font-size: 0.6875rem;
   }
 }
 </style>

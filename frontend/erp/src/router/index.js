@@ -889,7 +889,7 @@ const routes = [
                 path: "/purchasing/rfqs/:id/send",
                 name: "SendRFQ",
                 component: RFQSend,
-                props: true,
+                props: (route) => ({ rfqId: route.params.id }),
                 meta: { requiresAuth: true },
             },
             {

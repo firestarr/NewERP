@@ -205,6 +205,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Vendor Quotations
     Route::apiResource('vendor-quotations', VendorQuotationController::class);
     Route::patch('vendor-quotations/{vendorQuotation}/status', [VendorQuotationController::class, 'updateStatus']);
+    Route::post('vendor-quotations/create-from-rfq', [VendorQuotationController::class, 'createFromRFQ']);
 
     // Purchase Orders
     Route::apiResource('purchase-orders', PurchaseOrderController::class);

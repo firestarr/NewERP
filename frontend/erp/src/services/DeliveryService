@@ -1,5 +1,5 @@
 // src/services/DeliveryService.js
-import api from "./api";
+import axios from "axios";
 
 /**
  * Service for delivery operations
@@ -11,7 +11,7 @@ const DeliveryService = {
      * @returns {Promise} Promise with deliveries response
      */
     getDeliveries: async (params = {}) => {
-        const response = await api.get("/deliveries", { params });
+        const response = await axios.get("/deliveries", { params });
         return response.data;
         // try {
         // } catch (error) {
@@ -25,7 +25,7 @@ const DeliveryService = {
      * @returns {Promise} Promise with delivery response
      */
     getDeliveryById: async (id) => {
-        const response = await api.get(`/deliveries/${id}`);
+        const response = await axios.get(`/deliveries/${id}`);
         return response.data;
         // try {
         // } catch (error) {
@@ -39,7 +39,7 @@ const DeliveryService = {
      * @returns {Promise} Promise with create delivery response
      */
     createDelivery: async (deliveryData) => {
-        const response = await api.post("/deliveries", deliveryData);
+        const response = await axios.post("/deliveries", deliveryData);
         return response.data;
         // try {
         // } catch (error) {
@@ -54,7 +54,7 @@ const DeliveryService = {
      * @returns {Promise} Promise with update delivery response
      */
     updateDelivery: async (id, deliveryData) => {
-        const response = await api.put(`/deliveries/${id}`, deliveryData);
+        const response = await axios.put(`/deliveries/${id}`, deliveryData);
         return response.data;
         // try {
         // } catch (error) {
@@ -68,7 +68,7 @@ const DeliveryService = {
      * @returns {Promise} Promise with delete delivery response
      */
     deleteDelivery: async (id) => {
-        const response = await api.delete(`/deliveries/${id}`);
+        const response = await axios.delete(`/deliveries/${id}`);
         return response.data;
         // try {
         // } catch (error) {
@@ -82,7 +82,7 @@ const DeliveryService = {
      * @returns {Promise} Promise with deliveries for order
      */
     getDeliveriesByOrder: async (orderId) => {
-        const response = await api.get(`/orders/${orderId}/deliveries`);
+        const response = await axios.get(`/orders/${orderId}/deliveries`);
         return response.data;
         // try {
         // } catch (error) {
@@ -97,7 +97,7 @@ const DeliveryService = {
      * @returns {Promise} Promise with create delivery response
      */
     createDeliveryForOrder: async (orderId, deliveryData) => {
-        const response = await api.post(
+        const response = await axios.post(
             `/orders/${orderId}/deliveries`,
             deliveryData
         );
@@ -115,7 +115,7 @@ const DeliveryService = {
      * @returns {Promise} Promise with update status response
      */
     updateDeliveryStatus: async (id, status) => {
-        const response = await api.put(`/deliveries/${id}/status`, {
+        const response = await axios.put(`/deliveries/${id}/status`, {
             status,
         });
         return response.data;

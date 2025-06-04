@@ -1,5 +1,5 @@
 // src/services/SalesReturnService.js
-import api from "./api";
+import axios from "axios";
 
 /**
  * Service for Sales Return operations
@@ -12,7 +12,7 @@ const SalesReturnService = {
      */
     getReturns: async (params = {}) => {
         try {
-            const response = await api.get("/sales/returns", { params });
+            const response = await axios.get("/sales/returns", { params });
             return response.data;
         } catch (error) {
             console.error("Error fetching sales returns:", error);
@@ -27,7 +27,7 @@ const SalesReturnService = {
      */
     getReturnById: async (id) => {
         try {
-            const response = await api.get(`/sales/returns/${id}`);
+            const response = await axios.get(`/sales/returns/${id}`);
             return response.data;
         } catch (error) {
             console.error(`Error fetching sales return ${id}:`, error);
@@ -42,7 +42,7 @@ const SalesReturnService = {
      */
     createReturn: async (returnData) => {
         try {
-            const response = await api.post("/sales/returns", returnData);
+            const response = await axios.post("/sales/returns", returnData);
             return response.data;
         } catch (error) {
             console.error("Error creating sales return:", error);
@@ -58,7 +58,10 @@ const SalesReturnService = {
      */
     updateReturn: async (id, returnData) => {
         try {
-            const response = await api.put(`/sales/returns/${id}`, returnData);
+            const response = await axios.put(
+                `/sales/returns/${id}`,
+                returnData
+            );
             return response.data;
         } catch (error) {
             console.error(`Error updating sales return ${id}:`, error);
@@ -73,7 +76,7 @@ const SalesReturnService = {
      */
     deleteReturn: async (id) => {
         try {
-            const response = await api.delete(`/sales/returns/${id}`);
+            const response = await axios.delete(`/sales/returns/${id}`);
             return response.data;
         } catch (error) {
             console.error(`Error deleting sales return ${id}:`, error);
@@ -88,7 +91,7 @@ const SalesReturnService = {
      */
     processReturn: async (id) => {
         try {
-            const response = await api.post(`/sales/returns/${id}/process`);
+            const response = await axios.post(`/sales/returns/${id}/process`);
             return response.data;
         } catch (error) {
             console.error(`Error processing sales return ${id}:`, error);
@@ -103,7 +106,7 @@ const SalesReturnService = {
      */
     getCustomerInvoices: async (customerId) => {
         try {
-            const response = await api.get(`/sales/invoices`, {
+            const response = await axios.get(`/sales/invoices`, {
                 params: {
                     customer_id: customerId,
                     status: "Sent,Paid,Partially Paid",
@@ -126,7 +129,7 @@ const SalesReturnService = {
      */
     getInvoiceDetails: async (invoiceId) => {
         try {
-            const response = await api.get(`/sales/invoices/${invoiceId}`);
+            const response = await axios.get(`/sales/invoices/${invoiceId}`);
             return response.data;
         } catch (error) {
             console.error(

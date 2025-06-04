@@ -54,7 +54,7 @@ class WorkOrderController extends Controller
         DB::beginTransaction();
         try {
             $workOrder = WorkOrder::create($request->all());
-            
+
             // Create work order operations based on routing operations
             $routingOperations = $workOrder->routing->routingOperations;
             foreach ($routingOperations as $routingOperation) {
@@ -70,9 +70,9 @@ class WorkOrderController extends Controller
                     'status' => 'Pending',
                 ]);
             }
-            
+
             DB::commit();
-            
+
             return response()->json([
                 'data' => $workOrder->load(['item', 'bom', 'routing', 'workOrderOperations']),
                 'message' => 'Work order created successfully'
@@ -92,16 +92,16 @@ class WorkOrderController extends Controller
     public function show($id)
     {
         $workOrder = WorkOrder::with([
-            'item', 
-            'bom.bomLines.item', 
+            'item',
+            'bom.bomLines.item',
             'routing.routingOperations.workCenter',
             'workOrderOperations.routingOperation'
         ])->find($id);
-        
+
         if (!$workOrder) {
             return response()->json(['message' => 'Work order not found'], 404);
         }
-        
+
         return response()->json(['data' => $workOrder]);
     }
 
@@ -115,7 +115,7 @@ class WorkOrderController extends Controller
     public function update(Request $request, $id)
     {
         $workOrder = WorkOrder::find($id);
-        
+
         if (!$workOrder) {
             return response()->json(['message' => 'Work order not found'], 404);
         }
@@ -137,9 +137,9 @@ class WorkOrderController extends Controller
         }
 
         $workOrder->update($request->all());
-        
+
         return response()->json([
-            'data' => $workOrder, 
+            'data' => $workOrder,
             'message' => 'Work order updated successfully'
         ]);
     }
@@ -153,7 +153,7 @@ class WorkOrderController extends Controller
     public function destroy($id)
     {
         $workOrder = WorkOrder::find($id);
-        
+
         if (!$workOrder) {
             return response()->json(['message' => 'Work order not found'], 404);
         }
@@ -167,10 +167,10 @@ class WorkOrderController extends Controller
         try {
             // Delete work order operations first
             $workOrder->workOrderOperations()->delete();
-            
+
             // Then delete the work order
             $workOrder->delete();
-            
+
             DB::commit();
             return response()->json(['message' => 'Work order deleted successfully']);
         } catch (\Exception $e) {
