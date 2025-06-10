@@ -231,6 +231,18 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/{goodsReceipt}', 'App\Http\Controllers\API\GoodsReceiptController@destroy');
         Route::post('/{goodsReceipt}/confirm', 'App\Http\Controllers\API\GoodsReceiptController@confirm');
     });
+    // Purchase Requisition - Vendor Management Routes
+    Route::prefix('purchase-requisitions')->group(function () {
+        Route::get('{purchaseRequisition}/vendor-recommendations', [PurchaseRequisitionController::class, 'getVendorRecommendations']);
+        Route::post('{purchaseRequisition}/multi-vendor-rfq', [PurchaseRequisitionController::class, 'createMultiVendorRFQ']);
+        Route::get('{purchaseRequisition}/procurement-path', [PurchaseRequisitionController::class, 'getProcurementPath']);
+    });
+
+    // Purchase Order - Create from PR Routes
+    Route::prefix('purchase-orders')->group(function () {
+        Route::post('create-from-pr', [PurchaseOrderController::class, 'createFromPR']);
+        Route::post('create-split-from-pr', [PurchaseOrderController::class, 'createSplitPOFromPR']);
+    });
 
     // Vendor Invoices
     Route::get('vendor-invoices/uninvoiced-receipts', [VendorInvoiceController::class, 'getUninvoicedReceipts']);
@@ -635,5 +647,38 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Currency Converter utility
         Route::get('currency-rates/current-rate', [App\Http\Controllers\Api\CurrencyRateController::class, 'getCurrentRate']);
+    });
+
+    // PDF Order Capture RoutesAdd commentMore actions
+    Route::prefix('pdf-order-capture')->group(function () {
+        // Main processing endpoint
+        Route::post('/', [App\Http\Controllers\Api\PdfOrderCaptureController::class, 'processPdf']);
+
+        // History and listing
+        Route::get('/', [App\Http\Controllers\Api\PdfOrderCaptureController::class, 'index']);
+        Route::get('/{id}', [App\Http\Controllers\Api\PdfOrderCaptureController::class, 'show']);
+
+        // Actions
+        Route::post('/{id}/retry', [App\Http\Controllers\Api\PdfOrderCaptureController::class, 'retry']);
+        Route::delete('/{id}', [App\Http\Controllers\Api\PdfOrderCaptureController::class, 'destroy']);
+
+        // File operations
+        Route::get('/{id}/download', [App\Http\Controllers\Api\PdfOrderCaptureController::class, 'downloadFile']);
+
+        // Preview without processing
+        Route::post('/preview', [App\Http\Controllers\Api\PdfOrderCaptureController::class, 'previewExtraction']);
+
+        // Debug endpoints
+        Route::post('/debug/text-extraction', [App\Http\Controllers\Api\PdfOrderCaptureController::class, 'debugTextExtraction']);
+        Route::get('/debug/database-status', [App\Http\Controllers\Api\PdfOrderCaptureController::class, 'debugDatabaseStatus']);
+        Route::get('/debug/system-requirements', [App\Http\Controllers\Api\PdfOrderCaptureController::class, 'debugSystemRequirements']);
+        Route::post('/debug/customer-matching', [App\Http\Controllers\Api\PdfOrderCaptureController::class, 'debugCustomerMatching']);
+
+        // Bulk operations
+        Route::post('/bulk/retry', [App\Http\Controllers\Api\PdfOrderCaptureController::class, 'bulkRetry']);
+
+        // Statistics and health check
+        Route::get('/statistics/overview', [App\Http\Controllers\Api\PdfOrderCaptureController::class, 'getStatistics']);
+        Route::get('/health/ai-service', [App\Http\Controllers\Api\PdfOrderCaptureController::class, 'checkAiServiceHealth']);
     });
 });

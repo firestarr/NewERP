@@ -1,378 +1,298 @@
-<!-- src/views/inventory/ItemDetail.vue -->
+<!-- src/views/inventory/ItemDetail.vue - Modal Style -->
 <template>
-  <div class="item-detail-view">
-    <div class="page-header">
-      <div class="header-left">
-        <button class="back-button" @click="$router.back()">
-          <i class="fas fa-arrow-left"></i> Back
-        </button>
-        <h1 class="page-title">Item Details</h1>
-      </div>
-
-      <div class="header-actions">
-        <button class="btn btn-secondary" @click="openEditModal">
-          <i class="fas fa-edit"></i> Edit
-        </button>
-        <button class="btn btn-danger" @click="confirmDelete" v-if="canDelete">
-          <i class="fas fa-trash"></i> Delete
-        </button>
-      </div>
-    </div>
-
-    <div v-if="isLoading" class="loading-indicator">
-      <i class="fas fa-spinner fa-spin"></i> Loading item details...
-    </div>
-
-    <div v-else-if="!item" class="error-message">
-      <div class="error-icon">
-        <i class="fas fa-exclamation-circle"></i>
-      </div>
-      <h2>Item Not Found</h2>
-      <p>The requested item could not be found.</p>
-      <button class="btn btn-primary" @click="$router.push('/items')">
-        Back to Items List
-      </button>
-    </div>
-
-    <div v-else class="item-detail-container">
-      <!-- Basic Info Card -->
-      <div class="detail-card">
-        <div class="card-header">
-          <h2 class="card-title">Basic Information</h2>
-        </div>
-        <div class="card-body">
-          <div class="detail-grid">
-            <div class="detail-row">
-              <div class="detail-label">Item Code</div>
-              <div class="detail-value">{{ item.item_code }}</div>
-            </div>
-            <div class="detail-row">
-              <div class="detail-label">Name</div>
-              <div class="detail-value">{{ item.name }}</div>
-            </div>
-            <div class="detail-row">
-              <div class="detail-label">Category</div>
-              <div class="detail-value">{{ item.category ? item.category.name : '-' }}</div>
-            </div>
-            <div class="detail-row">
-              <div class="detail-label">Unit of Measure</div>
-              <div class="detail-value">
-                {{ item.unitOfMeasure ? `${item.unitOfMeasure.name} (${item.unitOfMeasure.symbol})` : '-' }}
-              </div>
-            </div>
-            <div class="detail-row">
-              <div class="detail-label">HS Code</div>
-              <div class="detail-value">{{ item.hs_code || '-' }}</div>
-            </div>
-            <div class="detail-row" v-if="item.description">
-              <div class="detail-label">Description</div>
-              <div class="detail-value description">{{ item.description }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Physical Properties Card -->
-      <div class="detail-card">
-        <div class="card-header">
-          <h2 class="card-title">Physical Properties</h2>
-        </div>
-        <div class="card-body">
-          <div class="detail-grid">
-            <div class="detail-row">
-              <div class="detail-label">Length</div>
-              <div class="detail-value">{{ item.length || '-' }}</div>
-            </div>
-            <div class="detail-row">
-              <div class="detail-label">Width</div>
-              <div class="detail-value">{{ item.width || '-' }}</div>
-            </div>
-            <div class="detail-row">
-              <div class="detail-label">Thickness</div>
-              <div class="detail-value">{{ item.thickness || '-' }}</div>
-            </div>
-            <div class="detail-row">
-              <div class="detail-label">Weight</div>
-              <div class="detail-value">{{ item.weight || '-' }}</div>
-            </div>
-            <div class="detail-row" v-if="item.document_path">
-              <div class="detail-label">Technical Document</div>
-              <div class="detail-value">
-                <a :href="item.document_url" target="_blank" class="btn btn-sm btn-primary">
-                  <i class="fas fa-file-pdf"></i> View Document
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Stock Info Card -->
-      <div class="detail-card">
-        <div class="card-header">
-          <h2 class="card-title">Stock Information</h2>
-        </div>
-        <div class="card-body">
-          <div class="stock-summary">
-            <div class="stock-stat">
-              <div class="stat-label">Current Stock</div>
-              <div class="stat-value">{{ item.current_stock }}</div>
-              <div class="stat-unit">{{ item.unitOfMeasure?.symbol || '' }}</div>
-            </div>
-            <div class="stock-stat">
-              <div class="stat-label">Minimum Stock</div>
-              <div class="stat-value">{{ item.minimum_stock }}</div>
-              <div class="stat-unit">{{ item.unitOfMeasure?.symbol || '' }}</div>
-            </div>
-            <div class="stock-stat">
-              <div class="stat-label">Maximum Stock</div>
-              <div class="stat-value">{{ item.maximum_stock }}</div>
-              <div class="stat-unit">{{ item.unitOfMeasure?.symbol || '' }}</div>
-            </div>
-            <div class="stock-stat">
-              <div class="stat-label">Status</div>
-              <div class="stat-value status">
-                <span class="stock-status" :class="getStockStatusClass(item)">
-                  {{ getStockStatus(item) }}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Pricing Info Card -->
-      <div class="detail-card">
-        <div class="card-header">
-          <h2 class="card-title">Pricing Information</h2>
-          <button
-            v-if="!showMultiCurrencyPrices && (item.cost_price > 0 || item.sale_price > 0)"
-            class="card-action"
-            @click="fetchPricesInCurrencies"
-          >
-            <i class="fas fa-money-bill-wave"></i> Show in Currencies
+  <div class="modal-backdrop" @click="$router.back()">
+    <div class="modal-dialog" @click.stop>
+      <div class="modal-content">
+        <!-- Modal Header -->
+        <div class="modal-header">
+          <h4 class="modal-title">Item Details</h4>
+          <button type="button" class="btn-close" @click="$router.back()">
+            <span>&times;</span>
           </button>
         </div>
-        <div class="card-body">
-          <div class="stock-summary">
-            <div class="stock-stat">
-              <div class="stat-label">Cost Price</div>
-              <div class="stat-value">{{ item.cost_price || '-' }}</div>
-              <div class="stat-unit">{{ item.cost_price_currency || 'USD' }}</div>
-            </div>
-            <div class="stock-stat">
-              <div class="stat-label">Sale Price</div>
-              <div class="stat-value">{{ item.sale_price || '-' }}</div>
-              <div class="stat-unit">{{ item.sale_price_currency || 'USD' }}</div>
-            </div>
-            <div class="stock-stat">
-              <div class="stat-label">Purchasable</div>
-              <div class="stat-value">
-                <span :class="item.is_purchasable ? 'badge-success' : 'badge-secondary'" class="badge">
-                  {{ item.is_purchasable ? 'Yes' : 'No' }}
-                </span>
-              </div>
-            </div>
-            <div class="stock-stat">
-              <div class="stat-label">Sellable</div>
-              <div class="stat-value">
-                <span :class="item.is_sellable ? 'badge-success' : 'badge-secondary'" class="badge">
-                  {{ item.is_sellable ? 'Yes' : 'No' }}
-                </span>
-              </div>
-            </div>
+
+        <!-- Modal Body -->
+        <div class="modal-body" v-if="isLoading">
+          <div class="text-center py-4">
+            <i class="fas fa-spinner fa-spin"></i> Loading item details...
+          </div>
+        </div>
+
+        <div class="modal-body" v-else-if="!item">
+          <div class="text-center py-4">
+            <p>Item not found</p>
+            <button class="btn btn-primary" @click="retryFetch">Retry</button>
+          </div>
+        </div>
+
+        <div class="modal-body" v-else>
+          <!-- Action Buttons -->
+          <div class="mb-3">
+            <button class="btn btn-secondary btn-sm me-2" @click="openEditModal">
+              <i class="fas fa-edit"></i> Edit
+            </button>
+            <button class="btn btn-danger btn-sm" @click="confirmDelete" v-if="canDelete">
+              <i class="fas fa-trash"></i> Delete
+            </button>
           </div>
 
-          <!-- Multi-Currency Prices Section -->
-          <div class="currency-prices-container" v-if="showMultiCurrencyPrices">
-            <h3 class="currency-prices-title">Prices in Other Currencies</h3>
-            <div class="currency-prices-loading" v-if="isLoadingCurrencies">
-              <i class="fas fa-spinner fa-spin"></i> Loading prices...
-            </div>
-            <div class="currency-prices" v-else-if="multiCurrencyPrices">
-              <div v-for="(price, currency) in multiCurrencyPrices.prices" :key="currency" class="currency-price-card">
-                <div class="currency-code">{{ currency }}</div>
-                <div class="price-details">
-                  <div class="price-row">
-                    <span class="price-label">Purchase:</span>
-                    <span class="price-value">{{ price.purchase_price }}</span>
-                  </div>
-                  <div class="price-row">
-                    <span class="price-label">Sale:</span>
-                    <span class="price-value">{{ price.sale_price }}</span>
-                  </div>
-                  <div class="base-currency-tag" v-if="price.is_base_currency">Base Currency</div>
+          <!-- Basic Information -->
+          <div class="section-group">
+            <h6 class="section-title">Basic Information</h6>
+            <div class="row g-3">
+              <div class="col-6">
+                <div class="form-group">
+                  <label class="form-label">Item Code</label>
+                  <div class="form-value">{{ item.item_code }}</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="form-group">
+                  <label class="form-label">Name</label>
+                  <div class="form-value">{{ item.name }}</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="form-group">
+                  <label class="form-label">Category</label>
+                  <div class="form-value">{{ item.category ? item.category.name : '-' }}</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="form-group">
+                  <label class="form-label">Unit of Measure</label>
+                  <div class="form-value">{{ item.unitOfMeasure ? item.unitOfMeasure.name : '-' }}</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="form-group">
+                  <label class="form-label">HS Code</label>
+                  <div class="form-value">{{ item.hs_code || '-' }}</div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <!-- Batches Card -->
-      <div class="detail-card" v-if="item.batches && item.batches.length > 0">
-        <div class="card-header">
-          <h2 class="card-title">Batches</h2>
-        </div>
-        <div class="card-body">
-          <div class="card-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Batch Number</th>
-                  <th>Expiry Date</th>
-                  <th>Manufacturing Date</th>
-                  <th>Lot Number</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="batch in item.batches" :key="batch.batch_id">
-                  <td>{{ batch.batch_number }}</td>
-                  <td>{{ formatDate(batch.expiry_date) }}</td>
-                  <td>{{ formatDate(batch.manufacturing_date) }}</td>
-                  <td>{{ batch.lot_number || '-' }}</td>
-                </tr>
-              </tbody>
-            </table>
+          <!-- Description -->
+          <div class="section-group" v-if="item.description">
+            <h6 class="section-title">Description</h6>
+            <div class="description-box">{{ item.description }}</div>
           </div>
-        </div>
-      </div>
 
-      <!-- Debug: Show BOM Components data -->
-      <div class="debug-info" v-if="debugMode">
-        <h4>Debug Info:</h4>
-        <p>BOM Components from API: {{ JSON.stringify(bomComponents) }}</p>
-        <p>BOM Components length: {{ bomComponents.length }}</p>
-        <p>Item ID: {{ item.item_id }}</p>
-      </div>
+          <!-- Physical Properties -->
+          <div class="section-group">
+            <h6 class="section-title">Physical Properties</h6>
+            <div class="row g-3">
+              <div class="col-6">
+                <div class="form-group">
+                  <label class="form-label">Length</label>
+                  <div class="form-value">{{ item.length || '-' }}</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="form-group">
+                  <label class="form-label">Width</label>
+                  <div class="form-value">{{ item.width || '-' }}</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="form-group">
+                  <label class="form-label">Thickness</label>
+                  <div class="form-value">{{ item.thickness || '-' }}</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="form-group">
+                  <label class="form-label">Weight</label>
+                  <div class="form-value">{{ item.weight || '-' }}</div>
+                </div>
+              </div>
+              <div class="col-12" v-if="item.document_path">
+                <div class="form-group">
+                  <label class="form-label">Technical Document</label>
+                  <div class="form-value">
+                    <button class="btn btn-primary btn-sm" @click="openDocument">
+                      <i class="fas fa-eye"></i> View Document
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-      <!-- BOM Components Card - UPDATED -->
-      <div class="detail-card" v-if="bomComponents && bomComponents.length > 0">
-        <div class="card-header">
-          <h2 class="card-title">BOM Components</h2>
-          <span class="component-count">{{ bomComponents.length }} component(s)</span>
-        </div>
-        <div class="card-body">
-          <div class="card-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Component Code</th>
-                  <th>Component Name</th>
-                  <th>Quantity</th>
-                  <th>UOM</th>
-                  <th>Critical</th>
-                  <th>Yield Based</th>
-                  <th>Yield Details</th>
-                  <th>Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="component in bomComponents" :key="component.component_id">
-                  <td>{{ component.component_code }}</td>
-                  <td>{{ component.component_name }}</td>
-                  <td>{{ component.quantity }}</td>
-                  <td>{{ component.uom || '-' }}</td>
-                  <td>
-                    <span :class="component.is_critical ? 'badge-warning' : 'badge-secondary'" class="badge">
-                      {{ component.is_critical ? 'Yes' : 'No' }}
+          <!-- Stock Information -->
+          <div class="section-group">
+            <h6 class="section-title">Stock Information</h6>
+            <div class="row g-3">
+              <div class="col-6">
+                <div class="form-group">
+                  <label class="form-label">Current Stock</label>
+                  <div class="form-value">{{ item.current_stock }}</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="form-group">
+                  <label class="form-label">Minimum Stock</label>
+                  <div class="form-value">{{ item.minimum_stock }}</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="form-group">
+                  <label class="form-label">Maximum Stock</label>
+                  <div class="form-value">{{ item.maximum_stock }}</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="form-group">
+                  <label class="form-label">Stock Status</label>
+                  <div class="form-value">
+                    <span class="badge" :class="'badge-' + getStockStatusClass(item)">
+                      {{ getStockStatus(item) }}
                     </span>
-                  </td>
-                  <td>
-                    <span :class="component.yield_based ? 'badge-info' : 'badge-secondary'" class="badge">
-                      {{ component.yield_based ? 'Yes' : 'No' }}
-                    </span>
-                  </td>
-                  <td>
-                    <div v-if="component.yield_based" class="yield-details">
-                      <div class="yield-ratio">
-                        <small><strong>Ratio:</strong> {{ component.yield_ratio || 1.0 }}</small>
-                      </div>
-                      <div v-if="component.waste_percentage" class="waste-info">
-                        <small><strong>Waste:</strong> {{ component.waste_percentage }}%</small>
-                      </div>
-                      <div v-if="component.scrap_rate" class="scrap-info">
-                        <small><strong>Scrap:</strong> {{ component.scrap_rate }}%</small>
-                      </div>
-                      <div v-if="component.setup_time" class="setup-info">
-                        <small><strong>Setup:</strong> {{ component.setup_time }}min</small>
-                      </div>
-                      <div v-if="component.operation_time" class="operation-info">
-                        <small><strong>Operation:</strong> {{ component.operation_time }}min</small>
-                      </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pricing Information -->
+          <div class="section-group">
+            <h6 class="section-title">
+              Pricing Information
+              <button
+                v-if="!showMultiCurrencyPrices && (item.cost_price > 0 || item.sale_price > 0)"
+                class="btn btn-outline-primary btn-sm float-end"
+                @click="fetchPricesInCurrencies"
+              >
+                <i class="fas fa-money-bill-wave"></i> Show in Currencies
+              </button>
+            </h6>
+            <div class="row g-3">
+              <div class="col-6">
+                <div class="form-group">
+                  <label class="form-label">Cost Price</label>
+                  <div class="form-value">{{ item.cost_price || '-' }} {{ item.cost_price_currency || 'IDR' }}</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="form-group">
+                  <label class="form-label">Sale Price</label>
+                  <div class="form-value">{{ item.sale_price || '-' }} {{ item.sale_price_currency || 'IDR' }}</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="form-group">
+                  <label class="form-label">Purchasable</label>
+                  <div class="form-value">
+                    <span class="text-success" v-if="item.is_purchasable">Yes</span>
+                    <span class="text-muted" v-else>No</span>
+                  </div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="form-group">
+                  <label class="form-label">Sellable</label>
+                  <div class="form-value">
+                    <span class="text-success" v-if="item.is_sellable">Yes</span>
+                    <span class="text-muted" v-else>No</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Multi-Currency Prices -->
+            <div v-if="showMultiCurrencyPrices" class="mt-3">
+              <div v-if="isLoadingCurrencies" class="text-center">
+                <i class="fas fa-spinner fa-spin"></i> Loading prices...
+              </div>
+              <div v-else-if="multiCurrencyPrices" class="row g-2">
+                <div v-for="(price, currency) in multiCurrencyPrices.prices" :key="currency" class="col-4">
+                  <div class="currency-card">
+                    <div class="currency-code">{{ currency }}</div>
+                    <div class="currency-prices">
+                      <small>Purchase: {{ price.purchase_price }}</small><br>
+                      <small>Sale: {{ price.sale_price }}</small>
                     </div>
-                    <span v-else class="no-yield">-</span>
-                  </td>
-                  <td>{{ component.notes || '-' }}</td>
-                </tr>
-              </tbody>
-            </table>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      <!-- No BOM Message -->
-      <div class="detail-card" v-else>
-        <div class="card-header">
-          <h2 class="card-title">BOM Components</h2>
-        </div>
-        <div class="card-body">
-          <div class="empty-state">
-            <i class="fas fa-cog"></i>
-            <p>No BOM components found for this item.</p>
-            <p><small>This item either doesn't have an active BOM or is not a manufactured item.</small></p>
+          <!-- BOM Components -->
+          <div class="section-group" v-if="bomComponents && bomComponents.length > 0">
+            <h6 class="section-title">BOM Components ({{ bomComponents.length }})</h6>
+            <div class="table-responsive">
+              <table class="table table-sm">
+                <thead>
+                  <tr>
+                    <th>Component Code</th>
+                    <th>Component Name</th>
+                    <th>Qty</th>
+                    <th>UOM</th>
+                    <th>Critical</th>
+                    <th>Yield Based</th>
+                    <th>Yield Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="component in bomComponents" :key="component.component_id">
+                    <td>{{ component.component_code }}</td>
+                    <td>{{ component.component_name }}</td>
+                    <td>{{ component.quantity }}</td>
+                    <td>{{ component.uom || '-' }}</td>
+                    <td>
+                      <span class="badge" :class="component.is_critical ? 'badge-warning' : 'badge-secondary'">
+                        {{ component.is_critical ? 'Yes' : 'No' }}
+                      </span>
+                    </td>
+                    <td>{{ component.yield_based !== undefined ? component.yield_based : '-' }}</td>
+                    <td>{{ component.yield_ratio !== undefined ? component.yield_ratio : '-' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      </div>
 
-      <!-- Transactions Card -->
-      <div class="detail-card">
-        <div class="card-header">
-          <h2 class="card-title">Recent Transactions</h2>
-          <router-link :to="`/stock-transactions?item_id=${item.item_id}`" class="card-action">
-            View All
-          </router-link>
-        </div>
-        <div class="card-body">
-          <div v-if="isLoadingTransactions" class="loading-indicator">
-            <i class="fas fa-spinner fa-spin"></i> Loading transactions...
-          </div>
-          <div v-else-if="transactions.length === 0" class="empty-state">
-            <p>No transactions found for this item.</p>
-          </div>
-          <div v-else class="card-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Type</th>
-                  <th>Quantity</th>
-                  <th>Warehouse</th>
-                  <th>Reference</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="transaction in transactions" :key="transaction.transaction_id">
-                  <td>{{ formatDate(transaction.transaction_date) }}</td>
-                  <td>
-                    <span class="transaction-type" :class="getTransactionTypeClass(transaction.transaction_type)">
-                      {{ transaction.transaction_type }}
-                    </span>
-                  </td>
-                  <td :class="getQuantityClass(transaction.transaction_type)">
-                    {{ transaction.quantity }} {{ item.unitOfMeasure?.symbol || '' }}
-                  </td>
-                  <td>{{ transaction.warehouse?.name || '-' }}</td>
-                  <td>{{ transaction.reference_document || '-' }}</td>
-                </tr>
-              </tbody>
-            </table>
+          <!-- Recent Transactions -->
+          <div class="section-group">
+            <h6 class="section-title">Recent Transactions</h6>
+            <div v-if="isLoadingTransactions" class="text-center py-3">
+              <i class="fas fa-spinner fa-spin"></i> Loading transactions...
+            </div>
+            <div v-else-if="transactions.length === 0" class="text-center py-3 text-muted">
+              No transactions found
+            </div>
+            <div v-else class="table-responsive">
+              <table class="table table-sm">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Quantity</th>
+                    <th>Warehouse</th>
+                  </tr>
+                </thead>
+                <tbody>
+          <tr v-for="transaction in transactions.slice(0, 5)" :key="transaction.transactionId">
+            <td>{{ formatDate(transaction.transactionDate) }}</td>
+            <td>
+              <span class="badge" :class="'badge-' + getTransactionTypeClass(transaction.transactionType)">
+                {{ transaction.transactionType }}
+              </span>
+            </td>
+            <td>{{ transaction.quantity }} {{ item.unitOfMeasure?.symbol || '' }}</td>
+            <td>{{ transaction.warehouse?.name || '-' }}</td>
+          </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Item Form Modal -->
+    <!-- Edit Modal -->
     <ItemFormModal
       v-if="showEditModal"
       :is-edit-mode="true"
@@ -397,7 +317,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import ItemService from '@/services/ItemService.js';
 import ItemFormModal from '@/components/inventory/ItemFormModal.vue';
@@ -429,7 +349,26 @@ export default {
     const showMultiCurrencyPrices = ref(false);
     const multiCurrencyPrices = ref(null);
     const bomComponents = ref([]);
-    const debugMode = ref(false); // Set to true for debugging
+    const debugMode = ref(false);
+
+    // Helper function to convert snake_case keys to camelCase
+    const toCamelCase = (obj) => {
+      if (Array.isArray(obj)) {
+        return obj.map(v => toCamelCase(v));
+      } else if (obj !== null && obj.constructor === Object) {
+        return Object.keys(obj).reduce((result, key) => {
+          const camelKey = key.replace(/_([a-z])/g, g => g[1].toUpperCase());
+          result[camelKey] = toCamelCase(obj[key]);
+          return result;
+        }, {});
+      }
+      return obj;
+    };
+
+    // Enhanced error handling
+    const errorMessage = ref('');
+    const retryCount = ref(0);
+    const maxRetries = ref(3);
 
     const itemForm = ref({
       item_id: null,
@@ -450,74 +389,160 @@ export default {
       width: '',
       thickness: '',
       weight: '',
-      hs_code: '' // Tambahan HS Code
+      hs_code: ''
     });
+
 
     const canDelete = computed(() => {
       if (!item.value) return false;
-
-      // Check if item has transactions or batches
       const hasTransactions = transactions.value.length > 0;
       const hasBatches = item.value.batches && item.value.batches.length > 0;
-
       return !hasTransactions && !hasBatches;
     });
 
+    // Enhanced fetch with robust response handling
     const fetchItem = async () => {
       isLoading.value = true;
       try {
         console.log('Fetching item with ID:', props.id);
-      const response = await ItemService.getItemById(props.id);
-      console.log('API Response:', response);
 
-      item.value = response.data.data;
+        const itemId = parseInt(props.id);
+        if (isNaN(itemId)) {
+          throw new Error('Invalid item ID');
+        }
 
-      // Set BOM components dari response API
-      if (response.data.bom_components) {
-        bomComponents.value = response.data.bom_components;
-        console.log('BOM Components found:', bomComponents.value);
-      } else {
-        console.log('No BOM components found in API response');
-        bomComponents.value = [];
-      }
+        const response = await ItemService.getItemById(itemId);
+        console.log('API Response:', response);
+
+        let itemData = null;
+
+        if (response.data && response.data.data) {
+          itemData = response.data.data;
+        } else if (response.data) {
+          itemData = response.data;
+        } else if (response) {
+          itemData = response;
+        }
+
+        if (!itemData || !itemData.item_id) {
+          throw new Error('Item data not found in response');
+        }
+
+        item.value = itemData;
+
+        // Set BOM components
+        if (response.data && response.data.bom_components) {
+          bomComponents.value = response.data.bom_components;
+        } else if (response.bom_components) {
+          bomComponents.value = response.bom_components;
+        } else if (itemData.bom_components) {
+          bomComponents.value = itemData.bom_components;
+        } else {
+          bomComponents.value = [];
+        }
 
         // Populate form for potential edit
         Object.assign(itemForm.value, {
-          item_id: item.value.item_id,
-          item_code: item.value.item_code,
-          name: item.value.name,
-          description: item.value.description || '',
-          category_id: item.value.category_id || '',
-          uom_id: item.value.uom_id || '',
-          minimum_stock: item.value.minimum_stock,
-          maximum_stock: item.value.maximum_stock,
-          is_purchasable: item.value.is_purchasable || false,
-          is_sellable: item.value.is_sellable || false,
-          cost_price: item.value.cost_price || 0,
-          sale_price: item.value.sale_price || 0,
-          cost_price_currency: item.value.cost_price_currency || 'USD',
-          sale_price_currency: item.value.sale_price_currency || 'USD',
-          length: item.value.length || '',
-          width: item.value.width || '',
-          thickness: item.value.thickness || '',
-          weight: item.value.weight || '',
-          hs_code: item.value.hs_code || '' // Tambahan HS Code
+          item_id: itemData.item_id,
+          item_code: itemData.item_code,
+          name: itemData.name,
+          description: itemData.description || '',
+          category_id: itemData.category_id || '',
+          uom_id: itemData.uom_id || '',
+          minimum_stock: itemData.minimum_stock || 0,
+          maximum_stock: itemData.maximum_stock || 0,
+          is_purchasable: itemData.is_purchasable || false,
+          is_sellable: itemData.is_sellable || false,
+          cost_price: itemData.cost_price || 0,
+          sale_price: itemData.sale_price || 0,
+          cost_price_currency: itemData.cost_price_currency || 'USD',
+          sale_price_currency: itemData.sale_price_currency || 'USD',
+          length: itemData.length || '',
+          width: itemData.width || '',
+          thickness: itemData.thickness || '',
+          weight: itemData.weight || '',
+          hs_code: itemData.hs_code || ''
         });
+
       } catch (error) {
         console.error('Error fetching item:', error);
         item.value = null;
+
+        if (error.response && error.response.status === 404) {
+          errorMessage.value = 'Item not found.';
+        } else if (error.message === 'Invalid item ID') {
+          errorMessage.value = 'Invalid item ID provided.';
+        } else {
+          errorMessage.value = 'An error occurred while loading the item.';
+        }
+
+        throw error;
       } finally {
         isLoading.value = false;
       }
     };
 
-    const fetchTransactions = async () => {
+    const fetchItemWithRetry = async (attempt = 1) => {
+      try {
+        await fetchItem();
+        errorMessage.value = '';
+        retryCount.value = 0;
+      } catch (error) {
+        if (attempt < maxRetries.value) {
+          retryCount.value = attempt;
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+          return fetchItemWithRetry(attempt + 1);
+        } else {
+          retryCount.value = maxRetries.value;
+          if (!errorMessage.value) {
+            errorMessage.value = 'Failed to load item after multiple attempts.';
+          }
+        }
+      }
+    };
+
+    const retryFetch = () => {
+      errorMessage.value = '';
+      retryCount.value = 0;
+      fetchItemWithRetry();
+    };
+
+    const validateRouteParams = () => {
+      if (!props.id) {
+        item.value = null;
+        errorMessage.value = 'No item ID provided';
+        return false;
+      }
+
+      const itemId = parseInt(props.id);
+      if (isNaN(itemId) || itemId <= 0) {
+        item.value = null;
+        errorMessage.value = 'Invalid item ID provided';
+        return false;
+      }
+
+      return true;
+    };
+
+const fetchTransactions = async () => {
       if (!props.id) return;
 
       isLoadingTransactions.value = true;
       try {
         const response = await ItemService.getItemTransactions(props.id, { limit: 10 });
-        transactions.value = response.data || [];
+        let rawTransactions = [];
+        if (response && response.data && Array.isArray(response.data.data)) {
+          rawTransactions = response.data.data;
+        } else if (response && response.data && Array.isArray(response.data)) {
+          rawTransactions = response.data;
+        } else if (response && Array.isArray(response)) {
+          rawTransactions = response;
+        } else if (response && typeof response === 'object') {
+          rawTransactions = [response];
+        } else {
+          rawTransactions = [];
+        }
+        transactions.value = toCamelCase(rawTransactions);
       } catch (error) {
         console.error('Error fetching transactions:', error);
         transactions.value = [];
@@ -591,26 +616,26 @@ export default {
     const getStockStatusClass = (item) => {
       const status = getStockStatus(item);
       switch (status) {
-        case 'Low Stock': return 'low';
-        case 'Over Stock': return 'over';
-        default: return 'normal';
+        case 'Low Stock': return 'danger';
+        case 'Over Stock': return 'warning';
+        default: return 'success';
       }
     };
 
     const getTransactionTypeClass = (type) => {
       if (['IN', 'RECEIPT', 'RETURN', 'ADJUSTMENT_IN', 'receive', 'return', 'adjustment'].includes(type)) {
-        return 'type-in';
+        return 'success';
       } else if (['OUT', 'ISSUE', 'SALE', 'ADJUSTMENT_OUT', 'issue', 'transfer', 'sale'].includes(type)) {
-        return 'type-out';
+        return 'danger';
       }
-      return '';
+      return 'secondary';
     };
 
     const getQuantityClass = (type) => {
       if (['IN', 'RECEIPT', 'RETURN', 'ADJUSTMENT_IN', 'receive', 'return'].includes(type)) {
-        return 'quantity-in';
+        return 'text-success';
       } else if (['OUT', 'ISSUE', 'SALE', 'ADJUSTMENT_OUT', 'issue', 'transfer', 'sale'].includes(type)) {
-        return 'quantity-out';
+        return 'text-danger';
       }
       return '';
     };
@@ -626,18 +651,11 @@ export default {
     const saveItem = async (formData) => {
       try {
         await ItemService.updateItem(formData.get('item_id'), formData);
-
-        // Refresh item data
         await fetchItem();
-
-        // Close modal
         closeEditModal();
-
-        // Show success message
         alert('Item updated successfully!');
       } catch (error) {
         console.error('Error updating item:', error);
-
         if (error.validationErrors) {
           alert('Please check the form for errors: ' + Object.values(error.validationErrors).join(', '));
         } else {
@@ -657,18 +675,11 @@ export default {
     const deleteItem = async () => {
       try {
         await ItemService.deleteItem(props.id);
-
-        // Close modal
         closeDeleteModal();
-
-        // Show success message
         alert('Item deleted successfully!');
-
-        // Navigate back to items list
         router.push('/items');
       } catch (error) {
         console.error('Error deleting item:', error);
-
         if (error.response && error.response.status === 422) {
           alert('This item cannot be deleted because it has related transactions or batches.');
         } else {
@@ -677,8 +688,27 @@ export default {
       }
     };
 
+    const openDocument = () => {
+      if (item.value?.document_url) {
+        window.open(item.value.document_url, '_blank');
+      }
+    };
+
+    // Watch for route changes
+    watch(() => props.id, (newId, oldId) => {
+      if (newId !== oldId && newId) {
+        if (validateRouteParams()) {
+          fetchItemWithRetry();
+          fetchTransactions();
+        }
+      }
+    });
+
+    // Enhanced onMounted
     onMounted(() => {
-      fetchItem();
+      if (validateRouteParams()) {
+        fetchItemWithRetry();
+      }
       fetchTransactions();
       fetchCategories();
       fetchUnitOfMeasures();
@@ -700,6 +730,9 @@ export default {
       canDelete,
       bomComponents,
       debugMode,
+      errorMessage,
+      retryCount,
+      maxRetries,
       formatDate,
       getStockStatus,
       getStockStatusClass,
@@ -711,595 +744,434 @@ export default {
       confirmDelete,
       closeDeleteModal,
       deleteItem,
-      fetchPricesInCurrencies
+      fetchPricesInCurrencies,
+      retryFetch,
+      openDocument
     };
   }
 };
 </script>
 
 <style scoped>
-.item-detail-view {
+/* Modal Backdrop */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
 }
 
-.page-header {
+/* Modal Dialog */
+.modal-dialog {
+  width: 90%;
+  max-width: 700px;
+  max-height: 90vh;
+  margin: auto;
+}
+
+/* Modal Content */
+.modal-content {
+  background-color: white;
+  border-radius: 0.375rem;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  max-height: 90vh;
+}
+
+/* Modal Header */
+.modal-header {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #dee2e6;
+  background-color: #f8f9fa;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #495057;
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #000;
+  opacity: 0.5;
+  cursor: pointer;
+  padding: 0;
+}
+
+.btn-close:hover {
+  opacity: 0.75;
+}
+
+/* Modal Body */
+.modal-body {
+  flex: 1 1 auto;
+  padding: 1.25rem;
+  overflow-y: auto;
+}
+
+/* Section Group */
+.section-group {
+  margin-bottom: 1.5rem;
+}
+
+.section-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Bootstrap-like Grid */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  margin-right: -0.75rem;
+  margin-left: -0.75rem;
+}
+
+.col-6 {
+  position: relative;
+  width: 100%;
+  padding-right: 0.75rem;
+  padding-left: 0.75rem;
+  flex: 0 0 50%;
+  max-width: 50%;
+}
+
+.col-4 {
+  position: relative;
+  width: 100%;
+  padding-right: 0.75rem;
+  padding-left: 0.75rem;
+  flex: 0 0 33.333333%;
+  max-width: 33.333333%;
+}
+
+.col-12 {
+  position: relative;
+  width: 100%;
+  padding-right: 0.75rem;
+  padding-left: 0.75rem;
+  flex: 0 0 100%;
+  max-width: 100%;
+}
+
+.g-3 > * {
   margin-bottom: 1rem;
 }
 
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.back-button {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: #64748b;
-  background: none;
-  border: none;
-  padding: 0.5rem;
-  cursor: pointer;
-  font-size: 0.875rem;
-  transition: color 0.2s;
-}
-
-.back-button:hover {
-  color: #1e293b;
-}
-
-.page-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin: 0;
-  color: #1e293b;
-}
-
-.header-actions {
-  display: flex;
-  gap: 0.75rem;
-}
-
-.item-detail-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 1.5rem;
-}
-
-.detail-card {
-  background-color: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 1.5rem;
-  background-color: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.card-title {
-  font-size: 1.125rem;
-  font-weight: 600;
-  margin: 0;
-  color: #1e293b;
-}
-
-.component-count {
-  font-size: 0.875rem;
-  color: #64748b;
-  background-color: #e2e8f0;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.25rem;
-}
-
-.card-action {
-  font-size: 0.875rem;
-  color: #2563eb;
-  text-decoration: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.card-action:hover {
-  text-decoration: underline;
-}
-
-.card-body {
-  padding: 1.5rem;
-}
-
-.detail-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.detail-row {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.detail-label {
-  font-size: 0.75rem;
-  color: #64748b;
-  font-weight: 500;
-}
-
-.detail-value {
-  color: #1e293b;
-  font-size: 0.875rem;
-}
-
-.detail-value.description {
-  white-space: pre-line;
-  line-height: 1.5;
-}
-
-.stock-summary {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 1rem;
-}
-
-.stock-stat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 1rem;
-  border-radius: 0.375rem;
-  background-color: #f8fafc;
-}
-
-.stat-label {
-  font-size: 0.75rem;
-  color: #64748b;
+.g-2 > * {
   margin-bottom: 0.5rem;
 }
 
-.stat-value {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #1e293b;
+/* Form Groups */
+.form-group {
+  margin-bottom: 0;
 }
 
-.stat-unit {
-  font-size: 0.75rem;
-  color: #64748b;
-  margin-top: 0.25rem;
-}
-
-.stat-value.status {
-  font-size: 1rem;
-}
-
-.stock-status {
-  display: inline-block;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.25rem;
-  font-size: 0.75rem;
+.form-label {
+  margin-bottom: 0.25rem;
+  font-size: 0.8rem;
   font-weight: 500;
+  color: #6c757d;
+  display: block;
 }
 
-.stock-status.low {
-  background-color: #fee2e2;
-  color: #dc2626;
+.form-value {
+  font-size: 0.9rem;
+  color: #495057;
+  min-height: 1.2rem;
+  line-height: 1.3;
 }
 
-.stock-status.normal {
-  background-color: #d1fae5;
-  color: #059669;
-}
-
-.stock-status.over {
-  background-color: #fef3c7;
-  color: #d97706;
-}
-
-/* Multi-currency section */
-.currency-prices-container {
-  margin-top: 1.5rem;
-  border-top: 1px solid #e2e8f0;
-  padding-top: 1.5rem;
-}
-
-.currency-prices-title {
-  font-size: 1rem;
-  font-weight: 600;
-  margin: 0 0 1rem 0;
-  color: #1e293b;
-}
-
-.currency-prices {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.currency-price-card {
-  background-color: #f8fafc;
+/* Description Box */
+.description-box {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
   border-radius: 0.375rem;
-  border: 1px solid #e2e8f0;
   padding: 0.75rem;
-  min-width: 120px;
-  position: relative;
-  flex: 1;
-  min-width: 120px;
+  font-size: 0.9rem;
+  color: #495057;
+  line-height: 1.4;
+  min-height: 3rem;
+}
+
+/* Currency Cards */
+.currency-card {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 0.25rem;
+  padding: 0.5rem;
+  text-align: center;
 }
 
 .currency-code {
   font-weight: 600;
-  font-size: 1rem;
-  color: #1e293b;
-  margin-bottom: 0.5rem;
-  text-align: center;
+  font-size: 0.85rem;
+  color: #495057;
+  margin-bottom: 0.25rem;
 }
 
-.price-details {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.price-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.875rem;
-}
-
-.price-label {
-  color: #64748b;
-}
-
-.price-value {
-  font-weight: 500;
-  color: #1e293b;
-}
-
-.base-currency-tag {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  background-color: #2563eb;
-  color: white;
-  font-size: 0.625rem;
-  font-weight: 600;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.25rem;
-}
-
-.currency-prices-loading {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 1rem;
-  color: #64748b;
-}
-
-.card-table {
-  overflow-x: auto;
-}
-
-.card-table table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.875rem;
-}
-
-.card-table th {
-  text-align: left;
-  padding: 0.75rem 0.5rem;
-  border-bottom: 1px solid #e2e8f0;
-  font-weight: 500;
-  color: #64748b;
-}
-
-.card-table td {
-  padding: 0.75rem 0.5rem;
-  border-bottom: 1px solid #f1f5f9;
-  color: #1e293b;
-}
-
-/* Enhanced table styling for BOM components */
-.card-table table th:nth-child(6),
-.card-table table th:nth-child(7) {
-  min-width: 120px;
-}
-
-.card-table table td:nth-child(7) {
-  vertical-align: top;
-  padding-top: 0.5rem;
-}
-
-.transaction-type {
-  display: inline-block;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.25rem;
+.currency-prices small {
   font-size: 0.75rem;
-  font-weight: 500;
+  color: #6c757d;
 }
 
-.type-in {
-  background-color: #d1fae5;
-  color: #059669;
-}
-
-.type-out {
-  background-color: #fee2e2;
-  color: #dc2626;
-}
-
-.quantity-in {
-  color: #059669;
-}
-
-.quantity-out {
-  color: #dc2626;
-}
-
-/* Yield details styling - UPDATED */
-.yield-details {
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-  min-width: 140px;
-}
-
-.yield-details small {
-  font-size: 0.75rem;
-  color: #64748b;
-  line-height: 1.3;
-}
-
-.yield-ratio {
-  color: #2563eb;
-}
-
-.yield-ratio strong {
-  color: #1e40af;
-}
-
-.waste-info {
-  color: #dc2626;
-}
-
-.waste-info strong {
-  color: #b91c1c;
-}
-
-.scrap-info {
-  color: #d97706;
-}
-
-.scrap-info strong {
-  color: #c2410c;
-}
-
-.setup-info {
-  color: #059669;
-}
-
-.setup-info strong {
-  color: #047857;
-}
-
-.operation-info {
-  color: #7c3aed;
-}
-
-.operation-info strong {
-  color: #6d28d9;
-}
-
-.no-yield {
-  color: #9ca3af;
-  font-style: italic;
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 2rem 0;
-  color: #64748b;
-  text-align: center;
-}
-
-.empty-state i {
-  font-size: 2rem;
-  margin-bottom: 1rem;
-  color: #94a3b8;
-}
-
-.empty-state p {
-  margin: 0.25rem 0;
-}
-
-.loading-indicator {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 2rem 0;
-  color: #64748b;
-}
-
-.loading-indicator i {
-  margin-right: 0.5rem;
-}
-
-.error-message {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 4rem 0;
-}
-
-.error-icon {
-  font-size: 3rem;
-  color: #f43f5e;
-  margin-bottom: 1rem;
-}
-
-.error-message h2 {
-  margin: 0 0 0.5rem 0;
-  color: #1e293b;
-}
-
-.error-message p {
-  margin: 0 0 1.5rem 0;
-  color: #64748b;
-}
-
-.badge {
-  display: inline-block;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.25rem;
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-
-.badge-success {
-  background-color: #d1fae5;
-  color: #059669;
-}
-
-.badge-secondary {
-  background-color: #f1f5f9;
-  color: #64748b;
-}
-
-.badge-warning {
-  background-color: #fef3c7;
-  color: #d97706;
-}
-
-.badge-info {
-  background-color: #dbeafe;
-  color: #2563eb;
-}
-
-.debug-info {
-  background-color: #fff3cd;
-  border: 1px solid #ffeaa7;
-  border-radius: 0.375rem;
-  padding: 1rem;
-  margin: 1rem 0;
-  font-family: monospace;
-  font-size: 0.875rem;
-}
-
-.debug-info h4 {
-  margin: 0 0 0.5rem 0;
-  color: #856404;
-}
-
-.debug-info p {
-  margin: 0.25rem 0;
-  word-break: break-all;
-}
-
+/* Buttons */
 .btn {
-  padding: 0.5rem 1rem;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  font-weight: 500;
+  display: inline-block;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #212529;
+  text-align: center;
+  text-decoration: none;
+  vertical-align: middle;
   cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  border: none;
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  user-select: none;
+  background-color: transparent;
+  border: 1px solid transparent;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+  border-radius: 0.375rem;
+  transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
 
 .btn-sm {
-  padding: 0.375rem 0.75rem;
+  padding: 0.25rem 0.5rem;
   font-size: 0.8125rem;
+  border-radius: 0.25rem;
 }
 
 .btn-primary {
-  background-color: #2563eb;
-  color: white;
+  color: #fff;
+  background-color: #0d6efd;
+  border-color: #0d6efd;
 }
 
-.btn-primary:hover:not(:disabled) {
-  background-color: #1d4ed8;
+.btn-primary:hover {
+  color: #fff;
+  background-color: #0b5ed7;
+  border-color: #0a58ca;
 }
 
 .btn-secondary {
-  background-color: #f8fafc;
-  color: #374151;
-  border: 1px solid #d1d5db;
+  color: #fff;
+  background-color: #6c757d;
+  border-color: #6c757d;
 }
 
-.btn-secondary:hover:not(:disabled) {
-  background-color: #f1f5f9;
-  border-color: #9ca3af;
+.btn-secondary:hover {
+  color: #fff;
+  background-color: #5c636a;
+  border-color: #565e64;
 }
 
 .btn-danger {
-  background-color: #dc2626;
-  color: white;
+  color: #fff;
+  background-color: #dc3545;
+  border-color: #dc3545;
 }
 
-.btn-danger:hover:not(:disabled) {
-  background-color: #b91c1c;
+.btn-danger:hover {
+  color: #fff;
+  background-color: #c82333;
+  border-color: #bd2130;
 }
 
+.btn-outline-primary {
+  color: #0d6efd;
+  border-color: #0d6efd;
+}
+
+.btn-outline-primary:hover {
+  color: #fff;
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+}
+
+/* Badges */
+.badge {
+  display: inline-block;
+  padding: 0.35em 0.65em;
+  font-size: 0.75em;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: baseline;
+  border-radius: 0.375rem;
+}
+
+.badge-success {
+  background-color: #198754;
+}
+
+.badge-danger {
+  background-color: #dc3545;
+}
+
+.badge-warning {
+  background-color: #ffc107;
+  color: #000;
+}
+
+.badge-secondary {
+  background-color: #6c757d;
+}
+
+/* Tables */
+.table {
+  width: 100%;
+  margin-bottom: 1rem;
+  color: #212529;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: 0.5rem;
+  vertical-align: top;
+  border-top: 1px solid #dee2e6;
+}
+
+.table thead th {
+  vertical-align: bottom;
+  border-bottom: 2px solid #dee2e6;
+  font-weight: 600;
+  color: #495057;
+  background-color: #f8f9fa;
+}
+
+.table-sm th,
+.table-sm td {
+  padding: 0.3rem;
+}
+
+.table-responsive {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* Utility Classes */
+.text-center {
+  text-align: center;
+}
+
+.text-success {
+  color: #198754;
+}
+
+.text-muted {
+  color: #6c757d;
+}
+
+.text-danger {
+  color: #dc3545;
+}
+
+.py-3 {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+.py-4 {
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
+}
+
+.mb-3 {
+  margin-bottom: 1rem;
+}
+
+.mt-3 {
+  margin-top: 1rem;
+}
+
+.me-2 {
+  margin-right: 0.5rem;
+}
+
+.float-end {
+  float: right;
+}
+
+/* Spinner */
+.fa-spin {
+  animation: fa-spin 2s infinite linear;
+}
+
+@keyframes fa-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive */
 @media (max-width: 768px) {
-  .item-detail-container {
-    grid-template-columns: 1fr;
+  .modal-dialog {
+    width: 95%;
+    margin: 1rem auto;
   }
 
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
+  .col-6 {
+    flex: 0 0 100%;
+    max-width: 100%;
   }
 
-  .header-actions {
-    align-self: flex-end;
+  .col-4 {
+    flex: 0 0 50%;
+    max-width: 50%;
   }
 
-  .stock-summary {
-    grid-template-columns: repeat(2, 1fr);
+  .modal-body {
+    padding: 1rem;
   }
 
-  .currency-prices {
-    flex-direction: column;
+  .modal-header {
+    padding: 0.75rem 1rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .modal-dialog {
+    width: 100%;
+    height: 100%;
+    max-height: 100vh;
+    margin: 0;
   }
 
-  .card-table {
-    overflow-x: auto;
+  .modal-content {
+    border-radius: 0;
+    height: 100vh;
   }
 
-  .yield-details {
-    min-width: 100px;
-  }
-
-  .yield-details small {
-    font-size: 0.6875rem;
+  .col-4 {
+    flex: 0 0 100%;
+    max-width: 100%;
   }
 }
 </style>

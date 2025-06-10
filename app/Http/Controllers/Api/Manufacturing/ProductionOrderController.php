@@ -30,9 +30,37 @@ class ProductionOrderController extends Controller
     public function index(Request $request)
     {
         $query = ProductionOrder::with(['workOrder.item']);
+
         if ($request->has('wo_id')) {
             $query->where('wo_id', $request->wo_id);
         }
+
+        if ($request->has('search') && !empty($request->search)) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('production_number', 'like', '%' . $search . '%')
+                    ->orWhereHas('workOrder', function ($q2) use ($search) {
+                        $q2->where('wo_number', 'like', '%' . $search . '%')
+                            ->orWhereHas('item', function ($q3) use ($search) {
+                                $q3->where('item_code', 'like', '%' . $search . '%')
+                                    ->orWhere('name', 'like', '%' . $search . '%');
+                            });
+                    });
+            });
+        }
+
+        if ($request->has('status') && !empty($request->status)) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->has('start_date') && !empty($request->start_date)) {
+            $query->whereDate('production_date', '>=', $request->start_date);
+        }
+
+        if ($request->has('end_date') && !empty($request->end_date)) {
+            $query->whereDate('production_date', '<=', $request->end_date);
+        }
+
         $productionOrders = $query->get();
         return response()->json(['data' => $productionOrders]);
     }

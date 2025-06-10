@@ -20,9 +20,33 @@ class WorkOrderController extends Controller
     public function index(Request $request)
     {
         $query = WorkOrder::with(['item', 'bom', 'routing']);
+
         if ($request->has('exclude_status')) {
             $query->where('status', '!=', $request->exclude_status);
         }
+
+        if ($request->has('status') && !empty($request->status)) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->has('date_from') && !empty($request->date_from)) {
+            $query->whereDate('wo_date', '>=', $request->date_from);
+        }
+
+        if ($request->has('date_to') && !empty($request->date_to)) {
+            $query->whereDate('wo_date', '<=', $request->date_to);
+        }
+
+        if ($request->has('search') && !empty($request->search)) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('wo_number', 'like', '%' . $search . '%')
+                    ->orWhereHas('item', function ($q2) use ($search) {
+                        $q2->where('name', 'like', '%' . $search . '%');
+                    });
+            });
+        }
+
         $workOrders = $query->get();
         return response()->json(['data' => $workOrders]);
     }

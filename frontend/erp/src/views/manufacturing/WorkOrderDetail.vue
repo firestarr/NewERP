@@ -5,7 +5,7 @@
       <div class="card-header d-flex justify-content-between align-items-center">
         <div>
           <h2 class="card-title">
-            Work Order: {{ workOrder.wo_number }}
+            Job Orders: {{ workOrder.wo_number }}
             <span class="badge ml-2" :class="getStatusClass(workOrder.status)">{{ workOrder.status }}</span>
           </h2>
           <p class="card-subtitle">{{ workOrder.product_name }}</p>
@@ -85,19 +85,32 @@
       <div class="card-body">
         <!-- Details and Tabs -->
         <div class="row">
-          <!-- Work Order Details Column -->
+          <!-- Job Orders Details Column -->
           <div class="col-md-4">
             <div class="info-card">
               <div class="info-card-header">
-                <h3>Work Order Details</h3>
+                <h3>Job Orders Details</h3>
               </div>
               <div class="info-card-body">
                 <div class="info-item">
                   <div class="info-label">Product:</div>
-                  <div class="info-value">{{ workOrder.product_name }}</div>
+                  <div class="info-value">
+                    <router-link
+                      v-if="workOrder.item_id"
+                      :to="`/items/${workOrder.item_id}`"
+                      class="item-link"
+                      :title="`View details for ${workOrder.product_name}`"
+                    >
+                      {{ workOrder.product_name }}
+                    </router-link>
+                    <span v-else class="text-muted">Unknown Product</span>
+                    <small class="text-muted item-code d-block">
+                      {{ workOrder.item_code || '' }}
+                    </small>
+                  </div>
                 </div>
                 <div class="info-item">
-                  <div class="info-label">WO Date:</div>
+                  <div class="info-label">JO Date:</div>
                   <div class="info-value">{{ formatDate(workOrder.wo_date) }}</div>
                 </div>
                 <div class="info-item">
@@ -171,7 +184,7 @@
                   :class="{ 'active': activeTab === 'production' }"
                   @click="handleTabChange('production')"
                 >
-                  <i class="fas fa-industry mr-2"></i>Production
+                  <i class="fas fa-industry mr-2"></i>Job Process
                 </div>
                 <div
                   class="tab-item"
@@ -203,7 +216,7 @@
                       <i class="fas fa-tasks"></i>
                     </div>
                     <h4>No Operations</h4>
-                    <p>This work order has no operations defined.</p>
+                    <p>This Job Orders has no operations defined.</p>
                   </div>
 
                   <div v-else class="operations-list">
@@ -300,7 +313,7 @@
                       <i class="fas fa-boxes"></i>
                     </div>
                     <h4>No Materials</h4>
-                    <p>This work order has no materials defined.</p>
+                    <p>This Job Orders has no materials defined.</p>
                   </div>
 
                   <div v-else class="table-responsive">
@@ -319,8 +332,21 @@
                       <tbody>
                         <tr v-for="material in materials" :key="material.line_id">
                           <td>{{ material.item_code }}</td>
-                          <td>{{ material.item_name }}</td>
-<td>{{ material.required_quantity }}</td>
+                          <td>
+                            <router-link
+                              v-if="material.item && material.item.item_id"
+                              :to="`/items/${material.item.item_id}`"
+                              class="item-link"
+                              :title="`View details for ${material.item_name}`"
+                            >
+                              {{ material.item_name }}
+                            </router-link>
+                            <span v-else class="text-muted">{{ material.item_name || 'Unknown Item' }}</span>
+                            <small v-if="material.item_code" class="text-muted item-code d-block">
+                              {{ material.item_code }}
+                            </small>
+                          </td>
+                          <td>{{ material.required_quantity }}</td>
                           <td>{{ material.uom_name }}</td>
                           <td>{{ material.issued_quantity || 0 }}</td>
                           <td>
@@ -346,7 +372,7 @@
                 <!-- Production Tab -->
                 <div v-if="activeTab === 'production'" class="tab-pane">
                   <div class="tab-pane-header">
-                    <h3>Production Orders</h3>
+                    <h3>Job Process</h3>
                     <div v-if="['In Progress', 'Released'].includes(workOrder.status)" class="tab-actions">
                       <button class="btn btn-sm btn-success" @click="createProductionOrder">
                         <i class="fas fa-plus mr-1"></i> Create Production Order
@@ -363,7 +389,7 @@
                       <i class="fas fa-industry"></i>
                     </div>
                     <h4>No Production Orders</h4>
-                    <p>There are no production orders for this work order yet.</p>
+                    <p>There are no production orders for this Job Orders yet.</p>
                   </div>
 
                   <div v-else class="production-orders-list">
@@ -428,7 +454,7 @@
                       <i class="fas fa-check-square"></i>
                     </div>
                     <h4>No Quality Inspections</h4>
-                    <p>There are no quality inspections for this work order yet.</p>
+                    <p>There are no quality inspections for this Job Orders yet.</p>
                   </div>
 
                   <div v-else class="quality-inspections-list">
@@ -641,6 +667,8 @@ export default {
       wo_number: '',
       wo_date: '',
       product_name: '',
+      item_id: '',
+      item_code: '',
       planned_quantity: 0,
       completed_quantity: 0,
       bom_code: '',
@@ -686,13 +714,14 @@ export default {
         const response = await axios.get(`/work-orders/${route.params.id}`);
         const data = response.data.data;
 
-        // Format the work order data
+        // Format the Job Orders data
         workOrder.value = {
           wo_id: data.wo_id,
           wo_number: data.wo_number,
           wo_date: data.wo_date,
           product_name: data.item ? data.item.name : 'Unknown',
           item_id: data.item_id,
+          item_code: data.item ? data.item.item_code : '',
           planned_quantity: data.planned_quantity,
           completed_quantity: data.completed_quantity || 0,
           bom_id: data.bom_id,
@@ -711,7 +740,7 @@ export default {
         // Load operations, materials, production orders based on the active tab
         loadTabData();
       } catch (error) {
-        console.error('Error loading work order:', error);
+        console.error('Error loading Job Orders:', error);
       } finally {
         isLoading.value = false;
       }
@@ -752,9 +781,9 @@ const loadMaterials = async () => {
         // Assuming BOM lines are loaded from /boms/{bom_id}/lines
         const response = await axios.get(`/boms/${workOrder.value.bom_id}/lines`);
         console.log('BOM lines response:', response.data.data);
-        console.log('Work order planned quantity:', workOrder.value.planned_quantity);
+        console.log('Job Orders planned quantity:', workOrder.value.planned_quantity);
 
-        // Calculate required quantities based on work order planned quantity and yield
+        // Calculate required quantities based on Job Orders planned quantity and yield
         materials.value = response.data.data.map(line => {
 let requiredQty = line.quantity * workOrder.value.planned_quantity;
 if (line.is_yield_based && line.yield_ratio > 0) {
@@ -915,8 +944,8 @@ requiredQty = Math.ceil(requiredQty);
 
     // Modal confirmation methods
     const confirmRelease = () => {
-      modalTitle.value = 'Release Work Order';
-      modalMessage.value = `Are you sure you want to release work order <strong>${workOrder.value.wo_number}</strong>?<br>Once released, it cannot be edited or deleted.`;
+      modalTitle.value = 'Release Job Orders';
+      modalMessage.value = `Are you sure you want to release Job Orders <strong>${workOrder.value.wo_number}</strong>?<br>Once released, it cannot be edited or deleted.`;
       modalConfirmText.value = 'Release';
       modalConfirmClass.value = 'btn btn-success';
       modalAction.value = 'release';
@@ -925,7 +954,7 @@ requiredQty = Math.ceil(requiredQty);
 
     const confirmStart = () => {
       modalTitle.value = 'Start Production';
-      modalMessage.value = `Are you sure you want to start production for work order <strong>${workOrder.value.wo_number}</strong>?`;
+      modalMessage.value = `Are you sure you want to start production for Job Orders <strong>${workOrder.value.wo_number}</strong>?`;
       modalConfirmText.value = 'Start';
       modalConfirmClass.value = 'btn btn-success';
       modalAction.value = 'start';
@@ -933,8 +962,8 @@ requiredQty = Math.ceil(requiredQty);
     };
 
     const confirmComplete = () => {
-      modalTitle.value = 'Complete Work Order';
-      modalMessage.value = `Are you sure you want to mark work order <strong>${workOrder.value.wo_number}</strong> as completed?`;
+      modalTitle.value = 'Complete Job Orders';
+      modalMessage.value = `Are you sure you want to mark Job Orders <strong>${workOrder.value.wo_number}</strong> as completed?`;
       modalConfirmText.value = 'Complete';
       modalConfirmClass.value = 'btn btn-success';
       modalAction.value = 'complete';
@@ -942,8 +971,8 @@ requiredQty = Math.ceil(requiredQty);
     };
 
     const confirmCancel = () => {
-      modalTitle.value = 'Cancel Work Order';
-      modalMessage.value = `Are you sure you want to cancel work order <strong>${workOrder.value.wo_number}</strong>?<br>This action cannot be undone.`;
+      modalTitle.value = 'Cancel Job Orders';
+      modalMessage.value = `Are you sure you want to cancel Job Orders <strong>${workOrder.value.wo_number}</strong>?<br>This action cannot be undone.`;
       modalConfirmText.value = 'Cancel';
       modalConfirmClass.value = 'btn btn-danger';
       modalAction.value = 'cancel';
@@ -1036,7 +1065,7 @@ requiredQty = Math.ceil(requiredQty);
     const scheduleOperations = () => {
       // Logic to auto-schedule operations based on planned start/end dates
       // This could be implemented as a API call to a backend function
-      alert('This functionality would call a backend API to auto-schedule operations based on work order dates and operation sequence.');
+      alert('This functionality would call a backend API to auto-schedule operations based on Job Orders dates and operation sequence.');
     };
 
     // Material methods
@@ -1068,7 +1097,7 @@ requiredQty = Math.ceil(requiredQty);
     };
 
     const printWorkOrder = () => {
-      // Logic to print the work order
+      // Logic to print the Job Orders
     //   window.print();
      // Legacy function - now redirects to print page
   const printUrl = `/manufacturing/work-orders/${workOrder.value.wo_id}/print`;
@@ -1572,6 +1601,54 @@ requiredQty = Math.ceil(requiredQty);
   justify-content: flex-end;
 }
 
+/* Item Link Styles */
+.item-link {
+  color: var(--gray-900);
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.15s ease-in-out;
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.25rem;
+  display: inline-block;
+  margin: -0.125rem -0.25rem;
+}
+
+.item-link:hover {
+  color: #0d6efd;
+  text-decoration: none;
+  background-color: rgba(13, 110, 253, 0.1);
+  transform: translateY(-1px);
+}
+
+.item-link:focus {
+  outline: 0;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.item-link:visited {
+  color: var(--gray-700);
+}
+
+.item-link:active {
+  transform: translateY(0);
+}
+
+/* Item code styling */
+.item-code {
+  font-size: 0.75rem;
+  color: var(--gray-500);
+  font-family: 'Courier New', monospace;
+  margin-top: 0.25rem;
+}
+
+.text-muted {
+  color: var(--gray-500);
+}
+
+.d-block {
+  display: block;
+}
+
 /* Modal styles */
 .modal {
   position: fixed;
@@ -1774,6 +1851,24 @@ requiredQty = Math.ceil(requiredQty);
   color: white;
 }
 
+/* CSS Variables */
+:root {
+  --primary-color: #3b82f6;
+  --primary-dark: #2563eb;
+  --success-color: #10b981;
+  --danger-color: #ef4444;
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
+}
+
 @media print {
   .actions, .tabs-header, .operation-actions, .tab-actions {
     display: none !important;
@@ -1787,6 +1882,27 @@ requiredQty = Math.ceil(requiredQty);
   .card {
     box-shadow: none !important;
     border: 1px solid #ddd;
+  }
+
+  .item-link {
+    color: #000 !important;
+    text-decoration: underline !important;
+    background-color: transparent !important;
+    transform: none !important;
+  }
+}
+
+/* Responsive untuk mobile */
+@media (max-width: 575.98px) {
+  .item-link {
+    font-size: 0.875rem;
+    word-break: break-word;
+    padding: 0.25rem 0.375rem;
+    margin: -0.25rem -0.375rem;
+  }
+
+  .item-code {
+    font-size: 0.7rem;
   }
 }
 </style>

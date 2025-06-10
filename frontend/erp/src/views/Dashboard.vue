@@ -1,8 +1,9 @@
 <!-- src/views/Dashboard.vue -->
 <template>
     <div class="dashboard">
+        <h1>Welcome to AOS</h1>
       <!-- Statistics Cards -->
-      <div class="stats-grid">
+      <!-- <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-icon">
             <i class="fas fa-box"></i>
@@ -12,7 +13,7 @@
             <p class="stat-value">{{ stats.totalItems }}</p>
           </div>
         </div>
-        
+
         <div class="stat-card">
           <div class="stat-icon">
             <i class="fas fa-warehouse"></i>
@@ -22,7 +23,7 @@
             <p class="stat-value">{{ stats.totalWarehouses }}</p>
           </div>
         </div>
-        
+
         <div class="stat-card">
           <div class="stat-icon warning">
             <i class="fas fa-exclamation-triangle"></i>
@@ -32,7 +33,7 @@
             <p class="stat-value">{{ stats.lowStockItems }}</p>
           </div>
         </div>
-        
+
         <div class="stat-card">
           <div class="stat-icon success">
             <i class="fas fa-exchange-alt"></i>
@@ -42,11 +43,11 @@
             <p class="stat-value">{{ stats.transactionsToday }}</p>
           </div>
         </div>
-      </div>
-      
+      </div> -->
+
       <div class="dashboard-widgets">
         <!-- Recent Transactions Widget -->
-        <div class="widget">
+        <!-- <div class="widget">
           <div class="widget-header">
             <h2 class="widget-title">Recent Transactions</h2>
             <router-link to="/stock-transactions" class="view-all">View All</router-link>
@@ -83,10 +84,10 @@
               </tbody>
             </table>
           </div>
-        </div>
-        
+        </div> -->
+
         <!-- Low Stock Items Widget -->
-        <div class="widget">
+        <!-- <div class="widget">
           <div class="widget-header">
             <h2 class="widget-title">Low Stock Items</h2>
             <router-link to="/items?filter=low_stock" class="view-all">View All</router-link>
@@ -121,15 +122,15 @@
               </tbody>
             </table>
           </div>
-        </div>
+        </div> -->
       </div>
     </div>
   </template>
-  
+
   <script>
   import { ref, onMounted } from 'vue';
   //import axios from 'axios';
-  
+
   export default {
     name: 'DashboardView',
     setup() {
@@ -139,23 +140,23 @@
         lowStockItems: 0,
         transactionsToday: 0
       });
-      
+
       const recentTransactions = ref([]);
       const lowStockItems = ref([]);
       const isLoadingTransactions = ref(true);
       const isLoadingLowStock = ref(true);
-      
+
       //const fetchDashboardData = async () => {
         //try {
           // Fetch dashboard statistics
           //const statsResponse = await axios.get('/api/dashboard/stats');
           //stats.value = statsResponse.data;
-          
+
           // Fetch recent transactions
           //const transactionsResponse = await axios.get('/api/stock-transactions?limit=5');
           //recentTransactions.value = transactionsResponse.data.data;
           //isLoadingTransactions.value = false;
-          
+
           // Fetch low stock items
           //const lowStockResponse = await axios.get('/api/items/stock-status?status=low_stock&limit=5');
           //lowStockItems.value = lowStockResponse.data.data;
@@ -166,7 +167,7 @@
           //isLoadingLowStock.value = false;
         //}
       //};
-      
+
       const getTransactionTypeClass = (type) => {
         switch (type.toUpperCase()) {
           case 'IN':
@@ -183,7 +184,7 @@
             return '';
         }
       };
-      
+
       const formatDate = (dateString) => {
         const date = new Date(dateString);
         return date.toLocaleDateString('en-US', {
@@ -192,7 +193,7 @@
           day: 'numeric'
         });
       };
-      
+
       // For demo purposes, we'll use dummy data
       const loadDummyData = () => {
         stats.value = {
@@ -201,7 +202,7 @@
           lowStockItems: 12,
           transactionsToday: 24
         };
-        
+
         recentTransactions.value = [
           {
             transaction_id: 1,
@@ -244,7 +245,7 @@
             transaction_date: '2025-03-20'
           }
         ];
-        
+
         lowStockItems.value = [
           {
             item_id: 1,
@@ -275,11 +276,11 @@
             minimum_stock: 5
           }
         ];
-        
+
         isLoadingTransactions.value = false;
         isLoadingLowStock.value = false;
       };
-      
+
       onMounted(() => {
         // fetchDashboardData();
         loadDummyData();
@@ -287,7 +288,7 @@
         // For demo purposes, we're using dummy data
         loadDummyData();
       });
-      
+
       return {
         stats,
         recentTransactions,
@@ -300,20 +301,20 @@
     }
   };
   </script>
-  
+
   <style scoped>
   .dashboard {
     display: flex;
     flex-direction: column;
     gap: 2rem;
   }
-  
+
   .stats-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 1.5rem;
   }
-  
+
   .stat-card {
     background-color: white;
     border-radius: 0.5rem;
@@ -322,7 +323,7 @@
     align-items: center;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
-  
+
   .stat-icon {
     font-size: 1.5rem;
     width: 3rem;
@@ -335,43 +336,43 @@
     color: #2563eb;
     margin-right: 1rem;
   }
-  
+
   .stat-icon.warning {
     background-color: #fef3c7;
     color: #d97706;
   }
-  
+
   .stat-icon.success {
     background-color: #d1fae5;
     color: #059669;
   }
-  
+
   .stat-title {
     font-size: 0.875rem;
     color: #64748b;
     margin: 0 0 0.5rem 0;
   }
-  
+
   .stat-value {
     font-size: 1.5rem;
     font-weight: 600;
     color: #0f172a;
     margin: 0;
   }
-  
+
   .dashboard-widgets {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1.5rem;
   }
-  
+
   .widget {
     background-color: white;
     border-radius: 0.5rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     overflow: hidden;
   }
-  
+
   .widget-header {
     display: flex;
     justify-content: space-between;
@@ -379,33 +380,33 @@
     padding: 1rem 1.5rem;
     border-bottom: 1px solid #e2e8f0;
   }
-  
+
   .widget-title {
     font-size: 1.125rem;
     font-weight: 600;
     margin: 0;
     color: #1e293b;
   }
-  
+
   .view-all {
     font-size: 0.875rem;
     color: #2563eb;
     text-decoration: none;
   }
-  
+
   .view-all:hover {
     text-decoration: underline;
   }
-  
+
   .widget-content {
     padding: 1.5rem;
   }
-  
+
   .data-table {
     width: 100%;
     border-collapse: collapse;
   }
-  
+
   .data-table th {
     text-align: left;
     font-size: 0.875rem;
@@ -414,13 +415,13 @@
     padding: 0.75rem 1rem;
     border-bottom: 1px solid #e2e8f0;
   }
-  
+
   .data-table td {
     padding: 0.75rem 1rem;
     border-bottom: 1px solid #f1f5f9;
     color: #334155;
   }
-  
+
   .transaction-type {
     display: inline-block;
     padding: 0.25rem 0.5rem;
@@ -428,17 +429,17 @@
     font-size: 0.75rem;
     font-weight: 500;
   }
-  
+
   .type-in {
     background-color: #d1fae5;
     color: #059669;
   }
-  
+
   .type-out {
     background-color: #fee2e2;
     color: #dc2626;
   }
-  
+
   .stock-status {
     display: inline-block;
     padding: 0.25rem 0.5rem;
@@ -446,12 +447,12 @@
     font-size: 0.75rem;
     font-weight: 500;
   }
-  
+
   .stock-status.low {
     background-color: #fee2e2;
     color: #dc2626;
   }
-  
+
   .loading-indicator {
     display: flex;
     justify-content: center;
@@ -459,7 +460,7 @@
     color: #64748b;
     padding: 2rem 0;
   }
-  
+
   .empty-state {
     display: flex;
     justify-content: center;
@@ -468,12 +469,12 @@
     padding: 3rem 0;
     font-style: italic;
   }
-  
+
     @media (max-width: 1024px) {
       .stats-grid {
         grid-template-columns: repeat(2, 1fr);
       }
-      
+
       .dashboard-widgets {
         grid-template-columns: 1fr;
       }

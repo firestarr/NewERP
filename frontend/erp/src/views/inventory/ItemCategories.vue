@@ -10,13 +10,13 @@
     <!-- Search and Filter Section -->
     <SearchFilter
       v-model:value="searchQuery"
-      placeholder="Search categories..."
+      placeholder="Search item group..."
       @search="applyFilters"
       @clear="clearSearch"
     >
       <template #actions>
         <button class="btn btn-primary" @click="openAddCategoryModal">
-          <i class="fas fa-plus"></i> Add Category
+          <i class="fas fa-plus"></i> Add Item Group
         </button>
       </template>
     </SearchFilter>
@@ -36,9 +36,9 @@
       </div>
 
       <div v-else class="categories-grid">
-        <div 
-          v-for="category in filteredCategories" 
-          :key="category.category_id" 
+        <div
+          v-for="category in filteredCategories"
+          :key="category.category_id"
           class="category-card"
         >
           <div class="category-header">
@@ -52,7 +52,7 @@
               </button>
             </div>
           </div>
-          
+
           <div class="category-content">
             <p v-if="category.description" class="category-description">
               {{ category.description }}
@@ -61,7 +61,7 @@
               No description available
             </p>
           </div>
-          
+
           <div class="category-footer">
             <div v-if="category.parentCategory" class="parent-category">
               <span class="label">Parent:</span>
@@ -81,7 +81,7 @@
       <div class="modal-backdrop" @click="closeCategoryModal"></div>
       <div class="modal-content">
         <div class="modal-header">
-          <h2>{{ isEditMode ? 'Edit Category' : 'Add New Category' }}</h2>
+          <h2>{{ isEditMode ? 'Edit Item Group' : 'Add New  Item Group' }}</h2>
           <button class="close-btn" @click="closeCategoryModal">
             <i class="fas fa-times"></i>
           </button>
@@ -89,37 +89,37 @@
         <div class="modal-body">
           <form @submit.prevent="saveCategory">
             <div class="form-group">
-              <label for="name">Category Name*</label>
-              <input 
-                type="text" 
-                id="name" 
-                v-model="categoryForm.name" 
+              <label for="name">Item Group Name*</label>
+              <input
+                type="text"
+                id="name"
+                v-model="categoryForm.name"
                 required
                 class="form-control"
               />
             </div>
-            
+
             <div class="form-group">
               <label for="description">Description</label>
-              <textarea 
-                id="description" 
-                v-model="categoryForm.description" 
+              <textarea
+                id="description"
+                v-model="categoryForm.description"
                 rows="3"
                 class="form-control"
               ></textarea>
             </div>
-            
+
             <div class="form-group">
-              <label for="parent_category_id">Parent Category</label>
-              <select 
-                id="parent_category_id" 
+              <label for="parent_category_id">Parent Item Group</label>
+              <select
+                id="parent_category_id"
                 v-model="categoryForm.parent_category_id"
                 class="form-control"
               >
                 <option value="">-- None --</option>
-                <option 
-                  v-for="category in availableParentCategories" 
-                  :key="category.category_id" 
+                <option
+                  v-for="category in availableParentCategories"
+                  :key="category.category_id"
                   :value="category.category_id"
                 >
                   {{ category.name }}
@@ -129,13 +129,13 @@
                 Changing the parent category may affect the hierarchy.
               </small>
             </div>
-            
+
             <div class="form-actions">
               <button type="button" class="btn btn-secondary" @click="closeCategoryModal">
                 Cancel
               </button>
               <button type="submit" class="btn btn-primary">
-                {{ isEditMode ? 'Update Category' : 'Add Category' }}
+                {{ isEditMode ? 'Update Item Group' : 'Add Item Group' }}
               </button>
             </div>
           </form>
@@ -156,21 +156,21 @@
         <div class="modal-body">
           <p>Are you sure you want to delete <strong>{{ categoryToDelete.name }}</strong>?</p>
           <p v-if="categoryToDelete.items?.length > 0 || categoryToDelete.childCategories?.length > 0" class="text-danger">
-            This category has {{ categoryToDelete.items?.length || 0 }} items and 
-            {{ categoryToDelete.childCategories?.length || 0 }} child categories. 
+            This category has {{ categoryToDelete.items?.length || 0 }} items and
+            {{ categoryToDelete.childCategories?.length || 0 }} child categories.
             You cannot delete a category that has items or child categories.
           </p>
           <p v-else class="text-danger">
             This action cannot be undone.
           </p>
-          
+
           <div class="form-actions">
             <button type="button" class="btn btn-secondary" @click="closeDeleteModal">
               Cancel
             </button>
-            <button 
-              type="button" 
-              class="btn btn-danger" 
+            <button
+              type="button"
+              class="btn btn-danger"
               @click="deleteCategory"
               :disabled="categoryToDelete.items?.length > 0 || categoryToDelete.childCategories?.length > 0"
             >
@@ -207,7 +207,7 @@ export default {
     const categories = ref([]);
     const isLoading = ref(true);
     const searchQuery = ref('');
-    
+
     // Modals
     const showCategoryModal = ref(false);
     const showDeleteModal = ref(false);
@@ -218,54 +218,54 @@ export default {
       parent_category_id: null
     });
     const categoryToDelete = ref({});
-    
+
     // Computed
     const filteredCategories = computed(() => {
       if (!searchQuery.value) {
         return categories.value;
       }
-      
+
       const query = searchQuery.value.toLowerCase();
-      return categories.value.filter(category => 
-        category.name.toLowerCase().includes(query) || 
+      return categories.value.filter(category =>
+        category.name.toLowerCase().includes(query) ||
         (category.description && category.description.toLowerCase().includes(query))
       );
     });
-    
+
     const availableParentCategories = computed(() => {
       if (!isEditMode.value) {
         return categories.value;
       }
-      
+
       // When editing, filter out the current category and its children to avoid circular references
       const categoryId = categoryForm.value.category_id;
-      
+
       // Helper function to get all child category IDs recursively
       const getChildCategoryIds = (parentId) => {
         const childIds = [];
         const childCategories = categories.value.filter(c => c.parent_category_id === parentId);
-        
+
         childCategories.forEach(child => {
           childIds.push(child.category_id);
           childIds.push(...getChildCategoryIds(child.category_id));
         });
-        
+
         return childIds;
       };
-      
+
       const childIds = getChildCategoryIds(categoryId);
-      
-      return categories.value.filter(category => 
-        category.category_id !== categoryId && 
+
+      return categories.value.filter(category =>
+        category.category_id !== categoryId &&
         !childIds.includes(category.category_id)
       );
     });
-    
+
     // Methods
     const fetchCategories = async () => {
       isLoading.value = true;
       debugInfo.lastApiCall = 'fetchCategories()';
-      
+
       try {
         // Use the actual API service to fetch categories
         const result = await CategoryService.getCategories();
@@ -286,7 +286,7 @@ export default {
       } catch (error) {
         console.error('Error fetching categories:', error);
         debugInfo.lastError = error;
-        
+
         // Fallback to dummy data if API call fails
         categories.value = [
           {
@@ -312,15 +312,15 @@ export default {
         isLoading.value = false;
       }
     };
-    
+
     const applyFilters = () => {
       // Nothing specific to do for filtering categories
     };
-    
+
     const clearSearch = () => {
       searchQuery.value = '';
     };
-    
+
     const openAddCategoryModal = () => {
       isEditMode.value = false;
       categoryForm.value = {
@@ -330,7 +330,7 @@ export default {
       };
       showCategoryModal.value = true;
     };
-    
+
     const editCategory = (category) => {
       isEditMode.value = true;
       categoryForm.value = {
@@ -341,15 +341,15 @@ export default {
       };
       showCategoryModal.value = true;
     };
-    
+
     const closeCategoryModal = () => {
       showCategoryModal.value = false;
     };
-    
+
     const saveCategory = async () => {
       debugInfo.lastApiCall = isEditMode.value ? 'updateCategory()' : 'createCategory()';
       console.log('Saving category data:', categoryForm.value);
-      
+
       try {
         if (isEditMode.value) {
           // Prepare data for update - make sure parent_category_id is null if empty
@@ -357,21 +357,21 @@ export default {
             ...categoryForm.value,
             parent_category_id: categoryForm.value.parent_category_id || null
           };
-          
+
           console.log('Update data being sent:', updateData);
-          
+
           // Use actual API service to update category
           const result = await CategoryService.updateCategory(
-            categoryForm.value.category_id, 
+            categoryForm.value.category_id,
             updateData
           );
-          
+
           console.log('Update response:', result);
           debugInfo.lastResponse = result;
-          
+
           // Update local state
           await fetchCategories(); // Refresh the list from server
-          
+
           alert('Category updated successfully!');
         } else {
           // Prepare data for create - make sure parent_category_id is null if empty
@@ -379,29 +379,29 @@ export default {
             ...categoryForm.value,
             parent_category_id: categoryForm.value.parent_category_id || null
           };
-          
+
           console.log('Create data being sent:', createData);
-          
+
           // Use actual API service to create category
           const result = await CategoryService.createCategory(createData);
-          
+
           console.log('Create response:', result);
           debugInfo.lastResponse = result;
-          
+
           // Refresh categories list
           await fetchCategories();
-          
+
           alert('Category added successfully!');
         }
-        
+
         closeCategoryModal();
       } catch (error) {
         console.error('Error saving category:', error);
         debugInfo.lastError = error;
-        
+
         if (error.response && error.response.data) {
           console.error('API error response:', error.response.data);
-          
+
           if (error.response.data.message) {
             alert(`Error: ${error.response.data.message}`);
           } else if (error.response.data.errors) {
@@ -418,40 +418,40 @@ export default {
         }
       }
     };
-    
+
     const confirmDelete = (category) => {
       categoryToDelete.value = category;
       showDeleteModal.value = true;
     };
-    
+
     const closeDeleteModal = () => {
       showDeleteModal.value = false;
     };
-    
+
     const deleteCategory = async () => {
       debugInfo.lastApiCall = 'deleteCategory()';
-      
+
       try {
         if (categoryToDelete.value.items?.length > 0 || categoryToDelete.value.childCategories?.length > 0) {
           alert('Cannot delete a category that has items or child categories.');
           return;
         }
-        
+
         // Use actual API service to delete category
         const result = await CategoryService.deleteCategory(categoryToDelete.value.category_id);
-        
+
         console.log('Delete response:', result);
         debugInfo.lastResponse = result;
-        
+
         // Refresh categories list
         await fetchCategories();
-        
+
         closeDeleteModal();
         alert('Category deleted successfully!');
       } catch (error) {
         console.error('Error deleting category:', error);
         debugInfo.lastError = error;
-        
+
         if (error.response && error.response.data && error.response.data.message) {
           alert(`Error: ${error.response.data.message}`);
         } else {
@@ -459,17 +459,17 @@ export default {
         }
       }
     };
-    
+
     // Lifecycle hooks
     onMounted(() => {
       // Get API base URL for debugging
-      import.meta.env 
+      import.meta.env
         ? debugInfo.apiBaseUrl = import.meta.env.VITE_APP_API_URL || 'Not set (using default)'
         : debugInfo.apiBaseUrl = process.env.VUE_APP_API_URL || 'Not set (using default)';
-      
+
       fetchCategories();
     });
-    
+
     return {
       categories,
       isLoading,

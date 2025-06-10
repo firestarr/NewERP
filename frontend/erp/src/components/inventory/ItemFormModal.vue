@@ -39,13 +39,13 @@
 
           <div class="form-row">
             <div class="form-group">
-              <label for="category_id">Category</label>
+              <label for="category_id">Item Group</label>
               <select
                 id="category_id"
                 v-model="form.category_id"
                 :class="{ 'is-invalid': errors.category_id }"
               >
-                <option value="">-- Select Category --</option>
+                <option value="">-- Select Item Group --</option>
                 <option v-for="category in categories" :key="category.category_id" :value="category.category_id">
                   {{ category.name }}
                 </option>

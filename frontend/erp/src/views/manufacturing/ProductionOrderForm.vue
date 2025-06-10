@@ -2,7 +2,7 @@
 <template>
   <div class="production-order-form">
     <div class="page-header">
-      <h1>{{ isEditing ? 'Edit Production Order' : 'Create Production Order' }}</h1>
+      <h1>{{ isEditing ? 'Edit Production Order' : 'Create Job Process' }}</h1>
       <div class="actions">
         <router-link to="/manufacturing/production-orders" class="btn btn-secondary">
           <i class="fas fa-arrow-left"></i> Back to List
@@ -18,7 +18,7 @@
     <form v-else @submit.prevent="saveProductionOrder" class="card">
       <div class="card-body">
         <div class="form-section">
-          <h2>Production Order Details</h2>
+          <h2>Job Process Details</h2>
 
           <div class="form-row">
             <div class="form-group">
@@ -53,7 +53,7 @@
 
           <div class="form-row">
             <div class="form-group">
-              <label for="work_order">Work Order <span class="required">*</span></label>
+              <label for="work_order">Job Order <span class="required">*</span></label>
               <div class="dropdown">
                 <input
                   type="text"
@@ -61,7 +61,7 @@
                   v-model="workOrderSearch"
                   class="form-control"
                   :class="{ 'error': errors && errors.wo_id }"
-                  placeholder="Search for a work order..."
+                  placeholder="Search for a job order..."
                   @focus="showWorkOrderDropdown = true"
                   @blur="hideWorkOrderDropdown"
                   autocomplete="off"
@@ -87,7 +87,7 @@
                     </div>
                   </div>
                   <div v-if="filteredWorkOrders.length === 0" class="dropdown-item text-muted">
-                    No work orders found
+                    No job order found
                   </div>
                 </div>
               </div>
@@ -116,7 +116,7 @@
           </div>
 
           <div v-if="workOrderDetails" class="info-panel">
-            <div class="info-panel-title">Work Order Information</div>
+            <div class="info-panel-title">Job Order Information</div>
             <div class="info-panel-content">
               <div class="info-row">
                 <div class="info-label">Item:</div>
@@ -256,7 +256,7 @@
         <button type="button" class="btn btn-secondary" @click="cancel">Cancel</button>
         <button type="submit" class="btn btn-primary" :disabled="saving">
           <i v-if="saving" class="fas fa-spinner fa-spin"></i>
-          {{ saving ? 'Saving...' : 'Save Production Order' }}
+          {{ saving ? 'Saving...' : 'Save Job Process' }}
         </button>
       </div>
     </form>
@@ -378,8 +378,8 @@ export default {
           }));
         }
       } catch (error) {
-        console.error('Error fetching production order:', error);
-        if (this.$toast) this.$toast.error('Failed to load production order data');
+        console.error('Error fetching Job Process:', error);
+        if (this.$toast) this.$toast.error('Failed to load Job Process data');
       }
     },
 
@@ -473,8 +473,8 @@ export default {
           }
         }
       } catch (error) {
-        console.error('Error loading work order details:', error);
-        if (this.$toast) this.$toast.error('Failed to load work order details');
+        console.error('Error loading Job order details:', error);
+        if (this.$toast) this.$toast.error('Failed to load Job order details');
       }
     },
 

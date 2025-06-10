@@ -3,13 +3,13 @@
     <div class="work-order-form-page">
       <div class="card">
         <div class="card-header">
-          <h2 class="card-title">{{ isEditMode ? 'Edit Work Order' : 'Create Work Order' }}</h2>
+          <h2 class="card-title">{{ isEditMode ? 'Edit Job Orders' : 'Create Job Orders' }}</h2>
         </div>
         <div class="card-body">
           <form @submit.prevent="submitForm">
             <div class="alert alert-info" v-if="isEditMode && workOrder.status !== 'Draft'">
               <i class="fas fa-info-circle mr-2"></i>
-              This work order is already in {{ workOrder.status }} status. Some fields cannot be edited.
+              This Job Orders is already in {{ workOrder.status }} status. Some fields cannot be edited.
             </div>
 
             <!-- Form Errors -->
@@ -28,24 +28,24 @@
             <div class="row">
               <div class="col-md-6">
                 <div class="form-group">
-                  <label>Work Order Number <span class="text-danger">*</span></label>
+                  <label>Job Orders Number <span class="text-danger">*</span></label>
                   <input
                     type="text"
                     class="form-control"
                     v-model="workOrder.wo_number"
                     :disabled="isEditMode"
-                    placeholder="WO-00001"
+                    placeholder="JO-00001"
                     required
                   />
                   <small class="form-text text-muted">
-                    Unique identifier for this work order
+                    Unique identifier for this Job Orders
                   </small>
                 </div>
               </div>
 
               <div class="col-md-6">
                 <div class="form-group">
-                  <label>Work Order Date <span class="text-danger">*</span></label>
+                  <label>Job Orders Date <span class="text-danger">*</span></label>
                   <input
                     type="date"
                     class="form-control"
@@ -236,7 +236,7 @@
               </button>
               <button type="submit" class="btn btn-primary" :disabled="isSubmitting">
                 <i v-if="isSubmitting" class="fas fa-spinner fa-spin mr-2"></i>
-                {{ isEditMode ? 'Update Work Order' : 'Create Work Order' }}
+                {{ isEditMode ? 'Update Job Orders' : 'Create Job Orders' }}
               </button>
             </div>
           </form>
@@ -364,7 +364,7 @@
           const response = await axios.get(`/work-orders/${route.params.id}`);
           const data = response.data.data;
 
-          // Update the work order form with the retrieved data
+          // Update the Job Orders form with the retrieved data
           workOrder.value = {
             wo_id: data.wo_id,
             wo_number: data.wo_number,
@@ -389,8 +389,8 @@
           // Load BOMs and routings after setting the item_id
           await loadBOMsAndRoutings();
         } catch (error) {
-          console.error('Error loading work order:', error);
-          formErrors.value.push('Failed to load work order details.');
+          console.error('Error loading Job Orders:', error);
+          formErrors.value.push('Failed to load Job Orders details.');
         }
       };
 
@@ -424,22 +424,22 @@
 
         try {
           if (isEditMode.value) {
-            // Update existing work order
+            // Update existing Job Orders
             await axios.put(`/work-orders/${workOrder.value.wo_id}`, workOrder.value);
             router.push(`/manufacturing/work-orders/${workOrder.value.wo_id}`);
           } else {
-            // Create new work order
+            // Create new Job Orders
             const response = await axios.post('/work-orders', workOrder.value);
             router.push(`/manufacturing/work-orders/${response.data.data.wo_id}`);
           }
         } catch (error) {
-          console.error('Error saving work order:', error);
+          console.error('Error saving Job Orders:', error);
           if (error.response && error.response.data && error.response.data.errors) {
             // Extract validation errors from the response
             const serverErrors = error.response.data.errors;
             formErrors.value = Object.values(serverErrors).flat();
           } else {
-            formErrors.value.push('An error occurred while saving the work order.');
+            formErrors.value.push('An error occurred while saving the Job Orders.');
           }
         } finally {
           isSubmitting.value = false;

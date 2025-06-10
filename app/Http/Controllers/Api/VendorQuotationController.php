@@ -13,7 +13,7 @@ class VendorQuotationController extends Controller
 {
     public function index(Request $request)
     {
-        $query = VendorQuotation::with(['vendor', 'requestForQuotation']);
+        $query = VendorQuotation::with(['vendor', 'requestForQuotation', 'lines.item', 'lines.unitOfMeasure']);
 
         // Apply filters
         if ($request->has('status')) {

@@ -40,6 +40,9 @@
                 </template>
 
                 <template #actions>
+                    <button class="btn btn-outline-primary" @click="createPocapture">
+                        <i class="fa-solid fa-brain"></i> PO Capture By AI
+                    </button>
                     <button class="btn btn-primary" @click="createOrder">
                         <i class="fas fa-plus"></i> Create Order
                     </button>
@@ -343,6 +346,10 @@ export default {
             router.push("/sales/orders/create");
         };
 
+        const createPocapture = () => {
+            router.push("/pdf-order-capture");
+        };
+
         const viewOrder = (order) => {
             router.push(`/sales/orders/${order.so_id}`);
         };
@@ -473,6 +480,7 @@ const formatCurrency = (value) => {
             handleSort,
             goToPage,
             createOrder,
+            createPocapture,
             viewOrder,
             editOrder,
             confirmDelete,

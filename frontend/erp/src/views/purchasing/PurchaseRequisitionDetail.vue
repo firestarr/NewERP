@@ -53,6 +53,24 @@
             <span>Convert to RFQ</span>
           </router-link>
 
+          <router-link v-if="pr.status === 'approved'"
+            :to="{ name: 'PRVendorRecommendations', params: { id: pr.pr_id } }"
+            class="btn btn-primary">
+            📊 Vendor Recommendations
+          </router-link>
+
+          <router-link v-if="pr.status === 'approved'"
+            :to="{ name: 'ProcurementPathAnalysis', params: { id: pr.pr_id } }"
+            class="btn btn-outline">
+            🔍 Procurement Analysis
+          </router-link>
+
+          <router-link v-if="pr.status === 'approved'"
+            :to="{ name: 'CreateMultiVendorPO', params: { id: pr.pr_id } }"
+            class="btn btn-secondary">
+            🏢 Multi-Vendor PO
+          </router-link>
+
           <button
             v-if="['draft', 'pending'].includes(pr.status)"
             @click="showCancelConfirmation = true"

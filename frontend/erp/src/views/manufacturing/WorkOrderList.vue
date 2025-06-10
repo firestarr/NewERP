@@ -3,16 +3,16 @@
     <div class="work-orders-page">
       <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-          <h2 class="card-title">Work Orders</h2>
+          <h2 class="card-title">Job Orders</h2>
           <router-link to="/manufacturing/work-orders/create" class="btn btn-primary">
-            <i class="fas fa-plus mr-2"></i> Create Work Order
+            <i class="fas fa-plus mr-2"></i> Create Job Orders
           </router-link>
         </div>
         <div class="card-body">
           <!-- Filters -->
           <div class="filter-section mb-4">
             <SearchFilter
-              placeholder="Search by work order number, product name..."
+              placeholder="Search by job order number, product name..."
               v-model:value="searchQuery"
               @search="handleSearch"
               @clear="clearFilters"
@@ -33,18 +33,18 @@
                 </div>
                 <div class="filter-group">
                   <label>Date Range</label>
-                  <input 
-                    type="date" 
-                    v-model="dateFrom" 
+                  <input
+                    type="date"
+                    v-model="dateFrom"
                     class="form-control"
                     @change="handleFilterChange"
                   />
                 </div>
                 <div class="filter-group">
                   <label>To</label>
-                  <input 
-                    type="date" 
-                    v-model="dateTo" 
+                  <input
+                    type="date"
+                    v-model="dateTo"
                     class="form-control"
                     @change="handleFilterChange"
                   />
@@ -52,9 +52,9 @@
               </template>
             </SearchFilter>
           </div>
-  
+
           <!-- Status summary cards -->
-          <div class="status-summary mb-4 grid grid-cols-4 sm:grid-cols-2 gap-4">
+          <!-- <div class="status-summary mb-4 grid grid-cols-4 sm:grid-cols-2 gap-4">
             <div class="status-card" v-for="status in statusSummary" :key="status.label">
               <div class="card">
                 <div class="card-body p-3 d-flex">
@@ -68,85 +68,103 @@
                 </div>
               </div>
             </div>
-          </div>
-  
-          <!-- Work orders table -->
+          </div> -->
+
+          <!-- Job Orders table -->
           <div v-if="isLoading" class="loading-indicator">
-            <i class="fas fa-spinner fa-spin"></i> Loading work orders...
+            <i class="fas fa-spinner fa-spin"></i> Loading Job Orders...
           </div>
-          
+
           <DataTable
             v-else
             :columns="columns"
             :items="workOrders"
             keyField="wo_id"
             :isLoading="isLoading"
-            :emptyTitle="'No work orders found'"
-            :emptyMessage="'No work orders match your search criteria.'"
+            :emptyTitle="'No Job Orders found'"
+            :emptyMessage="'No Job Orders match your search criteria.'"
             :initialSortKey="'wo_date'"
             :initialSortOrder="'desc'"
             @sort="handleSort"
           >
+            <!-- Item template with router-link -->
+            <template #item_name="{ item }">
+              <div class="item-cell">
+                <router-link
+                  v-if="item.item && item.item.item_id"
+                  :to="`/items/${item.item.item_id}`"
+                  class="item-link"
+                  :title="`View details for ${item.item.name}`"
+                >
+                  {{ item.item.name }}
+                </router-link>
+                <span v-else class="text-muted">Unknown Item</span>
+                <small class="text-muted item-code d-block">
+                  {{ item.item ? item.item.item_code : '' }}
+                </small>
+              </div>
+            </template>
+
             <!-- Status template -->
             <template #status="{ value }">
               <span class="badge" :class="getStatusClass(value)">{{ value }}</span>
             </template>
-            
+
             <!-- Date template -->
             <template #wo_date="{ value }">
               {{ formatDate(value) }}
             </template>
-            
+
             <!-- Progress template -->
             <template #progress="{ item }">
               <div class="progress-bar-container">
-                <div 
-                  class="progress-bar" 
+                <div
+                  class="progress-bar"
                   :style="{ width: getProgressPercentage(item) + '%' }"
                   :class="getProgressClass(item.status)"
                 ></div>
                 <span class="progress-text">{{ getProgressPercentage(item) }}%</span>
               </div>
             </template>
-            
+
             <!-- Actions template -->
             <template #actions="{ item }">
               <div class="actions-cell">
-                <router-link 
+                <router-link
                   :to="`/manufacturing/work-orders/${item.wo_id}`"
-                  class="btn btn-sm btn-primary mr-1" 
+                  class="btn btn-sm btn-primary mr-1"
                   title="View details"
                 >
                   <i class="fas fa-eye"></i>
                 </router-link>
-                <router-link 
+                <router-link
                   v-if="item.status === 'Draft'"
                   :to="`/manufacturing/work-orders/${item.wo_id}/edit`"
-                  class="btn btn-sm btn-info mr-1" 
+                  class="btn btn-sm btn-info mr-1"
                   title="Edit"
                 >
                   <i class="fas fa-edit"></i>
                 </router-link>
-                <button 
+                <button
                   v-if="item.status === 'Draft'"
-                  @click="confirmRelease(item)" 
-                  class="btn btn-sm btn-success mr-1" 
+                  @click="confirmRelease(item)"
+                  class="btn btn-sm btn-success mr-1"
                   title="Release"
                 >
                   <i class="fas fa-play-circle"></i>
                 </button>
-                <button 
+                <button
                   v-else-if="item.status === 'Released'"
-                  @click="confirmStart(item)" 
-                  class="btn btn-sm btn-success mr-1" 
+                  @click="confirmStart(item)"
+                  class="btn btn-sm btn-success mr-1"
                   title="Start production"
                 >
                   <i class="fas fa-tasks"></i>
                 </button>
-                <button 
+                <button
                   v-if="item.status === 'Draft'"
-                  @click="confirmDelete(item)" 
-                  class="btn btn-sm btn-danger" 
+                  @click="confirmDelete(item)"
+                  class="btn btn-sm btn-danger"
                   title="Delete"
                 >
                   <i class="fas fa-trash"></i>
@@ -154,7 +172,7 @@
               </div>
             </template>
           </DataTable>
-          
+
           <!-- Pagination -->
           <div class="pagination-container mt-4">
             <PaginationComponent
@@ -168,7 +186,7 @@
           </div>
         </div>
       </div>
-  
+
       <!-- Confirmation Modal -->
       <ConfirmationModal
         v-if="showModal"
@@ -181,17 +199,17 @@
       />
     </div>
   </template>
-  
+
   <script>
   import { ref, reactive, computed, onMounted } from 'vue';
   //import { useRouter } from 'vue-router';
   import axios from 'axios';
-  
+
   export default {
     name: 'WorkOrderList',
     setup() {
       //const router = useRouter();
-      
+
       // Data
       const workOrders = ref([]);
       const isLoading = ref(true);
@@ -205,7 +223,7 @@
       const perPage = ref(10);
       const total = ref(0);
       const totalPages = ref(0);
-      
+
       // Modal state
       const showModal = ref(false);
       const modalTitle = ref('');
@@ -214,30 +232,30 @@
       const modalConfirmClass = ref('btn btn-primary');
       const modalAction = ref('');
       const selectedItem = ref(null);
-      
+
       // Pagination computed properties
       const from = computed(() => {
         if (total.value === 0) return 0;
         return (currentPage.value - 1) * perPage.value + 1;
       });
-      
+
       const to = computed(() => {
         const lastItem = currentPage.value * perPage.value;
         return lastItem > total.value ? total.value : lastItem;
       });
-      
+
       // Table columns definition
       const columns = [
         { key: 'wo_number', label: 'WO Number', sortable: true },
         { key: 'wo_date', label: 'Date', sortable: true, template: 'wo_date' },
-        { key: 'item_name', label: 'Item', sortable: true },
+        { key: 'item_name', label: 'Item', sortable: true, template: 'item_name' },
         { key: 'planned_quantity', label: 'Qty', sortable: true },
         { key: 'status', label: 'Status', sortable: true, template: 'status' },
         { key: 'progress', label: 'Progress', template: 'progress' },
         { key: 'planned_start_date', label: 'Start Date', sortable: true },
         { key: 'planned_end_date', label: 'End Date', sortable: true }
       ];
-  
+
       // Status summary
       const statusSummary = reactive([
         { label: 'Planned', count: 0, icon: 'fas fa-clipboard-list', class: 'bg-info' },
@@ -245,7 +263,7 @@
         { label: 'Completed', count: 0, icon: 'fas fa-check-circle', class: 'bg-success' },
         { label: 'Total', count: 0, icon: 'fas fa-clipboard', class: 'bg-primary' }
       ]);
-  
+
       // Methods
       const fetchWorkOrders = async () => {
         isLoading.value = true;
@@ -257,49 +275,52 @@
             sort_field: sortField.value,
             sort_order: sortOrder.value
           };
-          
+
           if (searchQuery.value) {
             params.search = searchQuery.value;
           }
-          
+
           if (statusFilter.value) {
             params.status = statusFilter.value;
           }
-          
+
           if (dateFrom.value) {
             params.date_from = dateFrom.value;
           }
-          
+
           if (dateTo.value) {
             params.date_to = dateTo.value;
           }
-          
+
           const response = await axios.get('/work-orders', { params });
+
+          // Update to preserve the full item object instead of just the name
           workOrders.value = response.data.data.map(wo => ({
             ...wo,
+            // Keep the original item object, but also add item_name for backward compatibility
             item_name: wo.item ? wo.item.name : 'Unknown'
           }));
-          
+
           total.value = response.data.meta.total;
           totalPages.value = response.data.meta.last_page;
-          
+
           // Update status summary
           updateStatusSummary();
         } catch (error) {
-          console.error('Error fetching work orders:', error);
+          console.error('Error fetching Job Orders:', error);
         } finally {
           isLoading.value = false;
         }
       };
-      
+
       const updateStatusSummary = () => {
         // Reset counts
         statusSummary.forEach(status => status.count = 0);
-        
-        // Count work orders by status
+
+        // Count Job Orders by status
         workOrders.value.forEach(wo => {
           statusSummary[3].count++; // Increment total count
-          
+
           if (wo.status === 'Planned' || wo.status === 'Released') {
             statusSummary[0].count++;
           } else if (wo.status === 'In Progress') {
@@ -309,17 +330,17 @@
           }
         });
       };
-      
+
       const handleSearch = () => {
         currentPage.value = 1;
         fetchWorkOrders();
       };
-      
+
       const handleFilterChange = () => {
         currentPage.value = 1;
         fetchWorkOrders();
       };
-      
+
       const clearFilters = () => {
         searchQuery.value = '';
         statusFilter.value = '';
@@ -328,18 +349,18 @@
         currentPage.value = 1;
         fetchWorkOrders();
       };
-      
+
       const handleSort = ({ key, order }) => {
         sortField.value = key;
         sortOrder.value = order;
         fetchWorkOrders();
       };
-      
+
       const handlePageChange = (page) => {
         currentPage.value = page;
         fetchWorkOrders();
       };
-      
+
       const formatDate = (dateString) => {
         if (!dateString) return '-';
         const date = new Date(dateString);
@@ -349,7 +370,7 @@
           day: '2-digit'
         });
       };
-      
+
       const getStatusClass = (status) => {
         switch (status) {
           case 'Draft': return 'badge-secondary';
@@ -362,7 +383,7 @@
           default: return 'badge-secondary';
         }
       };
-      
+
       const getProgressPercentage = (workOrder) => {
         if (workOrder.status === 'Completed' || workOrder.status === 'Closed') {
           return 100;
@@ -371,62 +392,62 @@
         } else if (workOrder.status === 'Draft' || workOrder.status === 'Planned') {
           return 0;
         }
-        
+
         // Calculate based on completed operations if available
         if (workOrder.operations_count && workOrder.completed_operations_count) {
           return Math.round((workOrder.completed_operations_count / workOrder.operations_count) * 100);
         }
-        
+
         // Default progress for 'In Progress' status
         return workOrder.status === 'In Progress' ? 50 : 0;
       };
-      
+
       const getProgressClass = (status) => {
         switch (status) {
           case 'In Progress': return 'progress-warning';
-          case 'Completed': 
+          case 'Completed':
           case 'Closed': return 'progress-success';
           default: return 'progress-primary';
         }
       };
-      
+
       // Modal confirmation methods
       const confirmDelete = (item) => {
         selectedItem.value = item;
-        modalTitle.value = 'Delete Work Order';
-        modalMessage.value = `Are you sure you want to delete work order <strong>${item.wo_number}</strong>?<br>This action cannot be undone.`;
+        modalTitle.value = 'Delete Job Order';
+        modalMessage.value = `Are you sure you want to delete Job order <strong>${item.wo_number}</strong>?<br>This action cannot be undone.`;
         modalConfirmText.value = 'Delete';
         modalConfirmClass.value = 'btn btn-danger';
         modalAction.value = 'delete';
         showModal.value = true;
       };
-      
+
       const confirmRelease = (item) => {
         selectedItem.value = item;
-        modalTitle.value = 'Release Work Order';
-        modalMessage.value = `Are you sure you want to release work order <strong>${item.wo_number}</strong>?<br>Once released, it cannot be edited or deleted.`;
+        modalTitle.value = 'Release Job Order';
+        modalMessage.value = `Are you sure you want to release job order <strong>${item.wo_number}</strong>?<br>Once released, it cannot be edited or deleted.`;
         modalConfirmText.value = 'Release';
         modalConfirmClass.value = 'btn btn-success';
         modalAction.value = 'release';
         showModal.value = true;
       };
-      
+
       const confirmStart = (item) => {
         selectedItem.value = item;
         modalTitle.value = 'Start Production';
-        modalMessage.value = `Are you sure you want to start production for work order <strong>${item.wo_number}</strong>?`;
+        modalMessage.value = `Are you sure you want to start production for job order <strong>${item.wo_number}</strong>?`;
         modalConfirmText.value = 'Start';
         modalConfirmClass.value = 'btn btn-success';
         modalAction.value = 'start';
         showModal.value = true;
       };
-      
+
       const handleModalConfirm = async () => {
         if (!selectedItem.value) return;
-        
+
         try {
           const woId = selectedItem.value.wo_id;
-          
+
           if (modalAction.value === 'delete') {
             await axios.delete(`/work-orders/${woId}`);
             fetchWorkOrders();
@@ -443,12 +464,12 @@
           showModal.value = false;
         }
       };
-      
+
       // Lifecycle hooks
       onMounted(() => {
         fetchWorkOrders();
       });
-      
+
       return {
         workOrders,
         isLoading,
@@ -485,7 +506,7 @@
     }
   };
   </script>
-  
+
   <style scoped>
   /* Container styling */
 .work-orders-page {
@@ -707,6 +728,50 @@ select.form-control {
   border-bottom: none;
 }
 
+/* Item cell and link styling */
+.item-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.item-link {
+  color: #1e293b;
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.15s ease-in-out;
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.25rem;
+  display: inline-block;
+  margin: -0.125rem -0.25rem;
+}
+
+.item-link:hover {
+  color: #3b82f6;
+  text-decoration: none;
+  background-color: rgba(59, 130, 246, 0.1);
+  transform: translateY(-1px);
+}
+
+.item-link:focus {
+  outline: 0;
+  box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.25);
+}
+
+.item-link:visited {
+  color: #475569;
+}
+
+.item-link:active {
+  transform: translateY(0);
+}
+
+.item-code {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-family: 'Courier New', monospace;
+  margin-top: 0.25rem;
+}
+
 /* Status badges */
 .badge {
   display: inline-flex;
@@ -909,6 +974,14 @@ select.form-control {
   padding: 0.75rem;
 }
 
+.text-muted {
+  color: #64748b;
+}
+
+.d-block {
+  display: block;
+}
+
 /* Pagination */
 .pagination-container {
   margin-top: 2rem;
@@ -928,47 +1001,58 @@ select.form-control {
   .work-orders-page {
     padding: 1rem;
   }
-  
+
   .card-header {
     flex-direction: column;
     align-items: flex-start;
   }
-  
+
   .card-header .btn {
     margin-top: 1rem;
     align-self: stretch;
   }
-  
+
   .filter-section {
     display: flex;
     flex-direction: column;
   }
-  
+
   .status-card .card-body {
     padding: 1rem;
   }
-  
+
   .status-icon {
     width: 2.5rem;
     height: 2.5rem;
     font-size: 1rem;
   }
-  
+
   .status-count {
     font-size: 1.5rem;
   }
-  
+
   :deep(.data-table) {
     font-size: 0.85rem;
   }
-  
+
   :deep(.data-table th),
   :deep(.data-table td) {
     padding: 0.75rem 0.5rem;
   }
-  
+
   .actions-cell {
     flex-wrap: wrap;
+  }
+
+  .item-link {
+    font-size: 0.875rem;
+    word-break: break-word;
+    padding: 0.25rem 0.375rem;
+    margin: -0.25rem -0.375rem;
+  }
+
+  .item-code {
+    font-size: 0.7rem;
   }
 }
 
@@ -976,16 +1060,26 @@ select.form-control {
   .status-summary {
     grid-template-columns: 1fr;
   }
-  
+
   .status-card .card-body {
     justify-content: center;
     text-align: center;
     flex-direction: column;
   }
-  
+
   .status-icon {
     margin-right: 0;
     margin-bottom: 0.5rem;
+  }
+}
+
+/* Print styles */
+@media print {
+  .item-link {
+    color: #000 !important;
+    text-decoration: underline !important;
+    background-color: transparent !important;
+    transform: none !important;
   }
 }
   </style>

@@ -2,24 +2,52 @@
 <template>
     <div class="production-order-list">
       <div class="page-header">
-        <h1>Production Orders</h1>
+        <h1>Job Process</h1>
         <div class="actions">
           <router-link to="/manufacturing/production-orders/create" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Create Production Order
+            <i class="fas fa-plus"></i> Create Job Process
           </router-link>
         </div>
       </div>
 
-      <div class="filters-container">
-        <SearchFilter
-          placeholder="Search production orders..."
-          v-model:value="searchQuery"
-          @search="fetchProductionOrders"
-        >
-          <template #filters>
-            <div class="filter-group">
-              <label for="status-filter">Status</label>
-              <select id="status-filter" v-model="statusFilter" @change="fetchProductionOrders">
+      <!-- Improved Filters Section -->
+      <div class="filters-section">
+        <div class="filters-card">
+          <!-- Search Bar -->
+          <div class="search-container">
+            <div class="search-input-wrapper">
+              <i class="fas fa-search search-icon"></i>
+              <input
+                type="text"
+                class="search-input"
+                placeholder="Search Job Process by number, Job order, or product..."
+                v-model="searchQuery"
+                @input="debounceSearch"
+              >
+              <button
+                v-if="searchQuery"
+                @click="clearSearch"
+                class="clear-search-btn"
+                type="button"
+              >
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Filters Row -->
+          <div class="filters-row">
+            <div class="filter-item">
+              <label for="status-filter" class="filter-label">
+                <i class="fas fa-flag"></i>
+                Status
+              </label>
+              <select
+                id="status-filter"
+                v-model="statusFilter"
+                @change="fetchProductionOrders"
+                class="filter-select"
+              >
                 <option value="">All Statuses</option>
                 <option value="Draft">Draft</option>
                 <option value="In Progress">In Progress</option>
@@ -27,29 +55,91 @@
                 <option value="Cancelled">Cancelled</option>
               </select>
             </div>
-            <div class="filter-group">
-              <label for="date-filter">Date Range</label>
-              <div class="date-range">
-                <input type="date" v-model="startDate" @change="fetchProductionOrders">
-                <span>to</span>
-                <input type="date" v-model="endDate" @change="fetchProductionOrders">
+
+            <div class="filter-item date-filter">
+              <label class="filter-label">
+                <i class="fas fa-calendar-alt"></i>
+                Date Range
+              </label>
+              <div class="date-range-wrapper">
+                <div class="date-input-group">
+                  <input
+                    type="date"
+                    v-model="startDate"
+                    @change="fetchProductionOrders"
+                    class="date-input"
+                    placeholder="Start Date"
+                  >
+                  <span class="date-separator">to</span>
+                  <input
+                    type="date"
+                    v-model="endDate"
+                    @change="fetchProductionOrders"
+                    class="date-input"
+                    placeholder="End Date"
+                  >
+                </div>
               </div>
             </div>
-          </template>
-        </SearchFilter>
+
+            <!-- Filter Actions -->
+            <div class="filter-actions">
+              <button
+                @click="resetFilters"
+                class="btn btn-outline-secondary btn-sm"
+                :disabled="!hasActiveFilters"
+              >
+                <i class="fas fa-undo"></i>
+                Reset
+              </button>
+              <button
+                @click="fetchProductionOrders"
+                class="btn btn-primary btn-sm"
+              >
+                <i class="fas fa-search"></i>
+                Apply
+              </button>
+            </div>
+          </div>
+
+          <!-- Active Filters Display -->
+          <div v-if="hasActiveFilters" class="active-filters">
+            <span class="active-filters-label">Active Filters:</span>
+            <div class="filter-tags">
+              <span v-if="searchQuery" class="filter-tag">
+                Search: "{{ searchQuery }}"
+                <button @click="searchQuery = ''; fetchProductionOrders()" class="remove-filter">
+                  <i class="fas fa-times"></i>
+                </button>
+              </span>
+              <span v-if="statusFilter" class="filter-tag">
+                Status: {{ statusFilter }}
+                <button @click="statusFilter = ''; fetchProductionOrders()" class="remove-filter">
+                  <i class="fas fa-times"></i>
+                </button>
+              </span>
+              <span v-if="startDate || endDate" class="filter-tag">
+                Date: {{ formatDateRange() }}
+                <button @click="clearDateRange()" class="remove-filter">
+                  <i class="fas fa-times"></i>
+                </button>
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div v-if="loading" class="loading-container">
         <i class="fas fa-spinner fa-spin"></i>
-        <span>Loading production orders...</span>
+        <span>Loading Job Process...</span>
       </div>
 
       <div v-else-if="productionOrders.length === 0" class="empty-state">
         <i class="fas fa-clipboard-list"></i>
-        <h3>No Production Orders Found</h3>
-        <p>No production orders match your search criteria or no production orders have been created yet.</p>
+        <h3>No Job Process Found</h3>
+        <p>No Job Process match your search criteria or no Job Process have been created yet.</p>
         <router-link to="/manufacturing/production-orders/create" class="btn btn-primary">
-          Create Production Order
+          Create Job Process
         </router-link>
       </div>
 
@@ -87,42 +177,57 @@
               <th>Actions</th>
             </tr>
           </thead>
-          <tbody>
+          <!-- Ubah bagian kolom Product di tabel (sekitar line 180-190) -->
+            <tbody>
             <tr v-for="order in sortedProductionOrders" :key="order.production_id">
-              <td>{{ order.production_number }}</td>
-              <td>{{ formatDate(order.production_date) }}</td>
-              <td>{{ order.work_order?.wo_number || 'N/A' }}</td>
-              <td>{{ order.work_order?.item?.item_code || 'N/A' }}</td>
-              <td>{{ order.planned_quantity }}</td>
-              <td>{{ order.actual_quantity }}</td>
-              <td>
+                <td>{{ order.production_number }}</td>
+                <td>{{ formatDate(order.production_date) }}</td>
+                <td>{{ order.work_order?.wo_number || 'N/A' }}</td>
+                <!-- KOLOM PRODUCT YANG DIUBAH -->
+                <td>
+                <router-link
+                    v-if="order.work_order?.item && order.work_order.item.item_id"
+                    :to="`/items/${order.work_order.item.item_id}`"
+                    class="item-link"
+                    :title="`View details for ${order.work_order.item.name || order.work_order.item.item_code}`"
+                >
+                    {{ order.work_order.item.name || order.work_order.item.item_code || 'Unknown Product' }}
+                </router-link>
+                <span v-else class="text-muted">Unknown Product</span>
+                <small v-if="order.work_order?.item?.item_code" class="text-muted item-code d-block">
+                    {{ order.work_order.item.item_code }}
+                </small>
+                </td>
+                <td>{{ order.planned_quantity }}</td>
+                <td>{{ order.actual_quantity }}</td>
+                <td>
                 <span class="status-badge" :class="getStatusClass(order.status)">
-                  {{ order.status }}
+                    {{ order.status }}
                 </span>
-              </td>
-              <td class="actions-cell">
+                </td>
+                <td class="actions-cell">
                 <router-link :to="`/manufacturing/production-orders/${order.production_id}`"
                             class="btn btn-sm btn-info" title="View">
-                  <i class="fas fa-eye"></i>
+                    <i class="fas fa-eye"></i>
                 </router-link>
                 <router-link v-if="order.status === 'Draft'"
                             :to="`/manufacturing/production-orders/${order.production_id}/edit`"
                             class="btn btn-sm btn-primary" title="Edit">
-                  <i class="fas fa-edit"></i>
+                    <i class="fas fa-edit"></i>
                 </router-link>
                 <router-link v-if="order.status === 'In Progress'"
                             :to="`/manufacturing/production-orders/${order.production_id}/complete`"
                             class="btn btn-sm btn-success" title="Complete">
-                  <i class="fas fa-check"></i>
+                    <i class="fas fa-check"></i>
                 </router-link>
                 <button v-if="order.status === 'Draft'"
                         @click="confirmDelete(order)"
                         class="btn btn-sm btn-danger" title="Delete">
-                  <i class="fas fa-trash"></i>
+                    <i class="fas fa-trash"></i>
                 </button>
-              </td>
+                </td>
             </tr>
-          </tbody>
+            </tbody>
         </table>
       </div>
 
@@ -140,8 +245,8 @@
       <!-- Confirmation Modal -->
       <ConfirmationModal
         v-if="showDeleteModal"
-        title="Delete Production Order"
-        :message="`Are you sure you want to delete production order <strong>${selectedOrder?.production_number}</strong>? This action cannot be undone.`"
+        title="Delete Job Process"
+        :message="`Are you sure you want to delete Job Process <strong>${selectedOrder?.production_number}</strong>? This action cannot be undone.`"
         confirm-button-text="Delete"
         confirm-button-class="btn btn-danger"
         @confirm="deleteProductionOrder"
@@ -171,7 +276,8 @@
         sortKey: 'production_date',
         sortOrder: 'desc',
         showDeleteModal: false,
-        selectedOrder: null
+        selectedOrder: null,
+        searchTimeout: null
       };
     },
     computed: {
@@ -187,6 +293,9 @@
             return 0;
           }
         });
+      },
+      hasActiveFilters() {
+        return this.searchQuery || this.statusFilter || this.startDate || this.endDate;
       }
     },
     created() {
@@ -228,11 +337,48 @@
             this.calculatePagination();
           }
         } catch (error) {
-          console.error('Error fetching production orders:', error);
-          this.$toast.error('Failed to load production orders');
+          console.error('Error fetching Job Process:', error);
+          this.$toast.error('Failed to load Job Process');
         } finally {
           this.loading = false;
         }
+      },
+
+      debounceSearch() {
+        clearTimeout(this.searchTimeout);
+        this.searchTimeout = setTimeout(() => {
+          this.fetchProductionOrders();
+        }, 500);
+      },
+
+      clearSearch() {
+        this.searchQuery = '';
+        this.fetchProductionOrders();
+      },
+
+      resetFilters() {
+        this.searchQuery = '';
+        this.statusFilter = '';
+        this.startDate = '';
+        this.endDate = '';
+        this.fetchProductionOrders();
+      },
+
+      clearDateRange() {
+        this.startDate = '';
+        this.endDate = '';
+        this.fetchProductionOrders();
+      },
+
+      formatDateRange() {
+        if (this.startDate && this.endDate) {
+          return `${this.formatDate(this.startDate)} - ${this.formatDate(this.endDate)}`;
+        } else if (this.startDate) {
+          return `From ${this.formatDate(this.startDate)}`;
+        } else if (this.endDate) {
+          return `Until ${this.formatDate(this.endDate)}`;
+        }
+        return '';
       },
 
       calculatePagination() {
@@ -285,7 +431,7 @@
           this.fetchProductionOrders();
         } catch (error) {
           console.error('Error deleting production order:', error);
-          this.$toast.error('Failed to delete production order');
+          this.$toast.error('Failed to delete Job Process');
         } finally {
           this.showDeleteModal = false;
           this.selectedOrder = null;
@@ -312,16 +458,252 @@
     margin-bottom: 1.5rem;
   }
 
-  .filters-container {
+  /* Enhanced Filters Section */
+  .filters-section {
     margin-bottom: 1.5rem;
   }
 
-  .date-range {
+  .filters-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  }
+
+  /* Search Container */
+  .search-container {
+    margin-bottom: 1.25rem;
+  }
+
+  .search-input-wrapper {
+    position: relative;
+    max-width: 500px;
+  }
+
+  .search-input {
+    width: 100%;
+    padding: 0.75rem 2.5rem 0.75rem 2.5rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+  }
+
+  .search-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 0.875rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6b7280;
+    font-size: 0.875rem;
+  }
+
+  .clear-search-btn {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 3px;
+    transition: color 0.2s ease;
+  }
+
+  .clear-search-btn:hover {
+    color: #374151;
+    background-color: #f3f4f6;
+  }
+
+  /* Filters Row */
+  .filters-row {
+    display: grid;
+    grid-template-columns: 200px 1fr auto;
+    gap: 1.5rem;
+    align-items: end;
+  }
+
+  .filter-item {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .filter-label {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 0.5rem;
   }
 
+  .filter-label i {
+    color: #6b7280;
+  }
+
+  .filter-select {
+    padding: 0.625rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background-color: white;
+    transition: border-color 0.2s ease;
+  }
+
+  .filter-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  /* Date Filter */
+  .date-filter {
+    min-width: 280px;
+  }
+
+  .date-range-wrapper {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .date-input-group {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .date-input {
+    flex: 1;
+    padding: 0.625rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    transition: border-color 0.2s ease;
+  }
+
+  .date-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  .date-separator {
+    color: #6b7280;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  /* Filter Actions */
+  .filter-actions {
+    display: flex;
+    gap: 0.75rem;
+  }
+
+  .btn {
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+  }
+
+  .btn-primary {
+    background-color: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+  }
+
+  .btn-primary:hover {
+    background-color: #2563eb;
+    border-color: #2563eb;
+  }
+
+  .btn-outline-secondary {
+    background-color: transparent;
+    color: #6b7280;
+    border-color: #d1d5db;
+  }
+
+  .btn-outline-secondary:hover:not(:disabled) {
+    background-color: #f9fafb;
+    color: #374151;
+  }
+
+  .btn-outline-secondary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8rem;
+  }
+
+  /* Active Filters */
+  .active-filters {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .active-filters-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+    margin-right: 0.75rem;
+  }
+
+  .filter-tags {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .filter-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: #eff6ff;
+    color: #1e40af;
+    padding: 0.25rem 0.75rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    border: 1px solid #bfdbfe;
+  }
+
+  .remove-filter {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 0.25rem;
+    font-size: 0.7rem;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+  }
+
+  .remove-filter:hover {
+    opacity: 1;
+  }
+
+  /* Table Styles */
   .table {
     width: 100%;
     border-collapse: collapse;
@@ -418,6 +800,18 @@
     margin-top: 1.5rem;
   }
 
+  /* Responsive Design */
+  @media (max-width: 1024px) {
+    .filters-row {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+
+    .filter-actions {
+      justify-content: flex-end;
+    }
+  }
+
   @media (max-width: 768px) {
     .page-header {
       flex-direction: column;
@@ -429,13 +823,48 @@
       width: 100%;
     }
 
+    .filters-card {
+      padding: 1rem;
+    }
+
+    .search-input-wrapper {
+      max-width: none;
+    }
+
+    .date-input-group {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .date-separator {
+      align-self: center;
+      margin: 0.25rem 0;
+    }
+
+    .filter-actions {
+      flex-direction: column;
+    }
+
+    .filter-tags {
+      margin-top: 0.5rem;
+    }
+
     .table-responsive {
       overflow-x: auto;
     }
+  }
 
-    .date-range {
-      flex-direction: column;
-      align-items: flex-start;
+  @media (max-width: 480px) {
+    .filters-card {
+      padding: 0.75rem;
+    }
+
+    .filter-actions {
+      gap: 0.5rem;
+    }
+
+    .btn {
+      justify-content: center;
     }
   }
   </style>

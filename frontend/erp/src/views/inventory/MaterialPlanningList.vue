@@ -81,7 +81,7 @@
         <i class="fas fa-spinner fa-spin fa-2x"></i>
         <p class="mt-2">Loading material planning data...</p>
       </div>
-      
+
       <div v-else-if="groupedPlans.length === 0" class="text-center py-5">
         <i class="fas fa-boxes fa-3x text-muted mb-3"></i>
         <h4>No material plans available</h4>
@@ -89,7 +89,7 @@
           Try adjusting your filters or generate material plans first
         </p>
       </div>
-      
+
       <div v-else class="card-body">
         <div v-for="(group, index) in groupedPlans" :key="index" class="mb-5">
           <div class="d-flex justify-content-between align-items-center mb-3">
@@ -164,49 +164,49 @@
                           <span class="planning-value font-weight-bold">{{ formatNumber(getPeriodData(item, period).net_requirement) }}</span>
                         </div>
                         <div class="planning-row">
-                          <span class="planning-label">Planned:</span>
+                          <span class="planning-label">Plan Order:</span>
                           <span class="planning-value">{{ formatNumber(getPeriodData(item, period).planned_order_quantity) }}</span>
                         </div>
                       </div>
                     </td>
                     <td class="text-center action-column">
                       <div class="action-buttons">
-                        <button 
-                          class="btn-icon" 
+                        <button
+                          class="btn-icon"
                           @click="viewDetails(item)"
                           title="View Details"
                         >
                           <i class="fas fa-eye"></i>
                         </button>
-                        <button 
-                          v-if="item.status === 'Draft'" 
-                          class="btn-icon btn-icon-edit" 
+                        <button
+                          v-if="item.status === 'Draft'"
+                          class="btn-icon btn-icon-edit"
                           @click="editPlan(item)"
                           title="Edit"
                         >
                           <i class="fas fa-pencil-alt"></i>
                         </button>
-                        <button 
-                          v-if="item.status === 'Draft'" 
-                          class="btn-icon btn-icon-danger" 
+                        <button
+                          v-if="item.status === 'Draft'"
+                          class="btn-icon btn-icon-danger"
                           @click="deletePlan(item)"
                           title="Delete"
                         >
                           <i class="fas fa-trash"></i>
                         </button>
                         <!-- Generate WO Button for Finished Goods -->
-                        <button 
-                          v-if="item.material_type === 'FG' && item.status === 'Draft' && hasPositiveNetRequirement(item)" 
-                          class="btn-icon btn-icon-manufacturing" 
+                        <button
+                          v-if="item.material_type === 'FG' && item.status === 'Draft' && hasPositiveNetRequirement(item)"
+                          class="btn-icon btn-icon-manufacturing"
                           @click="generateWorkOrder(item)"
                           title="Generate Work Order"
                         >
                           <i class="fas fa-cogs"></i>
                         </button>
                         <!-- Generate PR Button for Raw Materials -->
-                        <button 
-                          v-if="item.material_type === 'RM' && item.status === 'Draft' && hasPositiveNetRequirement(item)" 
-                          class="btn-icon btn-icon-success" 
+                        <button
+                          v-if="item.material_type === 'RM' && item.status === 'Draft' && hasPositiveNetRequirement(item)"
+                          class="btn-icon btn-icon-success"
                           @click="generatePurchaseRequisition(item)"
                           title="Generate Purchase Requisition"
                         >
@@ -220,7 +220,7 @@
             </div>
           </div>
         </div>
-        
+
         <PaginationComponent
           :current-page="currentPage"
           :total-pages="totalPages"
@@ -485,7 +485,7 @@ export default {
       try {
         const periodRange = this.generateSixMonthPeriodRange(this.filters.startPeriod);
         let allPlans = [];
-        
+
         // Build params with filters
         const params = {
           search: this.filters.search,
@@ -493,16 +493,16 @@ export default {
           status: this.filters.status,
           per_page: 2000
         };
-        
+
         // Remove empty filters to avoid sending empty strings
         Object.keys(params).forEach(key => {
           if (params[key] === '' || params[key] === null || params[key] === undefined) {
             delete params[key];
           }
         });
-        
+
         const response = await axios.get('/material-planning', { params });
-        
+
         if (response.data.data) {
           // Filter data to only include our 6-month range
           allPlans = response.data.data.filter(plan => {
@@ -510,13 +510,13 @@ export default {
             return periodRange.includes(planPeriod);
           });
         }
-        
+
         // Store all filtered plans
         this.allFilteredPlans = allPlans;
-        
+
         // Reset to page 1 when fetchPlans is called (usually when filters change)
         this.implementFrontendPagination(page);
-        
+
       } catch (error) {
         console.error('Error fetching plans:', error);
         alert('Failed to fetch material plans');
@@ -534,31 +534,31 @@ export default {
 
     implementFrontendPagination(page = 1) {
       const itemsPerPage = 20;
-      
+
       // First, process all data to get all items
       this.processAllDataForItems();
-      
+
       // Get all items from processed data
       let allItems = [];
       this.allGroupedPlans.forEach(group => {
         allItems = [...allItems, ...group.items];
       });
-      
+
       // Calculate pagination
       this.total = allItems.length;
       this.totalPages = Math.ceil(allItems.length / itemsPerPage) || 1;
       this.currentPage = Math.min(Math.max(page, 1), this.totalPages);
-      
+
       // Calculate start and end indices
       const startIndex = (this.currentPage - 1) * itemsPerPage;
       const endIndex = startIndex + itemsPerPage;
-      
+
       this.from = this.total > 0 ? startIndex + 1 : 0;
       this.to = Math.min(endIndex, this.total);
-      
+
       // Get items for current page
       const paginatedItems = allItems.slice(startIndex, endIndex);
-      
+
       // Group paginated items back by material type
       const paginatedGroups = new Map();
       paginatedItems.forEach(item => {
@@ -570,7 +570,7 @@ export default {
         }
         paginatedGroups.get(item.material_type).items.push(item);
       });
-      
+
       // Convert to array and sort
       this.groupedPlans = Array.from(paginatedGroups.values()).sort(a => {
         return a.material_type === 'FG' ? -1 : 1;
@@ -580,14 +580,14 @@ export default {
     // New method to process all data and store complete grouped items
     processAllDataForItems() {
       const plans = this.allFilteredPlans || [];
-      
+
       this.periodRange = this.generateSixMonthPeriodRange(this.filters.startPeriod);
-      
+
       const itemsMap = new Map();
-      
+
       plans.forEach(plan => {
         if (!plan.item) return;
-        
+
         const itemKey = plan.item.item_id;
         if (!itemsMap.has(itemKey)) {
           itemsMap.set(itemKey, {
@@ -599,7 +599,7 @@ export default {
             periods: {}
           });
         }
-        
+
         const period = plan.planning_period.substring(0, 7);
         itemsMap.get(itemKey).periods[period] = {
           plan_id: plan.plan_id,
@@ -611,7 +611,7 @@ export default {
           status: plan.status
         };
       });
-      
+
       // Group all items by material type (store complete data)
       const materialGroups = new Map();
       for (const item of itemsMap.values()) {
@@ -623,11 +623,11 @@ export default {
         }
         materialGroups.get(item.material_type).items.push(item);
       }
-      
+
       this.allGroupedPlans = Array.from(materialGroups.values()).sort(a => {
         return a.material_type === 'FG' ? -1 : 1;
       });
-      
+
       // Sort items within each group by item code
       this.allGroupedPlans.forEach(group => {
         group.items.sort((a, b) => a.item_code.localeCompare(b.item_code));
@@ -636,14 +636,14 @@ export default {
 
     processDataForHorizontalView(plansData = null) {
       const plans = plansData || this.allFilteredPlans || [];
-      
+
       this.periodRange = this.generateSixMonthPeriodRange(this.filters.startPeriod);
-      
+
       const itemsMap = new Map();
-      
+
       plans.forEach(plan => {
         if (!plan.item) return;
-        
+
         const itemKey = plan.item.item_id;
         if (!itemsMap.has(itemKey)) {
           itemsMap.set(itemKey, {
@@ -655,7 +655,7 @@ export default {
             periods: {}
           });
         }
-        
+
         const period = plan.planning_period.substring(0, 7);
         itemsMap.get(itemKey).periods[period] = {
           plan_id: plan.plan_id,
@@ -667,7 +667,7 @@ export default {
           status: plan.status
         };
       });
-      
+
       // If this is called from implementFrontendPagination, return the items
       if (plansData) {
         const materialGroups = new Map();
@@ -680,11 +680,11 @@ export default {
           }
           materialGroups.get(item.material_type).items.push(item);
         }
-        
+
         this.groupedPlans = Array.from(materialGroups.values()).sort(a => {
           return a.material_type === 'FG' ? -1 : 1;
         });
-        
+
         this.groupedPlans.forEach(group => {
           group.items.sort((a, b) => a.item_code.localeCompare(b.item_code));
         });
@@ -694,14 +694,14 @@ export default {
     handlePageChange(page) {
       this.implementFrontendPagination(page);
     },
-    
+
     generateSixMonthPeriodRange(startPeriod) {
       const periods = [];
       if (!startPeriod) return periods;
-      
+
       const [year, month] = startPeriod.split('-').map(num => parseInt(num, 10));
       const startDate = new Date(year, month - 1); // Month is 0-indexed in Date
-      
+
       for (let i = 0; i < 6; i++) {
         const currentDate = new Date(startDate);
         currentDate.setMonth(startDate.getMonth() + i);
@@ -709,10 +709,10 @@ export default {
         const currentMonth = (currentDate.getMonth() + 1).toString().padStart(2, '0');
         periods.push(`${currentYear}-${currentMonth}`);
       }
-      
+
       return periods;
     },
-    
+
     getPeriodData(item, period) {
       return item.periods[period] || {
         forecast_quantity: 0,
@@ -723,7 +723,7 @@ export default {
         is_empty: true
       };
     },
-    
+
     hasPositiveNetRequirement(item) {
       for (const periodData of Object.values(item.periods)) {
         if (periodData.net_requirement > 0) {
@@ -732,13 +732,13 @@ export default {
       }
       return false;
     },
-    
+
     formatPeriodHeader(period) {
       const [year, month] = period.split('-');
       const date = new Date(year, parseInt(month) - 1, 1);
       return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
     },
-    
+
     async fetchItemOptions() {
       try {
         const response = await axios.get('/items');
@@ -750,13 +750,13 @@ export default {
         console.error('Error fetching items:', error);
       }
     },
-    
+
     async generatePlans() {
       if (!this.generateForm.startPeriod || !this.generateForm.bufferPercentage) {
         alert('Please fill in all required fields');
         return;
       }
-      
+
       this.isGenerating = true;
       try {
         const payload = {
@@ -764,7 +764,7 @@ export default {
           buffer_percentage: this.generateForm.bufferPercentage,
           item_ids: this.generateForm.itemIds.map(item => item.value)
         };
-        
+
         const response = await axios.post('/material-planning/generate', payload);
         this.closeGenerateModal();
         this.fetchPlans();
@@ -776,13 +776,13 @@ export default {
         this.isGenerating = false;
       }
     },
-    
+
     async submitWO() {
       if (!this.woForm.plannedStartDate || !this.woForm.leadTimeDays) {
         alert('Please fill in all required fields');
         return;
       }
-      
+
       this.isGeneratingWO = true;
       try {
         const payload = {
@@ -790,17 +790,17 @@ export default {
           planned_start_date: this.woForm.plannedStartDate,
           lead_time_days: this.woForm.leadTimeDays
         };
-        
+
         const response = await axios.post('/material-planning/work-orders', payload);
-        
+
         this.closeWOModal();
         this.fetchPlans();
-        
+
         // Show success message with work order details
         if (response.data.data && response.data.data.length > 0) {
           const woNumbers = response.data.data.map(wo => wo.wo_number).join(', ');
           alert(`${response.data.message}\nWork Order Numbers: ${woNumbers}`);
-          
+
           // Optionally redirect to work order list
           // this.$router.push('/manufacturing/work-orders');
         } else {
@@ -814,27 +814,27 @@ export default {
         this.isGeneratingWO = false;
       }
     },
-    
+
     async submitPR() {
       if (!this.prForm.leadTimeDays) {
         alert('Please fill in all required fields');
         return;
       }
-      
+
       this.isGeneratingPR = true;
       try {
         const payload = {
           period: this.prForm.period + '-01',
           lead_time_days: this.prForm.leadTimeDays
         };
-        
+
         const response = await axios.post('/material-planning/purchase-requisition', payload);
-        
+
         if (response.data.data) {
           // Redirect to PR detail page
           this.$router.push(`/purchasing/requisitions/${response.data.data.pr_id}`);
         }
-        
+
         this.closePRModal();
         this.fetchPlans();
         alert(response.data.message);
@@ -846,7 +846,7 @@ export default {
         this.isGeneratingPR = false;
       }
     },
-    
+
     viewDetails(item) {
       // Find the first plan_id for this item
       for (const periodData of Object.values(item.periods)) {
@@ -856,7 +856,7 @@ export default {
         }
       }
     },
-    
+
     editPlan(item) {
       // Find the first plan_id for this item
       for (const periodData of Object.values(item.periods)) {
@@ -866,7 +866,7 @@ export default {
         }
       }
     },
-    
+
     deletePlan(item) {
       // Find the first plan_id for this item
       for (const periodData of Object.values(item.periods)) {
@@ -877,7 +877,7 @@ export default {
         }
       }
     },
-    
+
     async confirmDelete() {
       try {
         await axios.delete(`/material-planning/${this.deleteItemId}`);
@@ -890,7 +890,7 @@ export default {
         this.closeDeleteModal();
       }
     },
-    
+
     generateWorkOrder(item) {
       this.selectedPlan = item;
       // Get the first period with positive net requirement
@@ -905,7 +905,7 @@ export default {
         }
       }
     },
-    
+
     generatePurchaseRequisition(item) {
       this.selectedPlan = item;
       // Get the first period with positive net requirement
@@ -917,16 +917,16 @@ export default {
         }
       }
     },
-    
+
     exportPlans() {
       // Implementation for export functionality
       console.log('Exporting plans...');
     },
-    
+
     formatNumber(value) {
       return Number(value).toLocaleString();
     },
-    
+
     toggleGroupExpand(materialType) {
       const index = this.expandedGroups.indexOf(materialType);
       if (index === -1) {
@@ -935,7 +935,7 @@ export default {
         this.expandedGroups.splice(index, 1);
       }
     },
-    
+
     closeGenerateModal() {
       this.showGenerateModal = false;
       this.generateForm = {
@@ -944,7 +944,7 @@ export default {
         itemIds: []
       };
     },
-    
+
     closeWOModal() {
       this.showWOModal = false;
       this.woForm = {
@@ -954,7 +954,7 @@ export default {
       };
       this.selectedPlan = null;
     },
-    
+
     closePRModal() {
       this.showPRModal = false;
       this.prForm = {
@@ -963,12 +963,12 @@ export default {
       };
       this.selectedPlan = null;
     },
-    
+
     closeDeleteModal() {
       this.showDeleteModal = false;
       this.deleteItemId = null;
     },
-    
+
   }
 };
 </script>
@@ -1457,11 +1457,11 @@ export default {
     max-width: 50%;
     margin-bottom: 1rem;
   }
-  
+
   .filter-controls {
     padding: 1.25rem;
   }
-  
+
   .card-body {
     padding: 1.25rem;
   }
@@ -1471,23 +1471,23 @@ export default {
   .material-planning-container {
     padding: 1rem;
   }
-  
+
   .col-md-3 {
     width: 100%;
     flex: 0 0 100%;
     max-width: 100%;
   }
-  
+
   .page-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 1rem;
   }
-  
+
   .header-actions {
     width: 100%;
   }
-  
+
   .table thead th,
   .table tbody td {
     padding: 0.6rem;

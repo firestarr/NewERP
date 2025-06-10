@@ -18,7 +18,7 @@
       </div>
 
       <div class="page-header">
-        <h1>Production Order Details</h1>
+        <h1>Job Process Details</h1>
         <div class="actions">
           <router-link to="/manufacturing/production-orders" class="btn btn-secondary">
             <i class="fas fa-arrow-left"></i> Back to List
@@ -130,22 +130,22 @@
 
       <div v-if="loading" class="loading-container">
         <i class="fas fa-spinner fa-spin"></i>
-        <span>Loading production order details...</span>
+        <span>Loading Job Process details...</span>
       </div>
 
       <div v-else-if="!productionOrder" class="error-container">
         <i class="fas fa-exclamation-triangle"></i>
-        <h3>Production Order Not Found</h3>
-        <p>The requested production order could not be found.</p>
+        <h3>Job Process Not Found</h3>
+        <p>The requestedJob Process could not be found.</p>
         <router-link to="/manufacturing/production-orders" class="btn btn-primary">
-          Back to Production Orders
+          Back to Job Process
         </router-link>
       </div>
 
       <div v-else class="detail-content">
         <div class="card detail-card">
           <div class="card-header">
-            <h2>Production Order Information</h2>
+            <h2>Job Process Information</h2>
             <div class="status-badge" :class="getStatusClass(productionOrder.status)">
               {{ productionOrder.status }}
             </div>
@@ -153,11 +153,11 @@
           <div class="card-body">
             <div class="detail-grid">
               <div class="detail-item">
-                <div class="detail-label">Production #</div>
+                <div class="detail-label">Job Process #</div>
                 <div class="detail-value">{{ productionOrder.production_number }}</div>
               </div>
               <div class="detail-item">
-                <div class="detail-label">Production Date</div>
+                <div class="detail-label">Job Process Date</div>
                 <div class="detail-value">{{ formatDate(productionOrder.production_date) }}</div>
               </div>
               <div class="detail-item">
@@ -168,18 +168,35 @@
                   </router-link>
                 </div>
               </div>
-              <div class="detail-item">
+              <!-- <div class="detail-item">
                 <div class="detail-label">Product</div>
                 <div class="detail-value">{{ workOrder?.item?.item_code || 'N/A' }}</div>
               </div>
               <div class="detail-item">
                 <div class="detail-label">Planned Quantity</div>
                 <div class="detail-value">{{ productionOrder.planned_quantity }}</div>
-              </div>
-              <div class="detail-item">
+              </div> -->
+              <!-- <div class="detail-item">
                 <div class="detail-label">Actual Quantity</div>
                 <div class="detail-value">{{ productionOrder.actual_quantity || '0' }}</div>
-              </div>
+              </div> -->
+            <div class="detail-item">
+                <div class="detail-label">Product</div>
+                    <div class="detail-value">
+                        <router-link
+                        v-if="workOrder?.item && workOrder.item.item_id"
+                        :to="`/items/${workOrder.item.item_id}`"
+                        class="item-link"
+                        :title="`View details for ${workOrder.item.name || workOrder.item.item_code}`"
+                        >
+                        {{ workOrder.item.name || workOrder.item.item_code || 'Unknown Product' }}
+                        </router-link>
+                        <span v-else class="text-muted">{{ workOrder?.item?.item_code || 'N/A' }}</span>
+                        <small v-if="workOrder?.item?.item_code" class="text-muted item-code d-block">
+                        {{ workOrder.item.item_code }}
+                        </small>
+                    </div>
+                </div>
             </div>
           </div>
         </div>
@@ -235,33 +252,51 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="consumption in consumptions" :key="consumption.consumption_id">
-                    <td>
-                      <div class="item-name">{{ consumption.item?.name || 'Unknown Item' }}</div>
-                      <div class="item-code">{{ consumption.item?.item_code || '' }}</div>
-                    </td>
-                    <td>{{ consumption.warehouse?.name || 'N/A' }}</td>
-                    <td>{{ consumption.planned_quantity }}</td>
-                    <td class="stock-cell">
-                      <span :class="getStockClass(consumption)">
-                        {{ getAvailableStock(consumption) }}
-                      </span>
-                      <div v-if="getShortage(consumption) > 0" class="shortage-info">
-                        Short: {{ getShortage(consumption) }}
-                      </div>
-                    </td>
-                    <td>{{ consumption.actual_quantity || '0' }}</td>
-                    <td>
-                      <div class="variance" :class="getVarianceClass(consumption)">
-                        {{ getVariance(consumption) }}
-                      </div>
-                    </td>
-                    <td>
-                      <span class="status-badge" :class="getMaterialStatusClass(consumption)">
-                        {{ getMaterialStatus(consumption) }}
-                      </span>
-                    </td>
-                  </tr>
+                    <tr v-for="consumption in consumptions" :key="consumption.consumption_id">
+                        <!-- Kolom Item yang diupdate -->
+                        <td>
+                        <div class="item-info">
+                            <router-link
+                            v-if="consumption.item && consumption.item.item_id"
+                            :to="`/items/${consumption.item.item_id}`"
+                            class="item-link"
+                            :title="`View details for ${consumption.item.name || consumption.item.item_code}`"
+                            >
+                            <div class="item-name">{{ consumption.item.name || consumption.item.item_code || 'Unknown Item' }}</div>
+                            </router-link>
+                            <div v-else class="item-name text-muted">{{ consumption.item?.name || 'Unknown Item' }}</div>
+
+                            <div v-if="consumption.item?.item_code" class="item-code">{{ consumption.item.item_code }}</div>
+
+                            <!-- Optional: Tambahan info item seperti category, unit, dll -->
+                            <div v-if="consumption.item?.category" class="item-category">
+                            <small class="text-muted">{{ consumption.item.category }}</small>
+                            </div>
+                        </div>
+                        </td>
+
+                        <td>{{ consumption.warehouse?.name || 'N/A' }}</td>
+                        <td>{{ consumption.planned_quantity }}</td>
+                        <td class="stock-cell">
+                        <span :class="getStockClass(consumption)">
+                            {{ getAvailableStock(consumption) }}
+                        </span>
+                        <div v-if="getShortage(consumption) > 0" class="shortage-info">
+                            Short: {{ getShortage(consumption) }}
+                        </div>
+                        </td>
+                        <td>{{ consumption.actual_quantity || '0' }}</td>
+                        <td>
+                        <div class="variance" :class="getVarianceClass(consumption)">
+                            {{ getVariance(consumption) }}
+                        </div>
+                        </td>
+                        <td>
+                        <span class="status-badge" :class="getMaterialStatusClass(consumption)">
+                            {{ getMaterialStatus(consumption) }}
+                        </span>
+                        </td>
+                    </tr>
                 </tbody>
               </table>
             </div>
@@ -285,7 +320,7 @@
 
         <div v-if="productionOrder.status === 'Completed'" class="card detail-card">
           <div class="card-header">
-            <h2>Production Summary</h2>
+            <h2>Job Process Summary</h2>
           </div>
           <div class="card-body">
             <div class="summary-stats">
@@ -310,7 +345,7 @@
       <ConfirmationModal
         v-if="showIssueMaterialsModal"
         title="Issue Materials"
-        :message="`Are you sure you want to issue materials for production order <strong>${productionOrder?.production_number}</strong>?<br><br>This will move materials from Raw Materials warehouse to WIP warehouse and change status to 'Materials Issued'.`"
+        :message="`Are you sure you want to issue materials for Job Process <strong>${productionOrder?.production_number}</strong>?<br><br>This will move materials from Raw Materials warehouse to WIP warehouse and change status to 'Materials Issued'.`"
         confirm-button-text="Issue Materials"
         confirm-button-class="btn btn-warning"
         @confirm="issueMaterials"
@@ -320,9 +355,9 @@
       <!-- Start Production Confirmation Modal -->
       <ConfirmationModal
         v-if="showStartModal"
-        title="Start Production"
+        title="Start Job Process"
         :message="`Are you sure you want to start production for <strong>${productionOrder?.production_number}</strong>?<br><br>This will change the status to 'In Progress' and production activities can begin.`"
-        confirm-button-text="Start Production"
+        confirm-button-text="Start Job Process"
         confirm-button-class="btn btn-success"
         @confirm="startProduction"
         @close="cancelStart"
@@ -332,7 +367,7 @@
       <div v-if="showCompleteModal" class="modal-overlay" @click="closeCompleteModal">
         <div class="modal" @click.stop>
           <div class="modal-header">
-            <h3>Complete Production</h3>
+            <h3>Complete Job Process</h3>
             <button @click="closeCompleteModal" class="btn-close">&times;</button>
           </div>
           <div class="modal-body">
@@ -365,7 +400,7 @@
               class="btn btn-success"
               :disabled="!completionForm.actual_quantity || completionForm.actual_quantity <= 0"
             >
-              Complete Production
+              Complete Job Process
             </button>
           </div>
         </div>
@@ -374,9 +409,9 @@
       <!-- Cancel Production Confirmation Modal -->
       <ConfirmationModal
         v-if="showCancelModal"
-        title="Cancel Production"
-        :message="`Are you sure you want to cancel production for <strong>${productionOrder?.production_number}</strong>?<br><br>This will change the status to 'Cancelled'.`"
-        confirm-button-text="Cancel Production"
+        title="Cancel Job Process"
+        :message="`Are you sure you want to cancel Job Process for <strong>${productionOrder?.production_number}</strong>?<br><br>This will change the status to 'Cancelled'.`"
+        confirm-button-text="Cancel Job Process"
         confirm-button-class="btn btn-warning"
         @confirm="cancelProduction"
         @close="cancelCancelAction"
@@ -385,8 +420,8 @@
       <!-- Delete Confirmation Modal -->
       <ConfirmationModal
         v-if="showDeleteModal"
-        title="Delete Production Order"
-        :message="`Are you sure you want to delete production order <strong>${productionOrder?.production_number}</strong>? This action cannot be undone.`"
+        title="Delete Job Process"
+        :message="`Are you sure you want to delete Job Process order <strong>${productionOrder?.production_number}</strong>? This action cannot be undone.`"
         confirm-button-text="Delete"
         confirm-button-class="btn btn-danger"
         @confirm="deleteProductionOrder"
@@ -396,8 +431,8 @@
       <!-- Reactivate Confirmation Modal -->
       <ConfirmationModal
         v-if="showReactivateModal"
-        title="Reactivate Production Order"
-        :message="`Are you sure you want to reactivate production order <strong>${productionOrder?.production_number}</strong>?<br><br>This will change the status back to 'Draft'.`"
+        title="Reactivate Job Process"
+        :message="`Are you sure you want to reactivate Job Process <strong>${productionOrder?.production_number}</strong>?<br><br>This will change the status back to 'Draft'.`"
         confirm-button-text="Reactivate"
         confirm-button-class="btn btn-primary"
         @confirm="reactivateProduction"
@@ -529,8 +564,8 @@
           // Fetch material status
           await this.fetchMaterialStatus();
         } catch (error) {
-          console.error('Error fetching production order:', error);
-          this.showError('Failed to load production order');
+          console.error('Error fetching Job Process:', error);
+          this.showError('Failed to load Job Process');
         } finally {
           this.loading = false;
         }
@@ -626,11 +661,11 @@
         try {
           await axios.post(`/production-orders/${this.productionId}/complete`, this.completionForm);
 
-          this.showSuccess('Production completed successfully');
+          this.showSuccess('Job Process completed successfully');
           this.fetchProductionOrder();
         } catch (error) {
-          console.error('Error completing production:', error);
-          this.showError(error.response?.data?.message || 'Failed to complete production');
+          console.error('Error completing Job Process:', error);
+          this.showError(error.response?.data?.message || 'Failed to complete Job Process');
         } finally {
           this.showCompleteModal = false;
         }
@@ -650,11 +685,11 @@
             status: 'Cancelled'
           });
 
-          this.showSuccess('Production cancelled successfully');
+          this.showSuccess('Job Process cancelled successfully');
           this.fetchProductionOrder();
         } catch (error) {
-          console.error('Error cancelling production:', error);
-          this.showError(error.response?.data?.message || 'Failed to cancel production');
+          console.error('Error cancelling Job Process:', error);
+          this.showError(error.response?.data?.message || 'Failed to cancel Job Process');
         } finally {
           this.showCancelModal = false;
         }
@@ -674,11 +709,11 @@
             status: 'Draft'
           });
 
-          this.showSuccess('Production order reactivated successfully');
+          this.showSuccess('Job Process reactivated successfully');
           this.fetchProductionOrder();
         } catch (error) {
-          console.error('Error reactivating production:', error);
-          this.showError(error.response?.data?.message || 'Failed to reactivate production order');
+          console.error('Error reactivating Job Process:', error);
+          this.showError(error.response?.data?.message || 'Failed to reactivate Job Process');
         } finally {
           this.showReactivateModal = false;
         }
@@ -795,10 +830,10 @@
         try {
           const response = await axios.get(`/production-orders/${this.productionId}/production-summary`);
           // Could navigate to a detailed summary page or show in modal
-          console.log('Production Summary:', response.data);
-          this.showInfo('Production summary loaded - check console for details');
+          console.log('Job Process Summary:', response.data);
+          this.showInfo('Job Process summary loaded - check console for details');
         } catch (error) {
-          this.showError('Failed to load production summary');
+          this.showError('Failed to load Job Process summary');
         }
       },
 

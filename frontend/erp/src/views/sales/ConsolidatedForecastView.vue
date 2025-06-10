@@ -147,9 +147,9 @@
                           <small v-if="period.actual_quantity != null" class="d-block text-muted">
                             Actual: {{ period.actual_quantity }}
                           </small>
-                          <small v-if="period.source" class="badge" :class="getSourceBadgeClass(period.source)">
+                          <!-- <small v-if="period.source" class="badge" :class="getSourceBadgeClass(period.source)">
                             {{ period.source }}
-                          </small>
+                          </small> -->
                         </div>
                       </td>
                       <td class="text-center fw-bold">
@@ -224,7 +224,7 @@ export default {
     },
     async loadConsolidatedForecast() {
       this.loading = true;
-      
+
       try {
         // Prepare the query parameters
         const params = {
@@ -244,15 +244,15 @@ export default {
         }
 
         const response = await axios.get('/forecasts/consolidated', { params });
-        
+
         if (response.data.data) {
           this.forecastData = response.data.data;
-          this.periodRange = response.data.period_range || { 
-            start: '', 
-            end: '', 
-            months: [] 
+          this.periodRange = response.data.period_range || {
+            start: '',
+            end: '',
+            months: []
           };
-          
+
           // Auto-expand if only one customer is present
           if (this.forecastData.length === 1) {
             this.expandedCustomers = [this.forecastData[0].customer_id];
@@ -515,11 +515,11 @@ export default {
   .filter-controls {
     padding: 1.5rem;
   }
-  
+
   .filter-controls .col-md-3 {
     margin-bottom: 1.5rem;
   }
-  
+
   .card-body {
     padding: 1.25rem;
   }
@@ -529,15 +529,15 @@ export default {
   .page-container {
     padding: 1rem;
   }
-  
+
   .filter-controls {
     padding: 1.25rem;
   }
-  
+
   .filter-controls .form-group {
     margin-bottom: 1.25rem;
   }
-  
+
   .table thead th,
   .table tbody td {
     padding: 0.6rem;

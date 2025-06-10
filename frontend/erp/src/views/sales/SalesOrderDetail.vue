@@ -215,48 +215,57 @@
                                     <th>Total</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <tr
-                                    v-for="line in order.salesOrderLines"
-                                    :key="line.line_id"
-                                    :class="{'has-outstanding': getOutstandingQuantity(line) > 0}"
-                                >
-                                    <td>
-                                        <div class="item-info">
-                                            <div class="item-code">
-                                                {{ line.item.itemCode }}
-                                            </div>
-                                            <div class="item-name">
-                                                {{ line.item.name }}
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="right">
-                                        {{ formatCurrency(line.unitPrice) }}
-                                    </td>
-                                    <td class="right">{{ line.quantity }}</td>
-                                    <td class="right">{{ getDeliveredQuantity(line) }}</td>
-                                    <td class="right outstanding-qty">
-                                        <span :class="{'text-danger': getOutstandingQuantity(line) > 0, 'text-success': getOutstandingQuantity(line) <= 0}">
-                                            {{ getOutstandingQuantity(line) }}
-                                        </span>
-                                    </td>
-                                    <td class="center">
-                                        {{ getUomSymbol(line.uomId) }}
-                                    </td>
-                                    <td class="center">
-                                        <span class="delivery-status" :class="getDeliveryStatusClass(line)">
-                                            {{ getDeliveryStatusLabel(line) }}
-                                        </span>
-                                    </td>
-                                    <td class="right">
-                                        {{ formatCurrency(line.subtotal) }}
-                                    </td>
-                                    <td class="right">
-                                        {{ formatCurrency(line.total) }}
-                                    </td>
-                                </tr>
-                            </tbody>
+                            <!-- Update untuk bagian item table di SalesOrderDetail.vue -->
+<tbody>
+    <tr
+        v-for="line in order.salesOrderLines"
+        :key="line.line_id"
+        :class="{'has-outstanding': getOutstandingQuantity(line) > 0}"
+    >
+        <td>
+            <div class="item-info">
+                <div class="item-code">
+                    {{ line.item.itemCode }}
+                </div>
+                <div class="item-name">
+                    <router-link
+                        v-if="line.item && line.item.itemId"
+                        :to="`/items/${line.item.itemId}`"
+                        class="item-link"
+                        :title="`View details for ${line.item.name}`"
+                    >
+                        {{ line.item.name }}
+                    </router-link>
+                    <span v-else class="text-muted">Unknown Item</span>
+                </div>
+            </div>
+        </td>
+        <td class="right">
+            {{ formatCurrency(line.unitPrice) }}
+        </td>
+        <td class="right">{{ line.quantity }}</td>
+        <td class="right">{{ getDeliveredQuantity(line) }}</td>
+        <td class="right outstanding-qty">
+            <span :class="{'text-danger': getOutstandingQuantity(line) > 0, 'text-success': getOutstandingQuantity(line) <= 0}">
+                {{ getOutstandingQuantity(line) }}
+            </span>
+        </td>
+        <td class="center">
+            {{ getUomSymbol(line.uomId) }}
+        </td>
+        <td class="center">
+            <span class="delivery-status" :class="getDeliveryStatusClass(line)">
+                {{ getDeliveryStatusLabel(line) }}
+            </span>
+        </td>
+        <td class="right">
+            {{ formatCurrency(line.subtotal) }}
+        </td>
+        <td class="right">
+            {{ formatCurrency(line.total) }}
+        </td>
+    </tr>
+</tbody>
                             <tfoot>
                                 <tr>
                                     <td colspan="7" class="totals-label">

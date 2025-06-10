@@ -199,8 +199,8 @@
                                 <router-link to="/item-categories" class="menu-link">
                                     <i class="fas fa-tags"></i>
                                     <div>
-                                        <span>Categories</span>
-                                        <small>Organize by categories</small>
+                                        <span>Item Group</span>
+                                        <small>Organize by item group</small>
                                     </div>
                                 </router-link>
                                 <router-link to="/unit-of-measures" class="menu-link">
@@ -701,14 +701,14 @@
                                 <router-link to="/manufacturing/work-orders" class="menu-link">
                                     <i class="fas fa-clipboard-list"></i>
                                     <div>
-                                        <span>Work Orders</span>
+                                        <span>Job Orders</span>
                                         <small>Production tasks</small>
                                     </div>
                                 </router-link>
                                 <router-link to="/manufacturing/production-orders" class="menu-link">
                                     <i class="fas fa-cogs"></i>
                                     <div>
-                                        <span>Production Orders</span>
+                                        <span>Job Process</span>
                                         <small>Manufacturing jobs</small>
                                     </div>
                                 </router-link>

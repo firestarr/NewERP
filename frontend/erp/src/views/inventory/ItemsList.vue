@@ -10,9 +10,9 @@
     >
       <template #filters>
         <div class="filter-group">
-          <label for="categoryFilter">Category</label>
+          <label for="categoryFilter">Item Group</label>
           <select id="categoryFilter" v-model="categoryFilter" @change="applyFilters">
-            <option value="">All Categories</option>
+            <option value="">All Item Group</option>
             <option v-for="category in categories" :key="category.category_id" :value="category.category_id">
               {{ category.name }}
             </option>
@@ -82,7 +82,7 @@
               Name
               <i v-if="sortColumn === 'name'" :class="sortIconClass"></i>
             </th>
-            <th>Category</th>
+            <th>Item Group</th>
             <th>UOM</th>
             <th @click="sortBy('current_stock')" class="sortable">
               Current Stock

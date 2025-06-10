@@ -148,6 +148,8 @@ import QualityParameterForm from "../views/manufacturing/QualityParameterForm.vu
 import QualityAnalysisDashboard from "../views/manufacturing/QualityAnalysisDashboard.vue";
 import SalesOrderPrint from "../views/sales/SalesOrderPrint.vue";
 
+import PdfOrderCapture from "../views/ai-pdf-capture/PdfOrderCapture.vue";
+
 // import SalesForecastFormModal from "../views/sales/SalesForecastFormModal.vue";
 // Import other components as needed
 
@@ -857,6 +859,45 @@ const routes = [
                 component: () => import("../views/purchasing/PRToRFQList.vue"),
                 meta: { requiresAuth: true },
             },
+            {
+                path: "/purchasing/requisitions/:id/vendor-recommendations",
+                name: "PRVendorRecommendations",
+                component: () =>
+                    import("../views/purchasing/PRVendorRecommendations.vue"),
+                props: true,
+                meta: { requiresAuth: true },
+            },
+            {
+                path: "/purchasing/requisitions/:id/procurement-analysis",
+                name: "ProcurementPathAnalysis",
+                component: () =>
+                    import("../views/purchasing/ProcurementPathAnalysis.vue"),
+                props: true,
+                meta: { requiresAuth: true },
+            },
+            {
+                path: "/purchasing/requisitions/:id/create-multi-po",
+                name: "CreateMultiVendorPO",
+                component: () =>
+                    import("../views/purchasing/MultiVendorPOWizard.vue"),
+                props: true,
+                meta: { requiresAuth: true },
+            },
+            {
+                path: "/purchasing/vendor-comparison",
+                name: "VendorComparison",
+                component: () =>
+                    import("../views/purchasing/VendorComparison.vue"),
+                meta: { requiresAuth: true },
+            },
+            {
+                path: "/purchasing/orders/create-from-pr/:prId",
+                name: "CreatePOFromPR",
+                component: () =>
+                    import("../views/purchasing/CreatePOFromPR.vue"),
+                props: true,
+                meta: { requiresAuth: true },
+            },
 
             //RFQ
             {
@@ -1480,6 +1521,12 @@ const routes = [
                 component: () =>
                     import("../views/sales/DeliveryOrderPrint.vue"),
                 props: true,
+                meta: { requiresAuth: true },
+            },
+            {
+                path: "/pdf-order-capture",
+                name: "PdfOrderCapture",
+                component: PdfOrderCapture,
                 meta: { requiresAuth: true },
             },
 
