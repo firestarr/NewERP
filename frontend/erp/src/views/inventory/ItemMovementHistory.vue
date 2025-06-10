@@ -123,8 +123,8 @@
                 <div class="form-group">
                   <label for="warehouse-filter">Warehouse</label>
                   <div class="select-with-status">
-                    <select 
-                      id="warehouse-filter" 
+                    <select
+                      id="warehouse-filter"
                       v-model="filters.warehouse_id"
                       class="form-control"
                     >
@@ -288,37 +288,37 @@
                   </tbody>
                 </table>
               </div>
-              
+
               <!-- Pagination -->
               <div v-if="totalPages > 1" class="pagination-container">
                 <nav aria-label="Transaction pagination">
                   <ul class="pagination">
                     <li class="page-item" :class="{ 'disabled': currentPage === 1 }">
-                      <button 
-                        class="page-link" 
-                        @click="changePage(currentPage - 1)" 
+                      <button
+                        class="page-link"
+                        @click="changePage(currentPage - 1)"
                         :disabled="currentPage === 1"
                       >
                         <i class="fas fa-chevron-left"></i>
                       </button>
                     </li>
-                    <li 
-                      v-for="page in displayedPages" 
-                      :key="page" 
-                      class="page-item" 
+                    <li
+                      v-for="page in displayedPages"
+                      :key="page"
+                      class="page-item"
                       :class="{ 'active': currentPage === page }"
                     >
-                      <button 
-                        class="page-link" 
+                      <button
+                        class="page-link"
                         @click="changePage(page)"
                       >
                         {{ page }}
                       </button>
                     </li>
                     <li class="page-item" :class="{ 'disabled': currentPage === totalPages }">
-                      <button 
-                        class="page-link" 
-                        @click="changePage(currentPage + 1)" 
+                      <button
+                        class="page-link"
+                        @click="changePage(currentPage + 1)"
                         :disabled="currentPage === totalPages"
                       >
                         <i class="fas fa-chevron-right"></i>
@@ -351,15 +351,15 @@ export default {
   name: 'ItemMovementHistory',
   setup() {
     const route = useRoute();
-    
+
     // Route params
     const itemId = computed(() => route.params.itemId);
-    
+
     // Chart references
     const chartContainer = ref(null);
     const movementChart = ref(null);
     let chart = null;
-    
+
     // Data
     const item = ref(null);
     const transactions = ref([]);
@@ -367,23 +367,23 @@ export default {
     const loading = ref(true);
     const error = ref(null);
     const warehousesLoading = ref(false);
-    
+
     // Filters
     const filters = ref({
       start_date: '',
       end_date: '',
       warehouse_id: '',
     });
-    
+
     // Chart options
     const chartType = ref('line');
-    
+
     // Pagination
     const currentPage = ref(1);
     const totalPages = ref(1);
     const totalItems = ref(0);
     const perPage = ref(25);
-    
+
     // Computed properties
     const totalIn = computed(() => {
       return transactions.value
@@ -391,7 +391,7 @@ export default {
         .reduce((total, t) => total + t.quantity, 0)
         .toFixed(2);
     });
-    
+
     const totalOut = computed(() => {
       return Math.abs(
         transactions.value
@@ -399,38 +399,38 @@ export default {
           .reduce((total, t) => total + t.quantity, 0)
       ).toFixed(2);
     });
-    
+
     const netChange = computed(() => {
       return transactions.value
         .reduce((total, t) => total + t.quantity, 0)
         .toFixed(2);
     });
-    
+
     const displayedPages = computed(() => {
       if (totalPages.value <= 7) {
         return Array.from({ length: totalPages.value }, (_, i) => i + 1);
       }
-      
+
       if (currentPage.value <= 4) {
         return [1, 2, 3, 4, 5, '...', totalPages.value];
       }
-      
+
       if (currentPage.value >= totalPages.value - 3) {
         return [1, '...', totalPages.value - 4, totalPages.value - 3, totalPages.value - 2, totalPages.value - 1, totalPages.value];
       }
-      
+
       return [1, '...', currentPage.value - 1, currentPage.value, currentPage.value + 1, '...', totalPages.value];
     });
-    
+
     // Methods
     const fetchItem = async () => {
       loading.value = true;
       error.value = null;
-      
+
       try {
         const response = await axios.get(`/items/${itemId.value}`);
         item.value = response.data.data;
-        
+
         // After fetching the item, fetch its movement history
         fetchItemMovement();
         fetchWarehouses();
@@ -440,25 +440,25 @@ export default {
         loading.value = false;
       }
     };
-    
+
     const fetchItemMovement = async () => {
       try {
         const params = {
           page: currentPage.value,
           per_page: perPage.value
         };
-        
+
         // Add filters if set
         if (filters.value.start_date) params.start_date = filters.value.start_date;
         if (filters.value.end_date) params.end_date = filters.value.end_date;
         if (filters.value.warehouse_id) params.warehouse_id = filters.value.warehouse_id;
-        
+
         const response = await axios.get(`/transactions/items/${itemId.value}/movement`, { params });
         transactions.value = response.data.data.transactions.data;
         totalPages.value = Math.ceil(response.data.data.transactions.total / response.data.data.transactions.per_page);
         totalItems.value = response.data.data.transactions.total;
         currentPage.value = response.data.data.transactions.current_page;
-        
+
         // After getting transactions, render chart
         nextTick(() => {
           renderChart();
@@ -470,7 +470,7 @@ export default {
         loading.value = false;
       }
     };
-    
+
     const fetchWarehouses = async () => {
       warehousesLoading.value = true;
       try {
@@ -482,22 +482,22 @@ export default {
         warehousesLoading.value = false;
       }
     };
-    
+
     const renderChart = () => {
       if (!chartContainer.value || transactions.value.length === 0) return;
-      
+
       const ctx = movementChart.value.getContext('2d');
-      
+
       // Destroy previous chart if exists
       if (chart) {
         chart.destroy();
       }
-      
+
       // Prepare data for chart
       const dates = transactions.value.map(t => formatDate(t.transaction_date));
       const runningBalances = transactions.value.map(t => t.running_balance);
       const quantities = transactions.value.map(t => t.quantity);
-      
+
       // Create new chart
       chart = new Chart(ctx, {
         type: chartType.value,
@@ -565,12 +565,12 @@ export default {
         }
       });
     };
-    
+
     const applyFilters = () => {
       currentPage.value = 1;
       fetchItemMovement();
     };
-    
+
     const resetFilters = () => {
       filters.value = {
         start_date: '',
@@ -580,17 +580,17 @@ export default {
       currentPage.value = 1;
       fetchItemMovement();
     };
-    
+
     const changePage = (page) => {
       if (page >= 1 && page <= totalPages.value && page !== currentPage.value) {
         currentPage.value = page;
         fetchItemMovement();
       }
     };
-    
+
     const formatDate = (dateString) => {
       if (!dateString) return '--';
-      
+
       const date = new Date(dateString);
       return date.toLocaleDateString('en-US', {
         year: 'numeric',
@@ -598,10 +598,10 @@ export default {
         day: 'numeric'
       });
     };
-    
+
     const formatTransactionType = (type) => {
       if (!type) return '--';
-      
+
       const types = {
         'receive': 'Receive',
         'issue': 'Issue',
@@ -609,13 +609,13 @@ export default {
         'adjustment': 'Adjustment',
         'return': 'Return'
       };
-      
+
       return types[type.toLowerCase()] || type;
     };
-    
+
     const getTransactionTypeClass = (type) => {
       if (!type) return '';
-      
+
       const typeClasses = {
         'receive': 'badge-success',
         'issue': 'badge-danger',
@@ -623,25 +623,25 @@ export default {
         'adjustment': 'badge-secondary',
         'return': 'badge-info'
       };
-      
+
       return typeClasses[type.toLowerCase()] || 'badge-secondary';
     };
-    
+
     const getQuantityClass = (quantity) => {
       if (!quantity) return '';
-      
+
       if (quantity > 0) {
         return 'text-success';
       } else if (quantity < 0) {
         return 'text-danger';
       }
-      
+
       return '';
     };
-    
+
     const getStockStatusClass = (item) => {
       if (!item) return '';
-      
+
       if (item.current_stock <= 0) {
         return 'text-danger';
       } else if (item.current_stock <= item.minimum_stock) {
@@ -650,19 +650,19 @@ export default {
         return 'text-success';
       }
     };
-    
+
     // Watch for chart type changes
     watch(chartType, () => {
       nextTick(() => {
         renderChart();
       });
     });
-    
+
     // Lifecycle hooks
     onMounted(() => {
       fetchItem();
     });
-    
+
     return {
       itemId,
       item,
@@ -1082,11 +1082,11 @@ export default {
     flex: 0 0 100%;
     max-width: 100%;
   }
-  
+
   .summary-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .chart-container {
     height: 300px;
   }

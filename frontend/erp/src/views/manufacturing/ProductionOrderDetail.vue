@@ -168,18 +168,6 @@
                   </router-link>
                 </div>
               </div>
-              <!-- <div class="detail-item">
-                <div class="detail-label">Product</div>
-                <div class="detail-value">{{ workOrder?.item?.item_code || 'N/A' }}</div>
-              </div>
-              <div class="detail-item">
-                <div class="detail-label">Planned Quantity</div>
-                <div class="detail-value">{{ productionOrder.planned_quantity }}</div>
-              </div> -->
-              <!-- <div class="detail-item">
-                <div class="detail-label">Actual Quantity</div>
-                <div class="detail-value">{{ productionOrder.actual_quantity || '0' }}</div>
-              </div> -->
             <div class="detail-item">
                 <div class="detail-label">Product</div>
                     <div class="detail-value">
@@ -236,6 +224,14 @@
         <div class="card detail-card" v-if="consumptions.length > 0">
           <div class="card-header">
             <h2>Material Consumption</h2>
+            <div v-if="productionOrder.status === 'Draft'" class="header-actions">
+              <button
+                @click="saveAllConsumptions"
+                :disabled="!hasUnsavedChanges"
+                class="btn btn-sm btn-primary">
+                <i class="fas fa-save"></i> Save Changes
+              </button>
+            </div>
           </div>
           <div class="card-body">
             <div class="table-responsive">
@@ -285,10 +281,31 @@
                             Short: {{ getShortage(consumption) }}
                         </div>
                         </td>
-                        <td>{{ consumption.actual_quantity || '0' }}</td>
+
+                        <!-- Editable Actual Quantity Column -->
+                        <td class="actual-quantity-cell">
+                          <div v-if="productionOrder.status === 'Draft'" class="editable-quantity">
+                            <input
+                              v-model.number="editableConsumptions[consumption.consumption_id]"
+                              @input="onConsumptionChange(consumption.consumption_id)"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              class="form-control form-control-sm"
+                              :class="{ 'has-changes': hasChanges(consumption.consumption_id) }"
+                            />
+                            <div v-if="hasChanges(consumption.consumption_id)" class="change-indicator">
+                              <i class="fas fa-asterisk text-warning"></i>
+                            </div>
+                          </div>
+                          <div v-else class="readonly-quantity">
+                            {{ consumption.actual_quantity || '0' }}
+                          </div>
+                        </td>
+
                         <td>
                         <div class="variance" :class="getVarianceClass(consumption)">
-                            {{ getVariance(consumption) }}
+                            {{ getVarianceForConsumption(consumption) }}
                         </div>
                         </td>
                         <td>
@@ -299,6 +316,12 @@
                     </tr>
                 </tbody>
               </table>
+            </div>
+
+            <!-- Show unsaved changes warning -->
+            <div v-if="hasUnsavedChanges && productionOrder.status === 'Draft'" class="unsaved-changes-warning">
+              <i class="fas fa-exclamation-triangle"></i>
+              <span>You have unsaved changes. Click "Save Changes" to apply them.</span>
             </div>
           </div>
         </div>
@@ -471,7 +494,12 @@
         },
         // Toast system
         toasts: [],
-        toastIdCounter: 0
+        toastIdCounter: 0,
+
+        // Editable consumption system
+        editableConsumptions: {}, // Track editable values
+        originalConsumptions: {}, // Track original values
+        hasUnsavedChanges: false
       };
     },
     computed: {
@@ -551,6 +579,9 @@
           // Get consumptions
           if (this.productionOrder.production_consumptions) {
             this.consumptions = this.productionOrder.production_consumptions;
+
+            // Initialize editable consumptions
+            this.initializeEditableConsumptions();
           }
 
           // Initialize completion form
@@ -596,6 +627,97 @@
         this.showInfo('Material status refreshed');
       },
 
+      // === NEW: Editable Consumption Methods ===
+      initializeEditableConsumptions() {
+        this.editableConsumptions = {};
+        this.originalConsumptions = {};
+
+        this.consumptions.forEach(consumption => {
+          const consumptionId = consumption.consumption_id;
+          const actualQty = consumption.actual_quantity || 0;
+
+          this.editableConsumptions[consumptionId] = actualQty;
+          this.originalConsumptions[consumptionId] = actualQty;
+        });
+
+        this.hasUnsavedChanges = false;
+      },
+
+      onConsumptionChange(consumptionId) {
+        this.checkForUnsavedChanges();
+      },
+
+      checkForUnsavedChanges() {
+        this.hasUnsavedChanges = Object.keys(this.editableConsumptions).some(
+          consumptionId => this.hasChanges(consumptionId)
+        );
+      },
+
+      hasChanges(consumptionId) {
+        const original = this.originalConsumptions[consumptionId] || 0;
+        const current = this.editableConsumptions[consumptionId] || 0;
+        return original !== current;
+      },
+
+      async saveAllConsumptions() {
+        if (!this.hasUnsavedChanges) {
+          this.showInfo('No changes to save');
+          return;
+        }
+
+        const changedConsumptions = Object.keys(this.editableConsumptions)
+          .filter(consumptionId => this.hasChanges(consumptionId))
+          .map(consumptionId => ({
+            consumption_id: consumptionId,
+            actual_quantity: this.editableConsumptions[consumptionId] || 0
+          }));
+
+        if (changedConsumptions.length === 0) {
+          this.showInfo('No changes to save');
+          return;
+        }
+
+        try {
+          // Save each changed consumption
+          for (const change of changedConsumptions) {
+            await axios.put(
+              `/production-orders/${this.productionId}/consumptions/${change.consumption_id}`,
+              {
+                actual_quantity: change.actual_quantity
+              }
+            );
+          }
+
+          this.showSuccess('Consumption quantities updated successfully');
+
+          // Refresh data and reset tracking
+          await this.fetchProductionOrder();
+
+        } catch (error) {
+          console.error('Error saving consumptions:', error);
+          this.showError(error.response?.data?.message || 'Failed to save consumption changes');
+        }
+      },
+
+      getVarianceForConsumption(consumption) {
+        const consumptionId = consumption.consumption_id;
+        const planned = parseFloat(consumption.planned_quantity) || 0;
+
+        // Use editable value if available, otherwise use actual quantity
+        const actual = this.editableConsumptions[consumptionId] !== undefined
+          ? parseFloat(this.editableConsumptions[consumptionId]) || 0
+          : parseFloat(consumption.actual_quantity) || 0;
+
+        const variance = planned - actual;
+
+        if (variance === 0) return '0';
+
+        return variance > 0
+          ? `+${variance.toFixed(2)}`
+          : variance.toFixed(2);
+      },
+      // === END: Editable Consumption Methods ===
+
       // Status Transition Methods
       confirmIssueMaterials() {
         if (!this.allMaterialsAvailable) {
@@ -607,10 +729,10 @@
 
       async issueMaterials() {
         try {
-          // Prepare consumption data from planned quantities
+          // Prepare consumption data from editable quantities
           const consumptions = this.consumptions.map(c => ({
             consumption_id: c.consumption_id,
-            actual_quantity: c.planned_quantity
+            actual_quantity: this.editableConsumptions[c.consumption_id] || c.planned_quantity
           }));
 
           await axios.post(`/production-orders/${this.productionId}/issue-materials`, {
@@ -762,11 +884,17 @@
       },
 
       getMaterialStatus(consumption) {
-        return consumption.actual_quantity > 0 ? 'Issued' : 'Pending';
+        const actual = this.editableConsumptions[consumption.consumption_id] !== undefined
+          ? this.editableConsumptions[consumption.consumption_id]
+          : consumption.actual_quantity;
+        return actual > 0 ? 'Issued' : 'Pending';
       },
 
       getMaterialStatusClass(consumption) {
-        return consumption.actual_quantity > 0 ? 'status-issued' : 'status-pending';
+        const actual = this.editableConsumptions[consumption.consumption_id] !== undefined
+          ? this.editableConsumptions[consumption.consumption_id]
+          : consumption.actual_quantity;
+        return actual > 0 ? 'status-issued' : 'status-pending';
       },
 
       getVariance(consumption) {
@@ -862,6 +990,79 @@
   </script>
 
   <style scoped>
+  /* Existing styles plus new ones for editable consumptions */
+
+  /* === NEW: Editable Consumption Styles === */
+  .actual-quantity-cell {
+    min-width: 120px;
+  }
+
+  .editable-quantity {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .editable-quantity .form-control-sm {
+    width: 80px;
+    padding: 4px 8px;
+    font-size: 13px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    transition: all 0.2s;
+  }
+
+  .editable-quantity .form-control-sm:focus {
+    border-color: #2196f3;
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+    outline: none;
+  }
+
+  .editable-quantity .form-control-sm.has-changes {
+    border-color: #f59e0b;
+    background-color: #fffbeb;
+  }
+
+  .change-indicator {
+    color: #f59e0b;
+    font-size: 10px;
+  }
+
+  .readonly-quantity {
+    font-weight: 500;
+    color: var(--gray-700);
+  }
+
+  .unsaved-changes-warning {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    background-color: #fffbeb;
+    border: 1px solid #fbbf24;
+    border-radius: 6px;
+    color: #92400e;
+    margin-top: 16px;
+    font-size: 14px;
+  }
+
+  .unsaved-changes-warning i {
+    color: #f59e0b;
+  }
+
+  .header-actions .btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  /* === END: Editable Consumption Styles === */
+
   /* Existing styles plus new ones for progress bar and material status */
 
   .progress-section {
@@ -1469,6 +1670,14 @@
       width: 2px;
       height: 30px;
       margin: 5px 0;
+    }
+
+    .actual-quantity-cell {
+      min-width: 100px;
+    }
+
+    .editable-quantity .form-control-sm {
+      width: 70px;
     }
   }
   </style>

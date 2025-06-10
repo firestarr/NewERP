@@ -68,9 +68,20 @@
           </div>
         </div>
         <div class="filter-actions mt-3">
-          <button class="btn btn-outline" @click="exportPlans">
-            <i class="fas fa-file-export"></i> Export
-          </button>
+          <div class="action-group">
+            <button class="btn btn-outline" @click="exportPlans">
+              <i class="fas fa-file-export"></i> Export
+            </button>
+          </div>
+          <div class="action-group">
+            <span class="action-label">Generate by Period:</span>
+            <button class="btn btn-success" @click="showPeriodPRModal = true">
+              <i class="fas fa-file-invoice"></i> PR (Period)
+            </button>
+            <button class="btn btn-manufacturing" @click="showPeriodWOModal = true">
+              <i class="fas fa-cogs"></i> WO (Period)
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -199,7 +210,7 @@
                           v-if="item.material_type === 'FG' && item.status === 'Draft' && hasPositiveNetRequirement(item)"
                           class="btn-icon btn-icon-manufacturing"
                           @click="generateWorkOrder(item)"
-                          title="Generate Work Order"
+                          title="Generate Work Order (Item)"
                         >
                           <i class="fas fa-cogs"></i>
                         </button>
@@ -208,7 +219,7 @@
                           v-if="item.material_type === 'RM' && item.status === 'Draft' && hasPositiveNetRequirement(item)"
                           class="btn-icon btn-icon-success"
                           @click="generatePurchaseRequisition(item)"
-                          title="Generate Purchase Requisition"
+                          title="Generate Purchase Requisition (Item)"
                         >
                           <i class="fas fa-file-invoice"></i>
                         </button>
@@ -290,12 +301,12 @@
       </div>
     </div>
 
-    <!-- Work Order Generation Modal -->
+    <!-- Work Order Generation Modal (Per Item) -->
     <div v-if="showWOModal" class="modal">
       <div class="modal-backdrop" @click="closeWOModal"></div>
       <div class="modal-content modal-md">
         <div class="modal-header">
-          <h2>Generate Work Order</h2>
+          <h2>Generate Work Order (Item)</h2>
           <button class="close-btn" @click="closeWOModal">
             <i class="fas fa-times"></i>
           </button>
@@ -344,12 +355,12 @@
       </div>
     </div>
 
-    <!-- Purchase Requisition Generation Modal -->
+    <!-- Purchase Requisition Generation Modal (Per Item) -->
     <div v-if="showPRModal" class="modal">
       <div class="modal-backdrop" @click="closePRModal"></div>
       <div class="modal-content modal-md">
         <div class="modal-header">
-          <h2>Generate Purchase Requisition</h2>
+          <h2>Generate Purchase Requisition (Item)</h2>
           <button class="close-btn" @click="closePRModal">
             <i class="fas fa-times"></i>
           </button>
@@ -382,6 +393,141 @@
               <button type="submit" class="btn btn-primary" :disabled="isGeneratingPR">
                 <i class="fas fa-file-invoice" :class="{ 'fa-spin': isGeneratingPR }"></i>
                 {{ isGeneratingPR ? 'Generating...' : 'Generate PR' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Period Work Order Generation Modal -->
+    <div v-if="showPeriodWOModal" class="modal">
+      <div class="modal-backdrop" @click="closePeriodWOModal"></div>
+      <div class="modal-content modal-md">
+        <div class="modal-header">
+          <h2>Generate Work Orders by Period</h2>
+          <button class="close-btn" @click="closePeriodWOModal">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <form @submit.prevent="submitPeriodWO">
+            <div class="form-group">
+              <label>Select Period <span class="required">*</span></label>
+              <select v-model="periodWOForm.period" class="form-control" required>
+                <option value="">Select Period</option>
+                <option v-for="period in periodRange" :key="period" :value="period">
+                  {{ formatPeriodHeader(period) }}
+                </option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Material Type <span class="required">*</span></label>
+              <select v-model="periodWOForm.materialType" class="form-control" required>
+                <option value="">Select Material Type</option>
+                <option value="FG">Finished Goods Only</option>
+                <option value="ALL">All Types with Positive Net Requirement</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Planned Start Date <span class="required">*</span></label>
+              <input
+                type="date"
+                v-model="periodWOForm.plannedStartDate"
+                class="form-control"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label>Lead Time (days) <span class="required">*</span></label>
+              <input
+                type="number"
+                v-model="periodWOForm.leadTimeDays"
+                class="form-control"
+                min="1"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  v-model="periodWOForm.onlyDraftStatus"
+                  class="form-check-input me-2"
+                />
+                Only Draft Status Items
+              </label>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary" @click="closePeriodWOModal">
+                Cancel
+              </button>
+              <button type="submit" class="btn btn-primary" :disabled="isGeneratingPeriodWO">
+                <i class="fas fa-cogs" :class="{ 'fa-spin': isGeneratingPeriodWO }"></i>
+                {{ isGeneratingPeriodWO ? 'Generating...' : 'Generate WO' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Period Purchase Requisition Generation Modal -->
+    <div v-if="showPeriodPRModal" class="modal">
+      <div class="modal-backdrop" @click="closePeriodPRModal"></div>
+      <div class="modal-content modal-md">
+        <div class="modal-header">
+          <h2>Generate Purchase Requisition by Period</h2>
+          <button class="close-btn" @click="closePeriodPRModal">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <form @submit.prevent="submitPeriodPR">
+            <div class="form-group">
+              <label>Select Period <span class="required">*</span></label>
+              <select v-model="periodPRForm.period" class="form-control" required>
+                <option value="">Select Period</option>
+                <option v-for="period in periodRange" :key="period" :value="period">
+                  {{ formatPeriodHeader(period) }}
+                </option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Material Type <span class="required">*</span></label>
+              <select v-model="periodPRForm.materialType" class="form-control" required>
+                <option value="">Select Material Type</option>
+                <option value="RM">Raw Materials Only</option>
+                <option value="ALL">All Types with Positive Net Requirement</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Lead Time (days) <span class="required">*</span></label>
+              <input
+                type="number"
+                v-model="periodPRForm.leadTimeDays"
+                class="form-control"
+                min="0"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  v-model="periodPRForm.onlyDraftStatus"
+                  class="form-check-input me-2"
+                />
+                Only Draft Status Items
+              </label>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary" @click="closePeriodPRModal">
+                Cancel
+              </button>
+              <button type="submit" class="btn btn-primary" :disabled="isGeneratingPeriodPR">
+                <i class="fas fa-file-invoice" :class="{ 'fa-spin': isGeneratingPeriodPR }"></i>
+                {{ isGeneratingPeriodPR ? 'Generating...' : 'Generate PR' }}
               </button>
             </div>
           </form>
@@ -447,7 +593,7 @@ export default {
         itemIds: []
       },
       itemOptions: [],
-      // Work Order Modal
+      // Work Order Modal (Per Item)
       showWOModal: false,
       isGeneratingWO: false,
       woForm: {
@@ -455,12 +601,31 @@ export default {
         plannedStartDate: '',
         leadTimeDays: 7
       },
-      // Purchase Requisition Modal
+      // Purchase Requisition Modal (Per Item)
       showPRModal: false,
       isGeneratingPR: false,
       prForm: {
         period: '',
         leadTimeDays: 7
+      },
+      // Period Work Order Modal
+      showPeriodWOModal: false,
+      isGeneratingPeriodWO: false,
+      periodWOForm: {
+        period: '',
+        materialType: 'FG',
+        plannedStartDate: '',
+        leadTimeDays: 7,
+        onlyDraftStatus: true
+      },
+      // Period Purchase Requisition Modal
+      showPeriodPRModal: false,
+      isGeneratingPeriodPR: false,
+      periodPRForm: {
+        period: '',
+        materialType: 'RM',
+        leadTimeDays: 7,
+        onlyDraftStatus: true
       },
       selectedPlan: null,
       showDeleteModal: false,
@@ -788,7 +953,8 @@ export default {
         const payload = {
           period: this.woForm.period + '-01',
           planned_start_date: this.woForm.plannedStartDate,
-          lead_time_days: this.woForm.leadTimeDays
+          lead_time_days: this.woForm.leadTimeDays,
+          item_id: this.selectedPlan.item_id // Add item_id for single item generation
         };
 
         const response = await axios.post('/material-planning/work-orders', payload);
@@ -825,7 +991,8 @@ export default {
       try {
         const payload = {
           period: this.prForm.period + '-01',
-          lead_time_days: this.prForm.leadTimeDays
+          lead_time_days: this.prForm.leadTimeDays,
+          item_id: this.selectedPlan.item_id // Add item_id for single item generation
         };
 
         const response = await axios.post('/material-planning/purchase-requisition', payload);
@@ -844,6 +1011,83 @@ export default {
         alert(message);
       } finally {
         this.isGeneratingPR = false;
+      }
+    },
+
+    async submitPeriodWO() {
+      if (!this.periodWOForm.period || !this.periodWOForm.materialType || !this.periodWOForm.plannedStartDate || !this.periodWOForm.leadTimeDays) {
+        alert('Please fill in all required fields');
+        return;
+      }
+
+      this.isGeneratingPeriodWO = true;
+      try {
+        const payload = {
+          period: this.periodWOForm.period + '-01',
+          material_type: this.periodWOForm.materialType,
+          planned_start_date: this.periodWOForm.plannedStartDate,
+          lead_time_days: this.periodWOForm.leadTimeDays,
+          only_draft_status: this.periodWOForm.onlyDraftStatus
+        };
+
+        const response = await axios.post('/material-planning/work-orders/period', payload);
+
+        this.closePeriodWOModal();
+        this.fetchPlans();
+
+        // Show success message with work order details
+        if (response.data.data && response.data.data.length > 0) {
+          const woNumbers = response.data.data.map(wo => wo.wo_number).join(', ');
+          alert(`${response.data.message}\nGenerated ${response.data.data.length} Work Orders\nWO Numbers: ${woNumbers}`);
+        } else {
+          alert(response.data.message);
+        }
+      } catch (error) {
+        console.error('Error generating period work orders:', error);
+        const message = error.response?.data?.message || 'Failed to generate work orders for period';
+        alert(message);
+      } finally {
+        this.isGeneratingPeriodWO = false;
+      }
+    },
+
+    async submitPeriodPR() {
+      if (!this.periodPRForm.period || !this.periodPRForm.materialType || !this.periodPRForm.leadTimeDays) {
+        alert('Please fill in all required fields');
+        return;
+      }
+
+      this.isGeneratingPeriodPR = true;
+      try {
+        const payload = {
+          period: this.periodPRForm.period + '-01',
+          material_type: this.periodPRForm.materialType,
+          lead_time_days: this.periodPRForm.leadTimeDays,
+          only_draft_status: this.periodPRForm.onlyDraftStatus
+        };
+
+        const response = await axios.post('/material-planning/purchase-requisition/period', payload);
+
+        this.closePeriodPRModal();
+        this.fetchPlans();
+
+        if (response.data.data) {
+          // Show success message and optionally redirect to PR detail page
+          const prNumber = response.data.data.pr_number || 'Unknown';
+          const confirm = window.confirm(`${response.data.message}\nPR Number: ${prNumber}\n\nDo you want to view the Purchase Requisition?`);
+
+          if (confirm && response.data.data.pr_id) {
+            this.$router.push(`/purchasing/requisitions/${response.data.data.pr_id}`);
+          }
+        } else {
+          alert(response.data.message);
+        }
+      } catch (error) {
+        console.error('Error generating period purchase requisition:', error);
+        const message = error.response?.data?.message || 'Failed to generate purchase requisition for period';
+        alert(message);
+      } finally {
+        this.isGeneratingPeriodPR = false;
       }
     },
 
@@ -964,6 +1208,27 @@ export default {
       this.selectedPlan = null;
     },
 
+    closePeriodWOModal() {
+      this.showPeriodWOModal = false;
+      this.periodWOForm = {
+        period: '',
+        materialType: 'FG',
+        plannedStartDate: '',
+        leadTimeDays: 7,
+        onlyDraftStatus: true
+      };
+    },
+
+    closePeriodPRModal() {
+      this.showPeriodPRModal = false;
+      this.periodPRForm = {
+        period: '',
+        materialType: 'RM',
+        leadTimeDays: 7,
+        onlyDraftStatus: true
+      };
+    },
+
     closeDeleteModal() {
       this.showDeleteModal = false;
       this.deleteItemId = null;
@@ -1058,7 +1323,20 @@ export default {
 
 .filter-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.action-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.action-label {
+  font-weight: 500;
+  color: #495057;
+  font-size: 0.9rem;
 }
 
 .btn {
@@ -1079,6 +1357,24 @@ export default {
 
 .btn-primary:hover {
   background: var(--primary-dark);
+}
+
+.btn-success {
+  background: #28a745;
+  color: white;
+}
+
+.btn-success:hover {
+  background: #218838;
+}
+
+.btn-manufacturing {
+  background: #6f42c1;
+  color: white;
+}
+
+.btn-manufacturing:hover {
+  background: #5a32a3;
 }
 
 .btn-outline {
@@ -1375,6 +1671,10 @@ export default {
   color: var(--gray-700);
 }
 
+.form-check-input {
+  margin-right: 8px;
+}
+
 .form-actions {
   display: flex;
   justify-content: flex-end;
@@ -1465,6 +1765,16 @@ export default {
   .card-body {
     padding: 1.25rem;
   }
+
+  .filter-actions {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+
+  .action-group {
+    flex-wrap: wrap;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1491,6 +1801,16 @@ export default {
   .table thead th,
   .table tbody td {
     padding: 0.6rem;
+  }
+
+  .action-group {
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .action-label {
+    margin-bottom: 0.5rem;
   }
 }
 </style>

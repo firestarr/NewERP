@@ -236,15 +236,14 @@
           this.loading = false;
         }
       },
-async fetchRecentTransactions() {
+      async fetchRecentTransactions() {
         try {
           const response = await axios.get(`/transactions/items/${this.itemId}/movement?limit=5`);
 
           if (response.data && response.data.data) {
             this.transactions = response.data.data.map(tx => ({
               ...tx,
-              warehouse_name: tx.warehouse?.name || 'Unknown Warehouse',
-              quantity: Number(tx.quantity)
+              warehouse_name: tx.warehouse?.name || 'Unknown Warehouse'
             }));
           } else {
             this.transactions = [];

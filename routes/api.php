@@ -549,6 +549,15 @@ Route::middleware('auth:sanctum')->group(function () {
         // Reports
         Route::get('/reports/material-consumption', [ProductionOrderController::class, 'materialConsumptionReport']);
         Route::get('/reports/production-efficiency', [ProductionOrderController::class, 'productionEfficiencyReport']);
+
+        // Nested consumption routes
+        Route::prefix('{productionId}/consumptions')->group(function () {
+            Route::get('/', [ProductionConsumptionController::class, 'index']);
+            Route::post('/', [ProductionConsumptionController::class, 'store']);
+            Route::get('/{consumptionId}', [ProductionConsumptionController::class, 'show']);
+            Route::put('/{consumptionId}', [ProductionConsumptionController::class, 'update']);
+            Route::delete('/{consumptionId}', [ProductionConsumptionController::class, 'destroy']);
+        });
     });
     Route::apiResource('production-orders/{productionId}/consumptions', ProductionConsumptionController::class);
 
@@ -573,6 +582,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Add GET route for single material plan
     Route::get('/material-planning/{id}', [MaterialPlanningController::class, 'show']);
+    Route::post('/material-planning/work-orders/period', [MaterialPlanningController::class, 'generateWorkOrdersByPeriod']);
+    Route::post('/material-planning/purchase-requisition/period', [MaterialPlanningController::class, 'generatePurchaseRequisitionsByPeriod']);
+
 
     Route::get('items/{id}/prices-in-currencies', 'App\Http\Controllers\Api\Inventory\ItemController@getPricesInCurrencies');
     Route::get('customers/{id}/transactions-in-currency', 'App\Http\Controllers\Api\Sales\CustomerController@getTransactionsInCurrency');

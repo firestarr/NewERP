@@ -78,7 +78,7 @@
             <tr v-for="(line, index) in paginatedSalesOrderLines" :key="index">
               <td class="no">{{ (currentPage - 1) * perPage + index + 1 }}</td>
               <td class="item-code">{{ line.item.itemCode }}</td>
-              <td class="description">{{ line.item.description }}</td>
+              <td class="description">{{ line.item.name }}</td>
               <td class="qty">{{ formatNumber(line.quantity) }}</td>
               <td class="uom">{{ getUomSymbol(line.uomId) }}</td>
               <td class="price">{{ formatCurrency(line.unitPrice, order.currencyCode, true, 4) }}</td>
