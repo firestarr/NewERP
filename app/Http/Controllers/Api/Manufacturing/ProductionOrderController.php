@@ -73,9 +73,10 @@ class ProductionOrderController extends Controller
      */
     public function store(Request $request)
     {
+        // Modified validation - production_number is now optional
         $validator = Validator::make($request->all(), [
             'wo_id' => 'required|integer|exists:work_orders,wo_id',
-            'production_number' => 'required|string|max:50|unique:production_orders,production_number',
+            'production_number' => 'sometimes|string|max:50|unique:production_orders,production_number',
             'production_date' => 'required|date',
             'planned_quantity' => 'required|numeric|min:0.01',
             'actual_quantity' => 'sometimes|numeric|min:0',
@@ -89,6 +90,12 @@ class ProductionOrderController extends Controller
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        // Generate production number if not provided
+        $productionNumber = $request->production_number;
+        if (empty($productionNumber)) {
+            $productionNumber = $this->generateProductionNumber();
         }
 
         // Validation for work order capacity
@@ -107,7 +114,7 @@ class ProductionOrderController extends Controller
         try {
             $productionOrder = ProductionOrder::create([
                 'wo_id' => $request->wo_id,
-                'production_number' => $request->production_number,
+                'production_number' => $productionNumber, // Use generated or provided number
                 'production_date' => $request->production_date,
                 'planned_quantity' => $request->planned_quantity,
                 'actual_quantity' => $request->actual_quantity ?? 0,
@@ -143,6 +150,48 @@ class ProductionOrderController extends Controller
             DB::rollBack();
             return response()->json(['message' => 'Failed to create production order', 'error' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Generate production number with format J-yy-00000
+     *
+     * @return string
+     */
+    private function generateProductionNumber()
+    {
+        $currentYear = date('y'); // Get 2-digit year
+        $prefix = 'JP-' . $currentYear . '-';
+
+        // Get the latest production order for current year
+        $latestOrder = ProductionOrder::where('production_number', 'like', $prefix . '%')
+            ->orderBy('production_number', 'desc')
+            ->first();
+
+        $nextSequence = 1;
+
+        if ($latestOrder) {
+            // Extract sequence number from the latest production number
+            $latestNumber = $latestOrder->production_number;
+            $sequencePart = substr($latestNumber, strlen($prefix));
+            $nextSequence = intval($sequencePart) + 1;
+        }
+
+        // Format sequence with leading zeros (5 digits)
+        $sequenceFormatted = str_pad($nextSequence, 5, '0', STR_PAD_LEFT);
+
+        return $prefix . $sequenceFormatted;
+    }
+
+    /**
+     * Get the next production order number (for preview)
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function getNextProductionNumber()
+    {
+        return response()->json([
+            'next_production_number' => $this->generateProductionNumber()
+        ]);
     }
 
     /**

@@ -26,19 +26,32 @@
             </div>
 
             <div class="row">
-              <div class="col-md-6">
+              <!-- Job Order Number - Only show in edit mode -->
+              <div class="col-md-6" v-if="isEditMode">
                 <div class="form-group">
-                  <label>Job Orders Number <span class="text-danger">*</span></label>
+                  <label>Job Orders Number</label>
                   <input
                     type="text"
                     class="form-control"
                     v-model="workOrder.wo_number"
-                    :disabled="isEditMode"
-                    placeholder="JO-00001"
-                    required
+                    disabled
+                    readonly
                   />
                   <small class="form-text text-muted">
-                    Unique identifier for this Job Orders
+                    Auto-generated Job Orders number
+                  </small>
+                </div>
+              </div>
+
+              <!-- Show next number preview in create mode -->
+              <div class="col-md-6" v-if="!isEditMode">
+                <div class="form-group">
+                  <label>Job Orders Number</label>
+                  <div class="form-control-static">
+                    <span class="badge badge-info">{{ nextWoNumber || 'Loading...' }}</span>
+                  </div>
+                  <small class="form-text text-muted">
+                    Auto-generated number (will be assigned when saved)
                   </small>
                 </div>
               </div>
@@ -261,7 +274,7 @@
 
       // Form data
       const workOrder = ref({
-        wo_number: '',
+        wo_number: '', // This will be auto-generated
         wo_date: new Date().toISOString().split('T')[0], // Default to current date
         item_id: '',
         bom_id: '',
@@ -281,6 +294,7 @@
       const items = ref([]);
       const boms = ref([]);
       const routings = ref([]);
+      const nextWoNumber = ref('');
 
       // Product search functionality
       const productSearch = ref('');
@@ -306,6 +320,19 @@
           items.value = response.data.data;
         } catch (error) {
           console.error('Error loading items:', error);
+        }
+      };
+
+      // Load next work order number for preview
+      const loadNextWorkOrderNumber = async () => {
+        if (!isEditMode.value) {
+          try {
+            const response = await axios.get('/work-orders/next-number');
+            nextWoNumber.value = response.data.next_wo_number;
+          } catch (error) {
+            console.error('Error loading next work order number:', error);
+            nextWoNumber.value = 'J-' + new Date().getFullYear().toString().substr(-2) + '-00001';
+          }
         }
       };
 
@@ -425,11 +452,19 @@
         try {
           if (isEditMode.value) {
             // Update existing Job Orders
-            await axios.put(`/work-orders/${workOrder.value.wo_id}`, workOrder.value);
+            // Remove wo_number from update data since it's auto-generated
+            const updateData = { ...workOrder.value };
+            delete updateData.wo_number;
+
+            await axios.put(`/work-orders/${workOrder.value.wo_id}`, updateData);
             router.push(`/manufacturing/work-orders/${workOrder.value.wo_id}`);
           } else {
             // Create new Job Orders
-            const response = await axios.post('/work-orders', workOrder.value);
+            // Remove wo_number from create data since it's auto-generated
+            const createData = { ...workOrder.value };
+            delete createData.wo_number;
+
+            const response = await axios.post('/work-orders', createData);
             router.push(`/manufacturing/work-orders/${response.data.data.wo_id}`);
           }
         } catch (error) {
@@ -460,6 +495,9 @@
 
         if (isEditMode.value) {
           await loadWorkOrder();
+        } else {
+          // Load next work order number for preview
+          await loadNextWorkOrderNumber();
         }
       });
 
@@ -475,6 +513,7 @@
         productSearch,
         showProductDropdown,
         filteredProducts,
+        nextWoNumber,
         selectProduct,
         hideProductDropdown,
         loadBOMsAndRoutings,
@@ -560,6 +599,31 @@
 
 .alert li:last-child {
   margin-bottom: 0;
+}
+
+/* Badge styling for work order number preview */
+.badge {
+  display: inline-block;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: baseline;
+  border-radius: 0.375rem;
+}
+
+.badge-info {
+  color: #fff;
+  background-color: #17a2b8;
+}
+
+.form-control-static {
+  padding-top: 0.65rem;
+  padding-bottom: 0.65rem;
+  margin-bottom: 0;
+  min-height: calc(1.5em + 1.3rem + 2px);
 }
 
 /* Section styling */

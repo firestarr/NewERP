@@ -23,6 +23,46 @@ use Illuminate\Support\Facades\Log;
 class SalesOrderController extends Controller
 {
     /**
+     * Generate the next sales order number with format SO-yy-000000
+     *
+     * @return string
+     */
+    private function generateSalesOrderNumber()
+    {
+        $currentYear = date('y'); // Get 2-digit year
+        $prefix = "SO-{$currentYear}-";
+
+        // Get the latest sales order number for current year
+        $latestSalesOrder = SalesOrder::where('so_number', 'like', $prefix . '%')
+            ->orderBy('so_number', 'desc')
+            ->first();
+
+        if ($latestSalesOrder) {
+            // Extract the sequence number from the latest sales order
+            $lastNumber = intval(substr($latestSalesOrder->so_number, -6));
+            $nextNumber = $lastNumber + 1;
+        } else {
+            // First sales order of the year
+            $nextNumber = 1;
+        }
+
+        // Format with 6 digits, padded with zeros
+        return $prefix . sprintf('%06d', $nextNumber);
+    }
+
+    /**
+     * Get the next sales order number (for preview)
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function getNextSalesOrderNumber()
+    {
+        return response()->json([
+            'next_so_number' => $this->generateSalesOrderNumber()
+        ]);
+    }
+
+    /**
      * Display a listing of sales orders with search and filters
      */
     public function index(Request $request)
@@ -130,7 +170,7 @@ class SalesOrderController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'so_number' => 'required|unique:SalesOrder,so_number',
+            // Removed so_number from validation since it's auto-generated
             'po_number_customer' => 'nullable|string|max:100',
             'so_date' => 'required|date',
             'customer_id' => 'required|exists:Customer,customer_id',
@@ -185,9 +225,12 @@ class SalesOrderController extends Controller
                 }
             }
 
+            // Generate the sales order number automatically
+            $soNumber = $this->generateSalesOrderNumber();
+
             // Create sales order
             $salesOrder = SalesOrder::create([
-                'so_number' => $request->so_number,
+                'so_number' => $soNumber,
                 'po_number_customer' => $request->po_number_customer,
                 'so_date' => $request->so_date,
                 'customer_id' => $request->customer_id,
@@ -321,7 +364,7 @@ class SalesOrderController extends Controller
         }
 
         $validatorRules = [
-            'so_number' => 'required|unique:SalesOrder,so_number,' . $id . ',so_id',
+            // so_number should not be updated, so removed from validation
             'po_number_customer' => 'nullable|string|max:100',
             'so_date' => 'required|date',
             'customer_id' => 'required|exists:Customer,customer_id',
@@ -375,9 +418,8 @@ class SalesOrderController extends Controller
                 }
             }
 
-            // Update main order fields
+            // Update main order fields (excluding so_number)
             $order->update([
-                'so_number' => $request->so_number,
                 'po_number_customer' => $request->po_number_customer,
                 'so_date' => $request->so_date,
                 'customer_id' => $request->customer_id,
@@ -516,18 +558,17 @@ class SalesOrderController extends Controller
             $headerSheet = $spreadsheet->getActiveSheet();
             $headerSheet->setTitle('Sales Orders');
 
-            // Header columns for Sales Order
+            // Header columns for Sales Order (removed SO Number from template since it's auto-generated)
             $headers = [
-                'A1' => 'SO Number*',
+                'A1' => 'Customer Code*',
                 'B1' => 'Customer PO Number',
                 'C1' => 'SO Date*',
-                'D1' => 'Customer Code*',
-                'E1' => 'Payment Terms',
-                'F1' => 'Delivery Terms',
-                'G1' => 'Expected Delivery',
-                'H1' => 'Status*',
-                'I1' => 'Currency Code',
-                'J1' => 'Notes'
+                'D1' => 'Payment Terms',
+                'E1' => 'Delivery Terms',
+                'F1' => 'Expected Delivery',
+                'G1' => 'Status*',
+                'H1' => 'Currency Code',
+                'I1' => 'Notes'
             ];
 
             // Apply headers
@@ -557,18 +598,18 @@ class SalesOrderController extends Controller
                 ]
             ];
 
-            $headerSheet->getStyle('A1:J1')->applyFromArray($headerStyle);
+            $headerSheet->getStyle('A1:I1')->applyFromArray($headerStyle);
 
             // Set column widths
-            $columnWidths = ['A' => 15, 'B' => 15, 'C' => 12, 'D' => 15, 'E' => 15, 'F' => 15, 'G' => 15, 'H' => 12, 'I' => 12, 'J' => 25];
+            $columnWidths = ['A' => 15, 'B' => 15, 'C' => 12, 'D' => 15, 'E' => 15, 'F' => 15, 'G' => 12, 'H' => 12, 'I' => 25];
             foreach ($columnWidths as $column => $width) {
                 $headerSheet->getColumnDimension($column)->setWidth($width);
             }
 
             // Add sample data
             $sampleData = [
-                ['SO-2024-001', 'PO-CUSTOMER-001', '2024-01-15', 'CUST001', 'Net 30', 'FOB Destination', '2024-02-15', 'Draft', 'USD', 'Sample sales order 1'],
-                ['SO-2024-002', 'PO-CUSTOMER-002', '2024-01-16', 'CUST002', 'Net 60', 'FOB Origin', '2024-02-20', 'Confirmed', 'EUR', 'Sample sales order 2']
+                ['CUST001', 'PO-CUSTOMER-001', '2024-01-15', 'Net 30', 'FOB Destination', '2024-02-15', 'Draft', 'USD', 'Sample sales order 1'],
+                ['CUST002', 'PO-CUSTOMER-002', '2024-01-16', 'Net 60', 'FOB Origin', '2024-02-20', 'Confirmed', 'EUR', 'Sample sales order 2']
             ];
 
             $row = 2;
@@ -586,7 +627,7 @@ class SalesOrderController extends Controller
             $linesSheet->setTitle('Sales Order Lines');
 
             $lineHeaders = [
-                'A1' => 'SO Number*',
+                'A1' => 'Customer Code*',
                 'B1' => 'Item Code*',
                 'C1' => 'Quantity*',
                 'D1' => 'UOM Code*',
@@ -610,9 +651,9 @@ class SalesOrderController extends Controller
 
             // Add sample line data
             $sampleLineData = [
-                ['SO-2024-001', 'ITEM001', 10, 'PCS', 100.00, 0, 10.00, 'Line 1 for SO-2024-001'],
-                ['SO-2024-001', 'ITEM002', 5, 'KG', 50.00, 5.00, 2.50, 'Line 2 for SO-2024-001'],
-                ['SO-2024-002', 'ITEM003', 20, 'PCS', 75.00, 0, 15.00, 'Line 1 for SO-2024-002']
+                ['CUST001', 'ITEM001', 10, 'PCS', 100.00, 0, 10.00, 'Line 1 for customer order'],
+                ['CUST001', 'ITEM002', 5, 'KG', 50.00, 5.00, 2.50, 'Line 2 for customer order'],
+                ['CUST002', 'ITEM003', 20, 'PCS', 75.00, 0, 15.00, 'Line 1 for customer order']
             ];
 
             $row = 2;
@@ -634,28 +675,29 @@ class SalesOrderController extends Controller
                 '',
                 '1. GENERAL RULES:',
                 '   - Fields marked with * are required',
+                '   - Sales Order numbers will be auto-generated (SO-yy-000000 format)',
                 '   - Use the exact codes from Reference Data sheet',
                 '   - Date format: YYYY-MM-DD (e.g., 2024-01-15)',
                 '   - Decimal numbers use dot (.) as separator',
                 '',
                 '2. SALES ORDERS SHEET:',
-                '   - SO Number: Must be unique across all sales orders',
-                '   - Customer PO Number: Optional field for customer\'s purchase order reference',
                 '   - Customer Code: Must exist in system',
+                '   - Customer PO Number: Optional field for customer\'s purchase order reference',
                 '   - Status: Draft, Confirmed, Processing, Shipped, Delivered, Invoiced, Closed',
                 '   - Currency Code: Use standard 3-letter codes (USD, EUR, etc.)',
                 '',
                 '3. SALES ORDER LINES SHEET:',
-                '   - SO Number: Must match exactly with SO Number in Sales Orders sheet',
+                '   - Customer Code: Must match exactly with Customer Code in Sales Orders sheet',
                 '   - Item Code: Must exist and be sellable',
                 '   - UOM Code: Must exist in system',
                 '   - Unit Price: If empty, system will use default sale price',
                 '   - Discount and Tax: Optional, use 0 if not applicable',
                 '',
                 '4. IMPORT PROCESS:',
+                '   - System will auto-generate SO Numbers (SO-yy-000000 format)',
                 '   - System will first create Sales Orders from "Sales Orders" sheet',
                 '   - Then add lines from "Sales Order Lines" sheet',
-                '   - If SO Number already exists, you can choose to update or skip',
+                '   - Lines are matched to orders by Customer Code',
                 '',
                 '5. ERROR HANDLING:',
                 '   - Invalid data will be logged with row number',
@@ -778,24 +820,23 @@ class SalesOrderController extends Controller
             // Process Sales Orders (Headers)
             for ($row = 2; $row <= $headerHighestRow; $row++) {
                 try {
-                    $soNumber = trim($headerSheet->getCell('A' . $row)->getValue() ?? '');
+                    $customerCode = trim($headerSheet->getCell('A' . $row)->getValue() ?? '');
                     $poNumberCustomer = trim($headerSheet->getCell('B' . $row)->getValue() ?? '');
                     $soDate = $headerSheet->getCell('C' . $row)->getFormattedValue();
-                    $customerCode = trim($headerSheet->getCell('D' . $row)->getValue() ?? '');
-                    $paymentTerms = trim($headerSheet->getCell('E' . $row)->getValue() ?? '');
-                    $deliveryTerms = trim($headerSheet->getCell('F' . $row)->getValue() ?? '');
-                    $expectedDelivery = $headerSheet->getCell('G' . $row)->getFormattedValue();
-                    $status = trim($headerSheet->getCell('H' . $row)->getValue() ?? 'Draft');
-                    $currencyCode = trim($headerSheet->getCell('I' . $row)->getValue() ?? 'USD');
+                    $paymentTerms = trim($headerSheet->getCell('D' . $row)->getValue() ?? '');
+                    $deliveryTerms = trim($headerSheet->getCell('E' . $row)->getValue() ?? '');
+                    $expectedDelivery = $headerSheet->getCell('F' . $row)->getFormattedValue();
+                    $status = trim($headerSheet->getCell('G' . $row)->getValue() ?? 'Draft');
+                    $currencyCode = trim($headerSheet->getCell('H' . $row)->getValue() ?? 'USD');
 
                     // Skip empty rows
-                    if (empty($soNumber) && empty($customerCode)) {
+                    if (empty($customerCode)) {
                         continue;
                     }
 
                     // Validate required fields
-                    if (empty($soNumber) || empty($soDate) || empty($customerCode)) {
-                        $errors[] = "Row {$row}: Missing required fields (SO Number, SO Date, or Customer Code)";
+                    if (empty($customerCode) || empty($soDate)) {
+                        $errors[] = "Row {$row}: Missing required fields (Customer Code or SO Date)";
                         $errorCount++;
                         continue;
                     }
@@ -804,14 +845,6 @@ class SalesOrderController extends Controller
                     $customer = Customer::where('customer_code', $customerCode)->first();
                     if (!$customer) {
                         $errors[] = "Row {$row}: Customer with code '{$customerCode}' not found";
-                        $errorCount++;
-                        continue;
-                    }
-
-                    // Check if SO already exists
-                    $existingSO = SalesOrder::where('so_number', $soNumber)->first();
-                    if ($existingSO && !$updateExisting) {
-                        $errors[] = "Row {$row}: Sales Order '{$soNumber}' already exists. Enable 'Update Existing' to overwrite.";
                         $errorCount++;
                         continue;
                     }
@@ -840,7 +873,10 @@ class SalesOrderController extends Controller
                         $exchangeRate = $rate;
                     }
 
-                    // Create or update Sales Order
+                    // Generate SO Number automatically
+                    $soNumber = $this->generateSalesOrderNumber();
+
+                    // Create Sales Order
                     $salesOrderData = [
                         'so_number' => $soNumber,
                         'po_number_customer' => $poNumberCustomer,
@@ -859,16 +895,8 @@ class SalesOrderController extends Controller
                         'base_currency_tax' => 0
                     ];
 
-                    if ($existingSO && $updateExisting) {
-                        $existingSO->update($salesOrderData);
-                        $salesOrder = $existingSO;
-                        // Delete existing lines to replace with new ones
-                        $salesOrder->salesOrderLines()->delete();
-                    } else {
-                        $salesOrder = SalesOrder::create($salesOrderData);
-                    }
-
-                    $createdOrders[$soNumber] = $salesOrder;
+                    $salesOrder = SalesOrder::create($salesOrderData);
+                    $createdOrders[$customerCode] = $salesOrder;
                     $successCount++;
                 } catch (\Exception $e) {
                     $errors[] = "Row {$row}: " . $e->getMessage();
@@ -880,7 +908,7 @@ class SalesOrderController extends Controller
             if ($linesHighestRow >= 2) {
                 for ($row = 2; $row <= $linesHighestRow; $row++) {
                     try {
-                        $soNumber = trim($linesSheet->getCell('A' . $row)->getValue() ?? '');
+                        $customerCode = trim($linesSheet->getCell('A' . $row)->getValue() ?? '');
                         $itemCode = trim($linesSheet->getCell('B' . $row)->getValue() ?? '');
                         $quantity = $linesSheet->getCell('C' . $row)->getValue();
                         $uomCode = trim($linesSheet->getCell('D' . $row)->getValue() ?? '');
@@ -889,20 +917,20 @@ class SalesOrderController extends Controller
                         $tax = $linesSheet->getCell('G' . $row)->getValue() ?? 0;
 
                         // Skip empty rows
-                        if (empty($soNumber) && empty($itemCode)) {
+                        if (empty($customerCode) && empty($itemCode)) {
                             continue;
                         }
 
                         // Validate required fields
-                        if (empty($soNumber) || empty($itemCode) || empty($quantity) || empty($uomCode)) {
+                        if (empty($customerCode) || empty($itemCode) || empty($quantity) || empty($uomCode)) {
                             $errors[] = "Line Row {$row}: Missing required fields";
                             $errorCount++;
                             continue;
                         }
 
-                        // Check if SO exists in our created orders
-                        if (!isset($createdOrders[$soNumber])) {
-                            $errors[] = "Line Row {$row}: Sales Order '{$soNumber}' not found in headers";
+                        // Check if Sales Order exists for this customer
+                        if (!isset($createdOrders[$customerCode])) {
+                            $errors[] = "Line Row {$row}: Sales Order for customer '{$customerCode}' not found in headers";
                             $errorCount++;
                             continue;
                         }
@@ -931,7 +959,7 @@ class SalesOrderController extends Controller
 
                         // Create order line
                         SOLine::create([
-                            'so_id' => $createdOrders[$soNumber]->so_id,
+                            'so_id' => $createdOrders[$customerCode]->so_id,
                             'item_id' => $item->item_id,
                             'unit_price' => $finalUnitPrice,
                             'quantity' => $quantity,

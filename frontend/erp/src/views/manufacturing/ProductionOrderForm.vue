@@ -21,18 +21,28 @@
           <h2>Job Process Details</h2>
 
           <div class="form-row">
+            <!-- Production Number - Updated to show preview like WorkOrder -->
             <div class="form-group">
               <label for="production_number">Production Number</label>
-              <input
-                type="text"
-                id="production_number"
-                v-model="form.production_number"
-                :readonly="isEditing"
-                :class="{ 'error': errors && errors.production_number }"
-                placeholder="Will be auto-generated if left empty"
-              >
-              <div v-if="errors && errors.production_number" class="error-message">
-                {{ errors.production_number }}
+              <div v-if="isEditing">
+                <input
+                  type="text"
+                  id="production_number"
+                  v-model="form.production_number"
+                  readonly
+                  :class="{ 'error': errors && errors.production_number }"
+                />
+                <div v-if="errors && errors.production_number" class="error-message">
+                  {{ errors.production_number }}
+                </div>
+              </div>
+              <div v-else>
+                <div class="form-control-static">
+                  <span class="badge badge-info">{{ nextProductionNumber || 'Loading...' }}</span>
+                </div>
+                <small class="form-text text-muted">
+                  Auto-generated number (will be assigned when saved)
+                </small>
               </div>
             </div>
 
@@ -296,12 +306,18 @@ export default {
       errors: {},
       // Work Order Search State
       workOrderSearch: '',
-      showWorkOrderDropdown: false
+      showWorkOrderDropdown: false,
+      // Next production number for preview
+      nextProductionNumber: ''
     };
   },
   computed: {
     isEditing() {
       return !!this.id;
+    },
+    // Get current year for display
+    currentYear() {
+      return new Date().getFullYear().toString().substr(-2);
     },
     // Filtered work orders based on search
     filteredWorkOrders() {
@@ -322,14 +338,26 @@ export default {
     async fetchInitialData() {
       this.loading = true;
       try {
-        // Fetch work orders excluding completed
-        const [workOrdersRes, warehousesRes] = await Promise.all([
+        // Fetch work orders excluding completed and next production number
+        const promises = [
           axios.get('/work-orders', { params: { exclude_status: 'Completed' } }),
           axios.get('/warehouses')
-        ]);
+        ];
 
-        this.workOrders = workOrdersRes.data.data || workOrdersRes.data;
-        this.warehouses = warehousesRes.data.data || warehousesRes.data;
+        // Add next production number fetch only for create mode
+        if (!this.isEditing) {
+          promises.push(axios.get('/production-orders/next-number'));
+        }
+
+        const responses = await Promise.all(promises);
+
+        this.workOrders = responses[0].data.data || responses[0].data;
+        this.warehouses = responses[1].data.data || responses[1].data;
+
+        // Set next production number for create mode
+        if (!this.isEditing && responses[2]) {
+          this.nextProductionNumber = responses[2].data.next_production_number;
+        }
 
         // If editing, fetch production order details
         if (this.isEditing) {
@@ -526,11 +554,17 @@ export default {
           consumption.variance = consumption.planned_quantity - (consumption.actual_quantity || 0);
         });
 
+        // Prepare form data (remove production_number if empty for auto-generation)
+        const formData = { ...this.form };
+        if (!this.isEditing && !formData.production_number) {
+          delete formData.production_number;
+        }
+
         let response;
         if (this.isEditing) {
-          response = await axios.put(`/production-orders/${this.id}`, this.form);
+          response = await axios.put(`/production-orders/${this.id}`, formData);
         } else {
-          response = await axios.post('/production-orders', this.form);
+          response = await axios.post('/production-orders', formData);
         }
 
         if (this.$toast) this.$toast.success(
@@ -538,6 +572,11 @@ export default {
             ? 'Production order updated successfully'
             : 'Production order created successfully'
         );
+
+        // Show generated production number in success message if it was auto-generated
+        if (!this.isEditing && !this.form.production_number && response.data.data?.production_number) {
+          if (this.$toast) this.$toast.info(`Generated Production Number: ${response.data.data.production_number}`);
+        }
 
         // Redirect to production order detail view
         const productionId = this.isEditing
@@ -602,7 +641,32 @@ export default {
 </script>
 
 <style scoped>
-/* Existing styles remain the same - adding new classes for dropdown and work order styling */
+/* Badge styling for production number preview */
+.badge {
+  display: inline-block;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: baseline;
+  border-radius: 0.375rem;
+}
+
+.badge-info {
+  color: #fff;
+  background-color: #17a2b8;
+}
+
+.form-control-static {
+  padding-top: 0.65rem;
+  padding-bottom: 0.65rem;
+  margin-bottom: 0;
+  min-height: calc(1.5em + 1.3rem + 2px);
+}
+
+/* Existing styles remain the same... */
 
 .text-success {
   color: #059669 !important;
@@ -624,6 +688,11 @@ export default {
   color: #64748b;
   margin-top: 0.25rem;
   font-style: italic;
+}
+
+.input-hint i {
+  margin-right: 0.25rem;
+  color: #3b82f6;
 }
 
 .required {

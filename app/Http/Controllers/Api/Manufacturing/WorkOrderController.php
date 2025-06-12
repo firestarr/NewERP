@@ -13,6 +13,34 @@ use Illuminate\Support\Facades\DB;
 class WorkOrderController extends Controller
 {
     /**
+     * Generate the next work order number with format J-yy-00000
+     *
+     * @return string
+     */
+    private function generateWorkOrderNumber()
+    {
+        $currentYear = date('y'); // Get 2-digit year
+        $prefix = "J-{$currentYear}-";
+
+        // Get the latest work order number for current year
+        $latestWorkOrder = WorkOrder::where('wo_number', 'like', $prefix . '%')
+            ->orderBy('wo_number', 'desc')
+            ->first();
+
+        if ($latestWorkOrder) {
+            // Extract the sequence number from the latest work order
+            $lastNumber = intval(substr($latestWorkOrder->wo_number, -5));
+            $nextNumber = $lastNumber + 1;
+        } else {
+            // First work order of the year
+            $nextNumber = 1;
+        }
+
+        // Format with 5 digits, padded with zeros
+        return $prefix . sprintf('%05d', $nextNumber);
+    }
+
+    /**
      * Display a listing of the resource.
      *
      * @return \Illuminate\Http\Response
@@ -60,7 +88,7 @@ class WorkOrderController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'wo_number' => 'required|string|max:50|unique:work_orders,wo_number',
+            // Removed wo_number from validation since it's auto-generated
             'wo_date' => 'required|date',
             'item_id' => 'required|integer|exists:items,item_id',
             'bom_id' => 'required|integer|exists:boms,bom_id',
@@ -77,7 +105,11 @@ class WorkOrderController extends Controller
 
         DB::beginTransaction();
         try {
-            $workOrder = WorkOrder::create($request->all());
+            // Generate the work order number automatically
+            $workOrderData = $request->all();
+            $workOrderData['wo_number'] = $this->generateWorkOrderNumber();
+
+            $workOrder = WorkOrder::create($workOrderData);
 
             // Create work order operations based on routing operations
             $routingOperations = $workOrder->routing->routingOperations;
@@ -145,7 +177,7 @@ class WorkOrderController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'wo_number' => 'sometimes|required|string|max:50|unique:work_orders,wo_number,' . $id . ',wo_id',
+            // wo_number should not be updated, so removed from validation
             'wo_date' => 'sometimes|required|date',
             'item_id' => 'sometimes|required|integer|exists:items,item_id',
             'bom_id' => 'sometimes|required|integer|exists:boms,bom_id',
@@ -160,7 +192,11 @@ class WorkOrderController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $workOrder->update($request->all());
+        // Remove wo_number from update data to prevent modification
+        $updateData = $request->all();
+        unset($updateData['wo_number']);
+
+        $workOrder->update($updateData);
 
         return response()->json([
             'data' => $workOrder,
@@ -201,5 +237,17 @@ class WorkOrderController extends Controller
             DB::rollBack();
             return response()->json(['message' => 'Failed to delete work order', 'error' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Get the next work order number (for preview)
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function getNextWorkOrderNumber()
+    {
+        return response()->json([
+            'next_wo_number' => $this->generateWorkOrderNumber()
+        ]);
     }
 }

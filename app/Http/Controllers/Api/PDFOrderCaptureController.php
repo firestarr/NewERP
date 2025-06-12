@@ -17,11 +17,15 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 
 class PdfOrderCaptureController extends Controller
 {
     /**
      * Upload and process PDF to create sales order
+     *
+     * @param \App\Http\Requests\PdfOrderCaptureRequest $request
+     * @return \Illuminate\Http\JsonResponse
      */
     public function processPdf(PdfOrderCaptureRequest $request)
     {
@@ -745,7 +749,7 @@ Document text to analyze:
         $customerPoNumber = $extractedData['order_info']['po_number_customer'] ?? null;
 
         // NEW: Generate SO number using our internal system (not using customer's PO number)
-        $soNumber = $this->generateSalesOrderNumber($customer, $pdfCapture);
+        $soNumber = $this->generateConsistentSalesOrderNumber();
 
         Log::info('Sales Order Number Generation', [
             'customer_po_number' => $customerPoNumber,
@@ -813,43 +817,36 @@ Document text to analyze:
      * Generate Sales Order Number using internal numbering system
      * NEW: Method to generate SO numbers independently of customer PO numbers
      */
-    private function generateSalesOrderNumber($customer, $pdfCapture)
+    private function generateConsistentSalesOrderNumber()
     {
-        // Option 1: Sequential numbering with prefix
-        $prefix = 'SO';
-        $year = date('Y');
-        $month = date('m');
+        // NEW FORMAT: SO-yy-000000 (SO-25-000001)
+        $currentYear = date('y'); // 2-digit year
+        $prefix = "SO-{$currentYear}-";
 
-        // Get the last SO number for this year-month
-        $lastSO = SalesOrder::where('so_number', 'like', "{$prefix}-{$year}{$month}-%")
+        // Get the latest sales order number for current year (same logic as SalesOrderController)
+        $latestSalesOrder = SalesOrder::where('so_number', 'like', $prefix . '%')
             ->orderBy('so_number', 'desc')
             ->first();
 
-        if ($lastSO) {
-            // Extract the sequence number from the last SO
-            $lastNumber = intval(substr($lastSO->so_number, -4));
+        if ($latestSalesOrder) {
+            // Extract the sequence number from the latest sales order
+            $lastNumber = intval(substr($latestSalesOrder->so_number, -6)); // 6 digits
             $nextNumber = $lastNumber + 1;
         } else {
+            // First sales order of the year
             $nextNumber = 1;
         }
 
-        $soNumber = sprintf('%s-%s%s-%04d', $prefix, $year, $month, $nextNumber);
+        // Format with 6 digits, padded with zeros (same as SalesOrderController)
+        $soNumber = $prefix . sprintf('%06d', $nextNumber);
+        // Result: SO-25-000001
 
-        // Ensure uniqueness
-        while (SalesOrder::where('so_number', $soNumber)->exists()) {
-            $nextNumber++;
-            $soNumber = sprintf('%s-%s%s-%04d', $prefix, $year, $month, $nextNumber);
-        }
-
-        // Option 2: Alternative format with customer code
-        // $customerCode = $customer->customer_code ?? 'CUST';
-        // $soNumber = sprintf('SO-%s-%s-%04d', $customerCode, date('Ymd'), $pdfCapture->id);
-
-        Log::info('Generated SO Number', [
+        Log::info('Generated consistent SO Number from PDF Capture', [
             'so_number' => $soNumber,
-            'customer_id' => $customer->customer_id,
-            'capture_id' => $pdfCapture->id,
-            'method' => 'sequential_with_year_month'
+            'format' => 'SO-yy-000000',
+            'year' => $currentYear,
+            'sequence' => $nextNumber,
+            'source' => 'PDF_CAPTURE_CONTROLLER'
         ]);
 
         return $soNumber;

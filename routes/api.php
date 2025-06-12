@@ -284,8 +284,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/{id}/lines/{lineId}', [SalesQuotationController::class, 'removeLine']);
     });
 
-    // Sales Order routes
     Route::prefix('orders')->group(function () {
+        Route::get('/next-number', [SalesOrderController::class, 'getNextSalesOrderNumber']);
         Route::get('/', [SalesOrderController::class, 'index']);
         Route::post('/', [SalesOrderController::class, 'store']);
         Route::post('/from-quotation', [SalesOrderController::class, 'createFromQuotation']);
@@ -520,15 +520,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('work-orders', WorkOrderController::class);
     Route::apiResource('work-orders/{workOrderId}/operations', WorkOrderOperationController::class)
         ->except(['store', 'destroy']);
+    Route::get('work-orders/next-number', [WorkOrderController::class, 'getNextWorkOrderNumber']);
+
 
     // Production Orders - Updated with separated flow
     Route::prefix('production-orders')->group(function () {
         // Basic CRUD
+        Route::get('/next-number', [ProductionOrderController::class, 'getNextProductionNumber']);
         Route::get('/', [ProductionOrderController::class, 'index']);
         Route::post('/', [ProductionOrderController::class, 'store']);
         Route::get('/{id}', [ProductionOrderController::class, 'show']);
         Route::put('/{id}', [ProductionOrderController::class, 'update']);
         Route::delete('/{id}', [ProductionOrderController::class, 'destroy']);
+
 
         // Status management
         Route::patch('/{id}/status', [ProductionOrderController::class, 'updateStatus']);

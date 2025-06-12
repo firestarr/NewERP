@@ -13,7 +13,7 @@
                     :disabled="isSubmitting"
                 >
                     <i class="fas fa-save"></i>
-                    {{ isSubmitting ? "saving..." : "Save" }}
+                    {{ isSubmitting ? "Saving..." : "Save" }}
                 </button>
             </div>
         </div>
@@ -29,19 +29,31 @@
                 </div>
                 <div class="card-body">
                     <div class="form-row">
-                        <div class="form-group">
+                        <!-- Sales Order Number - Show readonly in edit mode -->
+                        <div class="form-group" v-if="isEditMode">
                             <label for="so_number">Order Number*</label>
                             <input
                                 type="text"
                                 id="so_number"
                                 v-model="form.so_number"
                                 required
-                                :readonly="isEditMode"
-                                :class="{ readonly: isEditMode }"
+                                readonly
+                                class="form-control readonly"
                             />
-                            <small v-if="isEditMode" class="text-muted"
-                                >Order number cannot be changed</small
-                            >
+                            <small class="text-muted">
+                                Auto-generated order number (cannot be changed)
+                            </small>
+                        </div>
+
+                        <!-- Show next number preview in create mode -->
+                        <div class="form-group" v-if="!isEditMode">
+                            <label for="so_number">Order Number*</label>
+                            <div class="form-control-static">
+                                <span class="badge badge-info">{{ nextSoNumber || 'Loading...' }}</span>
+                            </div>
+                            <small class="text-muted">
+                                Auto-generated number (will be assigned when saved)
+                            </small>
                         </div>
 
                         <div class="form-group">
@@ -383,8 +395,8 @@ export default {
 
         // Form data
         const form = ref({
-            so_number: "",
-            po_number_customer: "", // Add this field
+            so_number: "", // This will be auto-generated (removed manual generation)
+            po_number_customer: "",
             so_date: new Date().toISOString().substr(0, 10),
             customer_id: "",
             quotation_id: "",
@@ -410,6 +422,7 @@ export default {
         const isLoading = ref(false);
         const isSubmitting = ref(false);
         const error = ref("");
+        const nextSoNumber = ref(''); // For preview
 
         // Computed property for sellable items
         const sellableItems = computed(() => {
@@ -421,17 +434,17 @@ export default {
             return route.params.id !== undefined;
         });
 
-        // Generate a unique sales order number
-        const generateOrderNumber = () => {
-            const today = new Date();
-            const year = today.getFullYear().toString().slice(-2);
-            const month = (today.getMonth() + 1).toString().padStart(2, "0");
-            const day = today.getDate().toString().padStart(2, "0");
-            const random = Math.floor(Math.random() * 1000)
-                .toString()
-                .padStart(3, "0");
-
-            return `SO${year}${month}${day}-${random}`;
+        // Load next sales order number for preview
+        const loadNextSalesOrderNumber = async () => {
+            if (!isEditMode.value) {
+                try {
+                    const response = await axios.get('/orders/next-number');
+                    nextSoNumber.value = response.data.next_so_number;
+                } catch (error) {
+                    console.error('Error loading next sales order number:', error);
+                    nextSoNumber.value = 'SO-' + new Date().getFullYear().toString().substr(-2) + '-000001';
+                }
+            }
         };
 
         // Load reference data
@@ -471,8 +484,8 @@ export default {
         // Load order data if in edit mode
         const loadOrder = async () => {
             if (!isEditMode.value) {
-                // Generate an order number for new orders
-                form.value.so_number = generateOrderNumber();
+                // In create mode, load next SO number for preview
+                await loadNextSalesOrderNumber();
                 return;
             }
 
@@ -489,8 +502,8 @@ export default {
                 // Set form data
                 form.value = {
                     so_id: order.soId,
-                    so_number: order.soNumber,
-                    po_number_customer: order.poNumberCustomer || "", // Add this field
+                    so_number: order.soNumber, // Now this is auto-generated and read-only
+                    po_number_customer: order.poNumberCustomer || "",
                     so_date: order.soDate.substr(0, 10),
                     customer_id: order.customerId,
                     quotation_id: order.quotationId || "",
@@ -567,27 +580,6 @@ export default {
             }
         };
 
-        // Event handler for customer change (for compatibility with existing code)
-        const handleCustomerChange = () => {
-            if (!form.value.customer_id) {
-                selectedCustomer.value = null;
-                customerSearch.value = '';
-                return;
-            }
-
-            selectedCustomer.value = customers.value.find(
-                c => c.customer_id === form.value.customer_id
-            );
-
-            if (selectedCustomer.value) {
-                customerSearch.value = selectedCustomer.value.name;
-                // If customer has preferred currency, set it as the order currency
-                if (selectedCustomer.value.preferred_currency) {
-                    form.value.currency_code = selectedCustomer.value.preferred_currency;
-                }
-            }
-        };
-
         // Method to filter items based on search input
         const getFilteredItems = (searchInput) => {
             if (!searchInput) {
@@ -636,47 +628,6 @@ export default {
                 // Use default sale price if API call fails
                 line.unit_price = item.sale_price || 0;
                 calculateLineTotals(lineIndex);
-            }
-        };
-
-        // Event handler for item change (for compatibility)
-        const handleItemChange = async (event, index) => {
-            const itemId = form.value.lines[index].item_id;
-            if (!itemId) return;
-
-            const selectedItem = items.value.find((i) => i.item_id == itemId);
-            if (selectedItem) {
-                // Set default UOM if available
-                form.value.lines[index].uom_id = selectedItem.uom_id || "";
-
-                // Set item_code in the line
-                form.value.lines[index].item_code = selectedItem.item_code || "";
-                form.value.lines[index].itemSearch = `${selectedItem.item_code} - ${selectedItem.name}`;
-
-                try {
-                    // Get best price in current currency
-                    const response = await axios.get(`/items/${itemId}/best-sale-price`, {
-                        params: {
-                            customer_id: form.value.customer_id,
-                            quantity: form.value.lines[index].quantity || 1,
-                            currency_code: form.value.currency_code
-                        }
-                    });
-
-                    if (response.data && response.data.price) {
-                        form.value.lines[index].unit_price = response.data.price;
-                    } else {
-                        // If no specific price, use default sale price
-                        form.value.lines[index].unit_price = selectedItem.sale_price || 0;
-                    }
-
-                    calculateLineTotals(index);
-                } catch (err) {
-                    console.error("Error fetching item price:", err);
-                    // Use default sale price if API call fails
-                    form.value.lines[index].unit_price = selectedItem.sale_price || 0;
-                    calculateLineTotals(index);
-                }
             }
         };
 
@@ -760,7 +711,6 @@ export default {
         const saveOrder = async () => {
             // Validate form
             if (
-                !form.value.so_number ||
                 !form.value.so_date ||
                 !form.value.customer_id ||
                 !form.value.currency_code
@@ -783,9 +733,7 @@ export default {
                     !line.quantity ||
                     !line.uom_id
                 ) {
-                    error.value = `Item ${
-                        i + 1
-                    } has incomplete data.`;
+                    error.value = `Item ${i + 1} has incomplete data.`;
                     return;
                 }
             }
@@ -813,6 +761,10 @@ export default {
                     tax_amount: calculateTotalTax(),
                     lines: orderLines
                 };
+
+                // Remove so_number from orderData for both create and update
+                // as it's auto-generated on backend
+                delete orderData.so_number;
 
                 if (isEditMode.value) {
                     // Update existing order
@@ -896,12 +848,11 @@ export default {
             selectedCustomer,
             customerSearch,
             showCustomerDropdown,
+            nextSoNumber, // Add this for preview
             getFilteredCustomers,
             selectCustomer,
             getFilteredItems,
             selectItem,
-            handleCustomerChange,
-            handleItemChange,
             addLine,
             removeLine,
             calculateLineTotals,
@@ -1024,6 +975,31 @@ export default {
 .form-group input.readonly {
     background-color: #f8fafc;
     cursor: not-allowed;
+}
+
+/* Badge styling for order number preview */
+.badge {
+    display: inline-block;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: 0.375rem;
+}
+
+.badge-info {
+    color: #fff;
+    background-color: #17a2b8;
+}
+
+.form-control-static {
+    padding-top: 0.65rem;
+    padding-bottom: 0.65rem;
+    margin-bottom: 0;
+    min-height: calc(1.5em + 1.3rem + 2px);
 }
 
 .text-muted {
