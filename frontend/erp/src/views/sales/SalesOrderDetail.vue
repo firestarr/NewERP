@@ -85,6 +85,13 @@
                         </div>
 
                         <div class="info-group">
+                            <label>Customer PO Number</label>
+                            <div class="info-value">
+                                {{ order.poNumberCustomer || '-' }}
+                            </div>
+                        </div>
+
+                        <div class="info-group">
                             <label>Order Date</label>
                             <div class="info-value">
                                 {{ formatDate(order.soDate) }}
@@ -129,6 +136,13 @@
                             <label>Payment Terms</label>
                             <div class="info-value">
                                 {{ order.payment_terms || "-" }}
+                            </div>
+                        </div>
+
+                        <div class="info-group">
+                            <label>Delivery Terms</label>
+                            <div class="info-value">
+                                {{ order.delivery_terms || "-" }}
                             </div>
                         </div>
                     </div>
@@ -216,56 +230,56 @@
                                 </tr>
                             </thead>
                             <!-- Update untuk bagian item table di SalesOrderDetail.vue -->
-<tbody>
-    <tr
-        v-for="line in order.salesOrderLines"
-        :key="line.line_id"
-        :class="{'has-outstanding': getOutstandingQuantity(line) > 0}"
-    >
-        <td>
-            <div class="item-info">
-                <div class="item-code">
-                    {{ line.item.itemCode }}
-                </div>
-                <div class="item-name">
-                    <router-link
-                        v-if="line.item && line.item.itemId"
-                        :to="`/items/${line.item.itemId}`"
-                        class="item-link"
-                        :title="`View details for ${line.item.name}`"
-                    >
-                        {{ line.item.name }}
-                    </router-link>
-                    <span v-else class="text-muted">Unknown Item</span>
-                </div>
-            </div>
-        </td>
-        <td class="right">
-            {{ formatCurrency(line.unitPrice) }}
-        </td>
-        <td class="right">{{ line.quantity }}</td>
-        <td class="right">{{ getDeliveredQuantity(line) }}</td>
-        <td class="right outstanding-qty">
-            <span :class="{'text-danger': getOutstandingQuantity(line) > 0, 'text-success': getOutstandingQuantity(line) <= 0}">
-                {{ getOutstandingQuantity(line) }}
-            </span>
-        </td>
-        <td class="center">
-            {{ getUomSymbol(line.uomId) }}
-        </td>
-        <td class="center">
-            <span class="delivery-status" :class="getDeliveryStatusClass(line)">
-                {{ getDeliveryStatusLabel(line) }}
-            </span>
-        </td>
-        <td class="right">
-            {{ formatCurrency(line.subtotal) }}
-        </td>
-        <td class="right">
-            {{ formatCurrency(line.total) }}
-        </td>
-    </tr>
-</tbody>
+                            <tbody>
+                                <tr
+                                    v-for="line in order.salesOrderLines"
+                                    :key="line.line_id"
+                                    :class="{'has-outstanding': getOutstandingQuantity(line) > 0}"
+                                >
+                                    <td>
+                                        <div class="item-info">
+                                            <div class="item-code">
+                                                {{ line.item.itemCode }}
+                                            </div>
+                                            <div class="item-name">
+                                                <router-link
+                                                    v-if="line.item && line.item.itemId"
+                                                    :to="`/items/${line.item.itemId}`"
+                                                    class="item-link"
+                                                    :title="`View details for ${line.item.name}`"
+                                                >
+                                                    {{ line.item.name }}
+                                                </router-link>
+                                                <span v-else class="text-muted">Unknown Item</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="right">
+                                        {{ formatCurrency(line.unitPrice) }}
+                                    </td>
+                                    <td class="right">{{ line.quantity }}</td>
+                                    <td class="right">{{ getDeliveredQuantity(line) }}</td>
+                                    <td class="right outstanding-qty">
+                                        <span :class="{'text-danger': getOutstandingQuantity(line) > 0, 'text-success': getOutstandingQuantity(line) <= 0}">
+                                            {{ getOutstandingQuantity(line) }}
+                                        </span>
+                                    </td>
+                                    <td class="center">
+                                        {{ getUomSymbol(line.uomId) }}
+                                    </td>
+                                    <td class="center">
+                                        <span class="delivery-status" :class="getDeliveryStatusClass(line)">
+                                            {{ getDeliveryStatusLabel(line) }}
+                                        </span>
+                                    </td>
+                                    <td class="right">
+                                        {{ formatCurrency(line.subtotal) }}
+                                    </td>
+                                    <td class="right">
+                                        {{ formatCurrency(line.total) }}
+                                    </td>
+                                </tr>
+                            </tbody>
                             <tfoot>
                                 <tr>
                                     <td colspan="7" class="totals-label">
@@ -794,6 +808,7 @@ export default {
                 // Mapping data ke format backend (snake_case dan nama field sesuai)
                 const payload = {
                     so_number: order.value.soNumber,
+                    po_number_customer: order.value.poNumberCustomer || null, // Add this field
                     so_date: order.value.soDate,
                     customer_id: order.value.customer.customerId,
                     quotation_id: order.value.quotationId || null,

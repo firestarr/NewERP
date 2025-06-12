@@ -292,8 +292,8 @@ class PdfOrderCaptureController extends Controller
     }
 
     /**
-     * Build improved Groq AI prompt with better table column recognition
-     * REPLACE the existing buildGroqAIPrompt method with this
+     * Build improved Groq AI prompt with better table column recognition and separate PO number field
+     * UPDATED: Added po_number_customer field
      */
     private function buildGroqAIPrompt($pdfText)
     {
@@ -323,6 +323,11 @@ For PURCHASE ORDERS (documents we receive):
 - Look for company names like 'Yamaha Music India', 'Toyota', etc. at the document header
 - IGNORE the 'Vendor' section - that's us (the supplier receiving the order)
 
+CRITICAL RULES FOR PO NUMBER EXTRACTION:
+- Extract the customer's Purchase Order Number (P.O. No, Order No, etc.) from the document
+- This will be stored separately from the internal sales order number
+- Common locations: header section, reference fields like 'P.O. No:', 'Order No:', 'Ref No:'
+
 VALIDATION RULES:
 - Cross-check extracted quantities with calculated totals
 - If quantity × unit_price ≠ total_value, re-examine the table structure
@@ -346,7 +351,7 @@ Return ONLY valid JSON in this exact structure:
 {
     \"document_type\": \"PURCHASE_ORDER or SALES_ORDER or INVOICE\",
     \"order_info\": {
-        \"order_number\": \"extract P.O. No, Order No, SO No, etc.\",
+        \"po_number_customer\": \"extract customer's P.O. No, Order No, etc. (the actual reference from customer)\",
         \"order_date\": \"extract date in YYYY-MM-DD format\",
         \"expected_delivery\": \"extract delivery date in YYYY-MM-DD format\",
         \"currency\": \"extract currency code (USD, EUR, etc.)\",
@@ -691,6 +696,7 @@ Document text to analyze:
 
     /**
      * Create sales order from extracted data
+     * UPDATED: Changed logic for order number generation and added customer PO number handling
      */
     private function createSalesOrderFromData($extractedData, $pdfCapture)
     {
@@ -735,9 +741,17 @@ Document text to analyze:
         // Find or create customer
         $customer = $this->findOrCreateCustomer($customerData);
 
-        // Generate SO number if not provided
-        $soNumber = $extractedData['order_info']['order_number'] ??
-            'SO-PDF-' . date('Ymd') . '-' . str_pad($pdfCapture->id, 4, '0', STR_PAD_LEFT);
+        // NEW: Extract customer PO number separately
+        $customerPoNumber = $extractedData['order_info']['po_number_customer'] ?? null;
+
+        // NEW: Generate SO number using our internal system (not using customer's PO number)
+        $soNumber = $this->generateSalesOrderNumber($customer, $pdfCapture);
+
+        Log::info('Sales Order Number Generation', [
+            'customer_po_number' => $customerPoNumber,
+            'generated_so_number' => $soNumber,
+            'customer_id' => $customer->customer_id
+        ]);
 
         // Get currency and exchange rate
         $currencyCode = $extractedData['order_info']['currency'] ?? config('app.base_currency', 'USD');
@@ -750,9 +764,10 @@ Document text to analyze:
 
         // Create sales order
         $salesOrder = SalesOrder::create([
-            'so_number' => $soNumber,
+            'so_number' => $soNumber, // Our generated SO number
             'so_date' => $orderDate,
             'customer_id' => $customer->customer_id,
+            'po_number_customer' => $customerPoNumber, // Customer's PO number stored separately
             'payment_terms' => $extractedData['order_info']['payment_terms'],
             'delivery_terms' => $extractedData['order_info']['delivery_terms'],
             'expected_delivery' => $expectedDelivery,
@@ -795,6 +810,52 @@ Document text to analyze:
     }
 
     /**
+     * Generate Sales Order Number using internal numbering system
+     * NEW: Method to generate SO numbers independently of customer PO numbers
+     */
+    private function generateSalesOrderNumber($customer, $pdfCapture)
+    {
+        // Option 1: Sequential numbering with prefix
+        $prefix = 'SO';
+        $year = date('Y');
+        $month = date('m');
+
+        // Get the last SO number for this year-month
+        $lastSO = SalesOrder::where('so_number', 'like', "{$prefix}-{$year}{$month}-%")
+            ->orderBy('so_number', 'desc')
+            ->first();
+
+        if ($lastSO) {
+            // Extract the sequence number from the last SO
+            $lastNumber = intval(substr($lastSO->so_number, -4));
+            $nextNumber = $lastNumber + 1;
+        } else {
+            $nextNumber = 1;
+        }
+
+        $soNumber = sprintf('%s-%s%s-%04d', $prefix, $year, $month, $nextNumber);
+
+        // Ensure uniqueness
+        while (SalesOrder::where('so_number', $soNumber)->exists()) {
+            $nextNumber++;
+            $soNumber = sprintf('%s-%s%s-%04d', $prefix, $year, $month, $nextNumber);
+        }
+
+        // Option 2: Alternative format with customer code
+        // $customerCode = $customer->customer_code ?? 'CUST';
+        // $soNumber = sprintf('SO-%s-%s-%04d', $customerCode, date('Ymd'), $pdfCapture->id);
+
+        Log::info('Generated SO Number', [
+            'so_number' => $soNumber,
+            'customer_id' => $customer->customer_id,
+            'capture_id' => $pdfCapture->id,
+            'method' => 'sequential_with_year_month'
+        ]);
+
+        return $soNumber;
+    }
+
+    /**
      * Try to identify the real customer when AI confuses vendor/customer
      */
     private function identifyCustomerFromDocument($extractedData)
@@ -804,7 +865,7 @@ Document text to analyze:
         $vendorInfo = $extractedData['vendor_info'] ?? [];
 
         // If order number contains company identifier, use that
-        $orderNumber = $orderInfo['order_number'] ?? '';
+        $orderNumber = $orderInfo['po_number_customer'] ?? '';
 
         // Common patterns for identifying the ordering company
         $customerCandidates = [];

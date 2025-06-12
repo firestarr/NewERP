@@ -45,12 +45,37 @@
                         </div>
 
                         <div class="form-group">
+                            <label for="po_number_customer">Customer PO Number</label>
+                            <input
+                                type="text"
+                                id="po_number_customer"
+                                v-model="form.po_number_customer"
+                                placeholder="Enter customer's PO number"
+                                maxlength="100"
+                            />
+                            <small class="text-muted">
+                                Customer's Purchase Order number (optional)
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
                             <label for="so_date">Order Date*</label>
                             <input
                                 type="date"
                                 id="so_date"
                                 v-model="form.so_date"
                                 required
+                            />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="expected_delivery">Expected Delivery</label>
+                            <input
+                                type="date"
+                                id="expected_delivery"
+                                v-model="form.expected_delivery"
                             />
                         </div>
                     </div>
@@ -89,43 +114,6 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="expected_delivery"
-                                >Expected Delivery</label
-                            >
-                            <input
-                                type="date"
-                                id="expected_delivery"
-                                v-model="form.expected_delivery"
-                            />
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="payment_terms">Payment Terms</label>
-                            <input
-                                type="text"
-                                id="payment_terms"
-                                v-model="form.payment_terms"
-                                placeholder="Example: 30 days after delivery"
-                            />
-                        </div>
-
-                        <div class="form-group">
-                            <label for="delivery_terms"
-                                >Delivery Terms</label
-                            >
-                            <input
-                                type="text"
-                                id="delivery_terms"
-                                v-model="form.delivery_terms"
-                                placeholder="Example: Free to buyer's warehouse"
-                            />
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
                             <label for="currency_code">Currency Code*</label>
                             <select
                                 id="currency_code"
@@ -142,8 +130,32 @@
                                 Currency used for the transaction
                             </small>
                         </div>
+                    </div>
 
-                        <div class="form-group" v-if="isEditMode">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="payment_terms">Payment Terms</label>
+                            <input
+                                type="text"
+                                id="payment_terms"
+                                v-model="form.payment_terms"
+                                placeholder="Example: 30 days after delivery"
+                            />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="delivery_terms">Delivery Terms</label>
+                            <input
+                                type="text"
+                                id="delivery_terms"
+                                v-model="form.delivery_terms"
+                                placeholder="Example: Free to buyer's warehouse"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="form-row" v-if="isEditMode">
+                        <div class="form-group">
                             <label for="status">Status*</label>
                             <select id="status" v-model="form.status" required>
                                 <option value="Draft">Draft</option>
@@ -354,20 +366,6 @@
                     </div>
                 </div>
             </div>
-
-            <div class="form-actions">
-                <!-- <button type="button" class="btn btn-secondary" @click="goBack">
-                    Cancel
-                </button> -->
-                <!-- <button
-                    type="button"
-                    class="btn btn-primary"
-                    @click="saveOrder"
-                    :disabled="isSubmitting"
-                >
-                    {{ isSubmitting ? "Processing..." : "Save Order" }}
-                </button> -->
-            </div>
         </div>
     </div>
 </template>
@@ -386,6 +384,7 @@ export default {
         // Form data
         const form = ref({
             so_number: "",
+            po_number_customer: "", // Add this field
             so_date: new Date().toISOString().substr(0, 10),
             customer_id: "",
             quotation_id: "",
@@ -491,6 +490,7 @@ export default {
                 form.value = {
                     so_id: order.soId,
                     so_number: order.soNumber,
+                    po_number_customer: order.poNumberCustomer || "", // Add this field
                     so_date: order.soDate.substr(0, 10),
                     customer_id: order.customerId,
                     quotation_id: order.quotationId || "",

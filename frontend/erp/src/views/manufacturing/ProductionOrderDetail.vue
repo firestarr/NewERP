@@ -643,7 +643,7 @@
         this.hasUnsavedChanges = false;
       },
 
-      onConsumptionChange(consumptionId) {
+      onConsumptionChange() {
         this.checkForUnsavedChanges();
       },
 

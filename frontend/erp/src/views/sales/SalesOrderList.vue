@@ -5,7 +5,7 @@
         <div class="page-actions">
             <SearchFilter
                 v-model:value="searchQuery"
-                placeholder="Search orders..."
+                placeholder="Search orders (SO number, PO number, customer)..."
                 @search="handleSearch"
                 @clear="clearSearch"
             >
@@ -107,6 +107,10 @@
             <!-- Custom cell templates -->
             <template #so_number="{ value }">
                 <div class="order-number">{{ value }}</div>
+            </template>
+
+            <template #po_number_customer="{ value }">
+                <div class="po-number">{{ value || '-' }}</div>
             </template>
 
             <template #customer="{ item }">
@@ -231,13 +235,19 @@ export default {
         const showDeleteModal = ref(false);
         const orderToDelete = ref({});
 
-        // Table columns
+        // Table columns - Add po_number_customer column
         const columns = [
             {
                 key: "so_number",
-                label: "No. Order",
+                label: "SO Number",
                 sortable: true,
                 template: "so_number",
+            },
+            {
+                key: "po_number_customer",
+                label: "Customer PO",
+                sortable: true,
+                template: "po_number_customer",
             },
             {
                 key: "customer",
@@ -394,13 +404,13 @@ export default {
             });
         };
 
-const formatCurrency = (value) => {
-    return new Intl.NumberFormat("id-ID", {
-        style: "decimal",
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    }).format(value ?? 0);
-};
+        const formatCurrency = (value) => {
+            return new Intl.NumberFormat("id-ID", {
+                style: "decimal",
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            }).format(value ?? 0);
+        };
 
         const getStatusLabel = (status) => {
             switch (status) {
@@ -540,6 +550,12 @@ const formatCurrency = (value) => {
 .order-number {
     font-weight: 500;
     color: var(--primary-color);
+}
+
+.po-number {
+    font-weight: 400;
+    color: #64748b;
+    font-style: italic;
 }
 
 .customer-info {

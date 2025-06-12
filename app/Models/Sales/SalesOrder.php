@@ -19,6 +19,7 @@ class SalesOrder extends Model
 
     protected $fillable = [
         'so_number',
+        'po_number_customer', // Add this new field
         'so_date',
         'customer_id',
         'quotation_id',
@@ -28,11 +29,11 @@ class SalesOrder extends Model
         'status',
         'total_amount',
         'tax_amount',
-        'currency_code', // Baru
-        'exchange_rate', // Baru
-        'base_currency', // Baru
-        'base_currency_total', // Baru
-        'base_currency_tax' // Baru
+        'currency_code',
+        'exchange_rate',
+        'base_currency',
+        'base_currency_total',
+        'base_currency_tax'
     ];
 
     protected $casts = [
@@ -40,9 +41,9 @@ class SalesOrder extends Model
         'expected_delivery' => 'date',
         'total_amount' => 'float',
         'tax_amount' => 'float',
-        'exchange_rate' => 'float', // Baru
-        'base_currency_total' => 'float', // Baru
-        'base_currency_tax' => 'float' // Baru
+        'exchange_rate' => 'float',
+        'base_currency_total' => 'float',
+        'base_currency_tax' => 'float'
     ];
 
     /**
@@ -86,7 +87,7 @@ class SalesOrder extends Model
         // If needed, this can be re-implemented using a different approach
         return $this->hasMany(SalesInvoice::class, 'do_id', 'so_id');
     }
-    
+
     /**
      * Convert amounts to specified currency.
      *
@@ -97,7 +98,7 @@ class SalesOrder extends Model
     public function getAmountsInCurrency($toCurrency, $date = null)
     {
         $date = $date ?? $this->so_date;
-        
+
         // If already in requested currency, return original amounts
         if ($this->currency_code === $toCurrency) {
             return [
@@ -105,7 +106,7 @@ class SalesOrder extends Model
                 'tax_amount' => $this->tax_amount
             ];
         }
-        
+
         // Try to convert via base currency first
         if ($toCurrency === $this->base_currency) {
             return [
@@ -113,10 +114,10 @@ class SalesOrder extends Model
                 'tax_amount' => $this->base_currency_tax
             ];
         }
-        
+
         // Get rate from base currency to requested currency
         $rate = CurrencyRate::getCurrentRate($this->base_currency, $toCurrency, $date);
-        
+
         if (!$rate) {
             // Try direct conversion
             $rate = CurrencyRate::getCurrentRate($this->currency_code, $toCurrency, $date);
@@ -127,13 +128,13 @@ class SalesOrder extends Model
                     'tax_amount' => $this->tax_amount
                 ];
             }
-            
+
             return [
                 'total_amount' => $this->total_amount * $rate,
                 'tax_amount' => $this->tax_amount * $rate
             ];
         }
-        
+
         return [
             'total_amount' => $this->base_currency_total * $rate,
             'tax_amount' => $this->base_currency_tax * $rate

@@ -209,7 +209,7 @@
                 <p>No transaction data available for the selected period.</p>
               </div>
               <div v-else ref="chartContainer" class="chart-canvas-container">
-                <canvas ref="movementChart"></canvas>
+                <canvas ref="movementChart" width="800" height="400"></canvas>
               </div>
             </div>
           </div>
@@ -229,7 +229,8 @@
                       <th>Date</th>
                       <th>Transaction</th>
                       <th>Type</th>
-                      <th>Warehouse</th>
+                      <th>Source</th>
+                      <th>Destination</th>
                       <th class="text-right">Quantity</th>
                       <th class="text-right">Balance</th>
                       <th class="text-right">Actions</th>
@@ -256,6 +257,16 @@
                       <td>
                         <div v-if="transaction.warehouse">
                           {{ transaction.warehouse.name }}
+                          <!-- Location removed because backend no longer supports location relationship -->
+                          <!-- <div v-if="transaction.location" class="small text-muted">
+                            Location: {{ transaction.location.code }}
+                          </div> -->
+                        </div>
+                        <div v-else class="text-muted">--</div>
+                      </td>
+                      <td>
+                        <div v-if="transaction.dest_warehouse">
+                          {{ transaction.dest_warehouse.name }}
                           <!-- Location removed because backend no longer supports location relationship -->
                           <!-- <div v-if="transaction.location" class="small text-muted">
                             Location: {{ transaction.location.code }}
@@ -386,24 +397,26 @@ export default {
 
     // Computed properties
     const totalIn = computed(() => {
-      return transactions.value
+      const total = transactions.value
         .filter(t => t.quantity > 0)
-        .reduce((total, t) => total + t.quantity, 0)
-        .toFixed(2);
+        .reduce((total, t) => total + t.quantity, 0);
+      const numTotal = Number(total);
+      return Number.isNaN(numTotal) ? "0.00" : numTotal.toFixed(2);
     });
 
     const totalOut = computed(() => {
-      return Math.abs(
-        transactions.value
-          .filter(t => t.quantity < 0)
-          .reduce((total, t) => total + t.quantity, 0)
-      ).toFixed(2);
+      const total = transactions.value
+        .filter(t => t.quantity < 0)
+        .reduce((total, t) => total + t.quantity, 0);
+      const numTotal = Number(total);
+      return Number.isNaN(numTotal) ? "0.00" : Math.abs(numTotal).toFixed(2);
     });
 
     const netChange = computed(() => {
-      return transactions.value
-        .reduce((total, t) => total + t.quantity, 0)
-        .toFixed(2);
+      const total = transactions.value
+        .reduce((total, t) => total + t.quantity, 0);
+      const numTotal = Number(total);
+      return Number.isNaN(numTotal) ? "0.00" : numTotal.toFixed(2);
     });
 
     const displayedPages = computed(() => {
@@ -487,6 +500,10 @@ export default {
       if (!chartContainer.value || transactions.value.length === 0) return;
 
       const ctx = movementChart.value.getContext('2d');
+      if (!ctx) {
+        console.error('Failed to get 2D context for movementChart canvas');
+        return;
+      }
 
       // Destroy previous chart if exists
       if (chart) {

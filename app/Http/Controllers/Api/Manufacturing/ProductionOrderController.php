@@ -337,8 +337,9 @@ class ProductionOrderController extends Controller
         }
 
         DB::beginTransaction();
+
         try {
-            // Process material consumptions (Issue materials from Raw Materials to WIP)
+            // 1. Process material consumptions (Issue materials from Raw Materials to WIP)
             foreach ($productionOrder->productionConsumptions as $consumption) {
                 if (!isset($consumptionsMap[$consumption->consumption_id])) {
                     continue;
@@ -372,20 +373,53 @@ class ProductionOrderController extends Controller
                 $materialTransaction->markAsDone();
             }
 
-            // Update production order status
+            // 2. NEW: Create product allocation transaction (Virtual Production -> WIP)
+            $finishedItem = $productionOrder->workOrder->item;
+            $plannedQuantity = $productionOrder->planned_quantity;
+
+            $productAllocationTransaction = StockTransaction::create([
+                'item_id' => $finishedItem->item_id,
+                'warehouse_id' => self::VIRTUAL_PRODUCTION_WAREHOUSE_ID, // Source: Virtual Production
+                'dest_warehouse_id' => self::WIP_WAREHOUSE_ID, // Destination: WIP
+                'transaction_type' => StockTransaction::TYPE_MANUFACTURING,
+                'move_type' => StockTransaction::MOVE_TYPE_INTERNAL, // Internal transfer
+                'quantity' => $plannedQuantity,
+                'transaction_date' => now(),
+                'reference_document' => 'product_allocation',
+                'reference_number' => $productionOrder->production_number,
+                'origin' => "WO-{$productionOrder->wo_id}",
+                'batch_id' => null,
+                'state' => StockTransaction::STATE_DRAFT,
+                'notes' => "Product allocated to WIP for production"
+            ]);
+
+            // Auto-confirm to update stock (this will increase WIP stock for finished product)
+            $productAllocationTransaction->markAsDone();
+
+            // 3. Update production order status
             $productionOrder->status = 'Materials Issued';
             $productionOrder->save();
 
             DB::commit();
 
             return response()->json([
-                'message' => 'Materials issued successfully. Production can now begin.',
-                'data' => $productionOrder->fresh(['workOrder', 'productionConsumptions.item'])
+                'message' => 'Materials issued and product allocated to WIP successfully.',
+                'data' => $productionOrder->fresh(['workOrder', 'productionConsumptions.item']),
+                'transactions' => [
+                    'material_transactions_count' => count($consumptionsMap),
+                    'product_allocation_transaction_id' => $productAllocationTransaction->transaction_id,
+                    'finished_product' => [
+                        'item_id' => $finishedItem->item_id,
+                        'item_code' => $finishedItem->item_code,
+                        'item_name' => $finishedItem->name,
+                        'allocated_quantity' => $plannedQuantity
+                    ]
+                ]
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
-                'message' => 'Failed to issue materials',
+                'message' => 'Failed to issue materials and allocate product',
                 'error' => $e->getMessage()
             ], 500);
         }
@@ -476,24 +510,26 @@ class ProductionOrderController extends Controller
         }
 
         $actualQuantity = floatval($request->actual_quantity);
+        $plannedQuantity = $productionOrder->planned_quantity;
 
         DB::beginTransaction();
+
         try {
             // Update production order
             $productionOrder->actual_quantity = $actualQuantity;
             $productionOrder->status = 'Completed';
             $productionOrder->save();
 
-            // ===== FIX: Consume raw materials from WIP warehouse =====
+            // 1. Consume raw materials from WIP warehouse (unchanged)
             foreach ($productionOrder->productionConsumptions as $consumption) {
                 if ($consumption->actual_quantity > 0) {
                     // Create consumption transaction (remove from WIP)
                     $consumptionTransaction = StockTransaction::create([
                         'item_id' => $consumption->item_id,
                         'warehouse_id' => self::WIP_WAREHOUSE_ID, // Source: WIP warehouse
-                        'dest_warehouse_id' => self::VIRTUAL_PRODUCTION_WAREHOUSE_ID, // No destination - consumed
+                        'dest_warehouse_id' => self::VIRTUAL_PRODUCTION_WAREHOUSE_ID, // Virtual consumption
                         'transaction_type' => StockTransaction::TYPE_MANUFACTURING,
-                        'move_type' => StockTransaction::MOVE_TYPE_INTERNAL, // OUT from WIP
+                        'move_type' => StockTransaction::MOVE_TYPE_OUT, // OUT from WIP
                         'quantity' => $consumption->actual_quantity,
                         'transaction_date' => now(),
                         'reference_document' => 'material_consumption',
@@ -508,12 +544,57 @@ class ProductionOrderController extends Controller
                     $consumptionTransaction->markAsDone();
                 }
             }
-            // ===== END FIX =====
 
-            // Get the finished product
+            // 2. UPDATED: Handle product completion based on actual vs planned quantity
             $finishedItem = $productionOrder->workOrder->item;
 
-            // Create stock transaction for finished product (WIP -> Finished Goods)
+            // If actual quantity differs from planned, we need to adjust the WIP allocation first
+            if ($actualQuantity != $plannedQuantity) {
+                $quantityDifference = $plannedQuantity - $actualQuantity;
+
+                if ($quantityDifference > 0) {
+                    // Less produced than planned - remove excess from WIP back to Virtual Production
+                    $excessRemovalTransaction = StockTransaction::create([
+                        'item_id' => $finishedItem->item_id,
+                        'warehouse_id' => self::WIP_WAREHOUSE_ID, // Source: WIP
+                        'dest_warehouse_id' => self::VIRTUAL_PRODUCTION_WAREHOUSE_ID, // Return to Virtual
+                        'transaction_type' => StockTransaction::TYPE_MANUFACTURING,
+                        'move_type' => StockTransaction::MOVE_TYPE_OUT, // OUT from WIP
+                        'quantity' => $quantityDifference,
+                        'transaction_date' => now(),
+                        'reference_document' => 'production_adjustment',
+                        'reference_number' => $productionOrder->production_number,
+                        'origin' => "WO-{$productionOrder->wo_id}",
+                        'batch_id' => null,
+                        'state' => StockTransaction::STATE_DRAFT,
+                        'notes' => "Remove excess allocated quantity from WIP (under-production)"
+                    ]);
+
+                    $excessRemovalTransaction->markAsDone();
+                } elseif ($quantityDifference < 0) {
+                    // More produced than planned - add extra to WIP from Virtual Production
+                    $extraQuantity = abs($quantityDifference);
+                    $extraAllocationTransaction = StockTransaction::create([
+                        'item_id' => $finishedItem->item_id,
+                        'warehouse_id' => self::VIRTUAL_PRODUCTION_WAREHOUSE_ID, // Source: Virtual
+                        'dest_warehouse_id' => self::WIP_WAREHOUSE_ID, // Destination: WIP
+                        'transaction_type' => StockTransaction::TYPE_MANUFACTURING,
+                        'move_type' => StockTransaction::MOVE_TYPE_INTERNAL, // Internal transfer
+                        'quantity' => $extraQuantity,
+                        'transaction_date' => now(),
+                        'reference_document' => 'production_adjustment',
+                        'reference_number' => $productionOrder->production_number,
+                        'origin' => "WO-{$productionOrder->wo_id}",
+                        'batch_id' => null,
+                        'state' => StockTransaction::STATE_DRAFT,
+                        'notes' => "Add extra quantity to WIP (over-production)"
+                    ]);
+
+                    $extraAllocationTransaction->markAsDone();
+                }
+            }
+
+            // 3. Move finished product from WIP to Finished Goods
             $finishedProductTransaction = StockTransaction::create([
                 'item_id' => $finishedItem->item_id,
                 'warehouse_id' => self::WIP_WAREHOUSE_ID, // Source: WIP
@@ -527,13 +608,13 @@ class ProductionOrderController extends Controller
                 'origin' => "WO-{$productionOrder->wo_id}",
                 'batch_id' => null,
                 'state' => StockTransaction::STATE_DRAFT,
-                'notes' => "Finished product from production completion"
+                'notes' => "Finished product moved from WIP to Finished Goods"
             ]);
 
             // Auto-confirm to update stock
             $finishedProductTransaction->markAsDone();
 
-            // Update work order progress
+            // 4. Update work order progress
             $workOrder = $productionOrder->workOrder;
             $totalProduced = $workOrder->productionOrders()
                 ->where('status', 'Completed')
@@ -548,10 +629,33 @@ class ProductionOrderController extends Controller
 
             DB::commit();
 
-            return response()->json([
-                'message' => 'Production completed successfully. Materials consumed and finished goods received.',
-                'data' => $productionOrder->fresh(['workOrder', 'productionConsumptions.item'])
-            ]);
+            $responseData = [
+                'message' => 'Production completed successfully. Materials consumed and finished goods moved to Finished Goods warehouse.',
+                'data' => $productionOrder->fresh(['workOrder', 'productionConsumptions.item']),
+                'completion_summary' => [
+                    'planned_quantity' => $plannedQuantity,
+                    'actual_quantity' => $actualQuantity,
+                    'efficiency_percentage' => round(($actualQuantity / $plannedQuantity) * 100, 2),
+                    'quantity_variance' => $actualQuantity - $plannedQuantity,
+                    'finished_product' => [
+                        'item_id' => $finishedItem->item_id,
+                        'item_code' => $finishedItem->item_code,
+                        'item_name' => $finishedItem->name,
+                        'moved_to_finished_goods' => $actualQuantity
+                    ]
+                ]
+            ];
+
+            // Add adjustment info if there was variance
+            if ($actualQuantity != $plannedQuantity) {
+                $responseData['completion_summary']['wip_adjustment'] = [
+                    'variance' => $actualQuantity - $plannedQuantity,
+                    'adjustment_type' => $actualQuantity > $plannedQuantity ? 'over_production' : 'under_production',
+                    'adjusted_quantity' => abs($actualQuantity - $plannedQuantity)
+                ];
+            }
+
+            return response()->json($responseData);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
