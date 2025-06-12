@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SOLine;
 use App\Models\Sales\Customer;
-use App\Models\Items\Item;
+use App\Models\Item;
 use App\Models\UnitOfMeasure;
 use App\Models\CurrencyRate;
 use Illuminate\Http\Request;
@@ -185,6 +185,7 @@ class SalesOrderController extends Controller
             'lines.*.unit_price' => 'nullable|numeric|min:0',
             'lines.*.quantity' => 'required|numeric|min:0',
             'lines.*.uom_id' => 'required|exists:unit_of_measures,uom_id',
+            'lines.*.delivery_date' => 'nullable|date|after_or_equal:so_date',
             'lines.*.discount' => 'nullable|numeric|min:0',
             'lines.*.tax' => 'nullable|numeric|min:0',
         ]);
@@ -258,6 +259,7 @@ class SalesOrderController extends Controller
                 $quantity = $lineData['quantity'];
                 $discount = $lineData['discount'] ?? 0;
                 $tax = $lineData['tax'] ?? 0;
+                $deliveryDate = $lineData['delivery_date'] ?? null;
 
                 $subtotal = $unitPrice * $quantity;
                 $lineTotal = $subtotal - $discount + $tax;
@@ -268,6 +270,7 @@ class SalesOrderController extends Controller
                     'unit_price' => $unitPrice,
                     'quantity' => $quantity,
                     'uom_id' => $lineData['uom_id'],
+                    'delivery_date' => $deliveryDate,
                     'discount' => $discount,
                     'tax' => $tax,
                     'subtotal' => $subtotal,
@@ -379,6 +382,7 @@ class SalesOrderController extends Controller
             'lines.*.unit_price' => 'nullable|numeric|min:0',
             'lines.*.quantity' => 'required|numeric|min:0',
             'lines.*.uom_id' => 'required|exists:unit_of_measures,uom_id',
+            'lines.*.delivery_date' => 'nullable|date|after_or_equal:so_date',
             'lines.*.discount' => 'nullable|numeric|min:0',
             'lines.*.tax' => 'nullable|numeric|min:0',
         ];
@@ -445,6 +449,7 @@ class SalesOrderController extends Controller
                 $quantity = $lineData['quantity'];
                 $discount = $lineData['discount'] ?? 0;
                 $tax = $lineData['tax'] ?? 0;
+                $deliveryDate = $lineData['delivery_date'] ?? null;
 
                 $subtotal = $unitPrice * $quantity;
                 $lineTotal = $subtotal - $discount + $tax;
@@ -455,6 +460,7 @@ class SalesOrderController extends Controller
                     'unit_price' => $unitPrice,
                     'quantity' => $quantity,
                     'uom_id' => $lineData['uom_id'],
+                    'delivery_date' => $deliveryDate,
                     'discount' => $discount,
                     'tax' => $tax,
                     'subtotal' => $subtotal,
@@ -632,28 +638,29 @@ class SalesOrderController extends Controller
                 'C1' => 'Quantity*',
                 'D1' => 'UOM Code*',
                 'E1' => 'Unit Price',
-                'F1' => 'Discount',
-                'G1' => 'Tax',
-                'H1' => 'Notes'
+                'F1' => 'Delivery Date',
+                'G1' => 'Discount',
+                'H1' => 'Tax',
+                'I1' => 'Notes'
             ];
 
             foreach ($lineHeaders as $cell => $value) {
                 $linesSheet->setCellValue($cell, $value);
             }
 
-            $linesSheet->getStyle('A1:H1')->applyFromArray($headerStyle);
+            $linesSheet->getStyle('A1:I1')->applyFromArray($headerStyle);
 
             // Set column widths for lines sheet
-            $lineColumnWidths = ['A' => 15, 'B' => 15, 'C' => 10, 'D' => 10, 'E' => 12, 'F' => 10, 'G' => 10, 'H' => 25];
+            $lineColumnWidths = ['A' => 15, 'B' => 15, 'C' => 10, 'D' => 10, 'E' => 12, 'F' => 12, 'G' => 10, 'H' => 10, 'I' => 25];
             foreach ($lineColumnWidths as $column => $width) {
                 $linesSheet->getColumnDimension($column)->setWidth($width);
             }
 
             // Add sample line data
             $sampleLineData = [
-                ['CUST001', 'ITEM001', 10, 'PCS', 100.00, 0, 10.00, 'Line 1 for customer order'],
-                ['CUST001', 'ITEM002', 5, 'KG', 50.00, 5.00, 2.50, 'Line 2 for customer order'],
-                ['CUST002', 'ITEM003', 20, 'PCS', 75.00, 0, 15.00, 'Line 1 for customer order']
+                ['CUST001', 'ITEM001', 10, 'PCS', 100.00, '2024-02-01', 0, 10.00, 'Line 1 for customer order'],
+                ['CUST001', 'ITEM002', 5, 'KG', 50.00, '2024-02-05', 5.00, 2.50, 'Line 2 for customer order'],
+                ['CUST002', 'ITEM003', 20, 'PCS', 75.00, '2024-02-10', 0, 15.00, 'Line 1 for customer order']
             ];
 
             $row = 2;
@@ -691,6 +698,7 @@ class SalesOrderController extends Controller
                 '   - Item Code: Must exist and be sellable',
                 '   - UOM Code: Must exist in system',
                 '   - Unit Price: If empty, system will use default sale price',
+                '   - Delivery Date: Optional, format YYYY-MM-DD (must be after SO Date)',
                 '   - Discount and Tax: Optional, use 0 if not applicable',
                 '',
                 '4. IMPORT PROCESS:',
@@ -913,8 +921,9 @@ class SalesOrderController extends Controller
                         $quantity = $linesSheet->getCell('C' . $row)->getValue();
                         $uomCode = trim($linesSheet->getCell('D' . $row)->getValue() ?? '');
                         $unitPrice = $linesSheet->getCell('E' . $row)->getValue();
-                        $discount = $linesSheet->getCell('F' . $row)->getValue() ?? 0;
-                        $tax = $linesSheet->getCell('G' . $row)->getValue() ?? 0;
+                        $deliveryDate = $linesSheet->getCell('F' . $row)->getFormattedValue();
+                        $discount = $linesSheet->getCell('G' . $row)->getValue() ?? 0;
+                        $tax = $linesSheet->getCell('H' . $row)->getValue() ?? 0;
 
                         // Skip empty rows
                         if (empty($customerCode) && empty($itemCode)) {
@@ -954,6 +963,26 @@ class SalesOrderController extends Controller
                         // Use provided unit price or default from item
                         $finalUnitPrice = !empty($unitPrice) ? $unitPrice : ($item->sale_price ?? 0);
 
+                        // Format delivery date
+                        $deliveryDateFormatted = null;
+                        if (!empty($deliveryDate)) {
+                            try {
+                                $deliveryDateFormatted = date('Y-m-d', strtotime($deliveryDate));
+
+                                // Validate delivery date is not before SO date
+                                $soDate = $createdOrders[$customerCode]->so_date;
+                                if ($deliveryDateFormatted < $soDate) {
+                                    $errors[] = "Line Row {$row}: Delivery date cannot be before order date";
+                                    $errorCount++;
+                                    continue;
+                                }
+                            } catch (\Exception $e) {
+                                $errors[] = "Line Row {$row}: Invalid delivery date format";
+                                $errorCount++;
+                                continue;
+                            }
+                        }
+
                         $subtotal = $finalUnitPrice * $quantity;
                         $lineTotal = $subtotal - $discount + $tax;
 
@@ -964,6 +993,7 @@ class SalesOrderController extends Controller
                             'unit_price' => $finalUnitPrice,
                             'quantity' => $quantity,
                             'uom_id' => $uom->uom_id,
+                            'delivery_date' => $deliveryDateFormatted,
                             'discount' => $discount,
                             'tax' => $tax,
                             'subtotal' => $subtotal,
@@ -1109,17 +1139,18 @@ class SalesOrderController extends Controller
                 'E1' => 'Quantity',
                 'F1' => 'UOM',
                 'G1' => 'Unit Price',
-                'H1' => 'Discount',
-                'I1' => 'Subtotal',
-                'J1' => 'Tax',
-                'K1' => 'Total'
+                'H1' => 'Delivery Date',
+                'I1' => 'Discount',
+                'J1' => 'Subtotal',
+                'K1' => 'Tax',
+                'L1' => 'Total'
             ];
 
             foreach ($lineHeaders as $cell => $value) {
                 $linesSheet->setCellValue($cell, $value);
             }
 
-            $linesSheet->getStyle('A1:K1')->applyFromArray($headerStyle);
+            $linesSheet->getStyle('A1:L1')->applyFromArray($headerStyle);
 
             $row = 2;
             foreach ($salesOrders as $order) {
@@ -1131,16 +1162,17 @@ class SalesOrderController extends Controller
                     $linesSheet->setCellValue('E' . $row, $line->quantity);
                     $linesSheet->setCellValue('F' . $row, $line->unitOfMeasure->symbol);
                     $linesSheet->setCellValue('G' . $row, $line->unit_price);
-                    $linesSheet->setCellValue('H' . $row, $line->discount);
-                    $linesSheet->setCellValue('I' . $row, $line->subtotal);
-                    $linesSheet->setCellValue('J' . $row, $line->tax);
-                    $linesSheet->setCellValue('K' . $row, $line->total);
+                    $linesSheet->setCellValue('H' . $row, $line->delivery_date ? \Carbon\Carbon::parse($line->delivery_date)->format('Y-m-d') : '');
+                    $linesSheet->setCellValue('I' . $row, $line->discount);
+                    $linesSheet->setCellValue('J' . $row, $line->subtotal);
+                    $linesSheet->setCellValue('K' . $row, $line->tax);
+                    $linesSheet->setCellValue('L' . $row, $line->total);
                     $row++;
                 }
             }
 
             // Auto-size columns
-            foreach (range('A', 'K') as $column) {
+            foreach (range('A', 'L') as $column) {
                 $linesSheet->getColumnDimension($column)->setAutoSize(true);
             }
 

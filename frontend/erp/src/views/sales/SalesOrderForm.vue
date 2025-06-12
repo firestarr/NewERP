@@ -228,6 +228,7 @@
                             <div class="line-header">Unit Price</div>
                             <div class="line-header">Quantity</div>
                             <div class="line-header">UOM</div>
+                            <div class="line-header">Delivery Date</div>
                             <div class="line-header">Discount</div>
                             <div class="line-header">Tax</div>
                             <div class="line-header">Subtotal</div>
@@ -302,6 +303,18 @@
                                         {{ uom.symbol }}
                                     </option>
                                 </select>
+                            </div>
+
+                            <div class="line-item" data-label="Delivery Date">
+                                <input
+                                    type="date"
+                                    v-model="line.delivery_date"
+                                    class="form-control"
+                                    :min="form.so_date"
+                                />
+                                <small class="text-muted" v-if="line.delivery_date && line.delivery_date < form.so_date">
+                                    Warning: Delivery date is before order date
+                                </small>
                             </div>
 
                             <div class="line-item" data-label="Discount">
@@ -531,6 +544,7 @@ export default {
                             unit_price: line.unitPrice,
                             quantity: line.quantity,
                             uom_id: line.uomId,
+                            delivery_date: line.deliveryDate ? line.deliveryDate.substr(0, 10) : '',
                             discount: line.discount || 0,
                             tax: line.tax || 0,
                             subtotal: line.subtotal,
@@ -604,6 +618,17 @@ export default {
                 line.uom_id = item.uom_id;
             }
 
+            // Set default delivery date to expected delivery or SO date + 7 days
+            if (!line.delivery_date) {
+                if (form.value.expected_delivery) {
+                    line.delivery_date = form.value.expected_delivery;
+                } else {
+                    const soDate = new Date(form.value.so_date);
+                    soDate.setDate(soDate.getDate() + 7);
+                    line.delivery_date = soDate.toISOString().substr(0, 10);
+                }
+            }
+
             // Get price information
             try {
                 // Get best price in current currency
@@ -633,6 +658,16 @@ export default {
 
         // Line item operations
         const addLine = () => {
+            // Set default delivery date when adding new line
+            let defaultDeliveryDate = '';
+            if (form.value.expected_delivery) {
+                defaultDeliveryDate = form.value.expected_delivery;
+            } else {
+                const soDate = new Date(form.value.so_date);
+                soDate.setDate(soDate.getDate() + 7);
+                defaultDeliveryDate = soDate.toISOString().substr(0, 10);
+            }
+
             form.value.lines.push({
                 item_id: "",
                 item_code: "",
@@ -641,6 +676,7 @@ export default {
                 unit_price: 0,
                 quantity: 1,
                 uom_id: "",
+                delivery_date: defaultDeliveryDate,
                 discount: 0,
                 tax: 0,
                 subtotal: 0,
@@ -749,6 +785,7 @@ export default {
                     unit_price: line.unit_price,
                     quantity: line.quantity,
                     uom_id: line.uom_id,
+                    delivery_date: line.delivery_date,
                     discount: line.discount || 0,
                     tax: line.tax || 0,
                     subtotal: line.subtotal,
@@ -1033,7 +1070,7 @@ export default {
 
 .line-headers {
     display: grid;
-    grid-template-columns: 3fr 1fr 1fr 1fr 1fr 1fr 1.5fr 1.5fr 0.5fr;
+    grid-template-columns: 2.5fr 0.8fr 0.8fr 0.8fr 1fr 0.8fr 0.8fr 1.2fr 1.2fr 0.5fr;
     gap: 0.5rem;
     background-color: #f8fafc;
     padding: 0.75rem 1rem;
@@ -1045,7 +1082,7 @@ export default {
 
 .order-line {
     display: grid;
-    grid-template-columns: 3fr 1fr 1fr 1fr 1fr 1fr 1.5fr 1.5fr 0.5fr;
+    grid-template-columns: 2.5fr 0.8fr 0.8fr 0.8fr 1fr 0.8fr 0.8fr 1.2fr 1.2fr 0.5fr;
     gap: 0.5rem;
     padding: 0.75rem 1rem;
     border-bottom: 1px solid #e2e8f0;
@@ -1246,6 +1283,48 @@ export default {
     outline-offset: 1px;
 }
 
+/* Delivery date specific styling */
+.line-item input[type="date"] {
+    position: relative;
+}
+
+.line-item input[type="date"]:invalid {
+    border-color: #f59e0b;
+    background-color: #fffbeb;
+}
+
+.line-item .text-muted {
+    font-size: 0.625rem;
+    margin-top: 0.125rem;
+    color: #f59e0b;
+}
+
+/* Warning styles for overdue dates */
+.delivery-date-warning {
+    color: #dc2626;
+    font-weight: 500;
+}
+
+.delivery-date-today {
+    color: #059669;
+    font-weight: 500;
+}
+
+.delivery-date-upcoming {
+    color: #0d9488;
+}
+
+/* Item code styling */
+.item-code {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.75rem;
+    color: #4338ca;
+    background-color: #f0f4ff;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    display: inline-block;
+}
+
 @media (max-width: 1024px) {
     .form-row {
         grid-template-columns: 1fr;
@@ -1254,7 +1333,7 @@ export default {
 
     .order-line,
     .line-headers {
-        grid-template-columns: repeat(8, 1fr) 0.5fr;
+        grid-template-columns: repeat(9, 1fr) 0.5fr;
         font-size: 0.75rem;
         padding: 0.5rem;
     }

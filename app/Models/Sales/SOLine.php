@@ -2,21 +2,18 @@
 
 namespace App\Models\Sales;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Models\Item;
 use App\Models\UnitOfMeasure;
-use App\Models\CurrencyRate;
+use App\Models\Sales\DeliveryLine;
 
 class SOLine extends Model
 {
-    use HasFactory;
-
-    protected $primaryKey = 'line_id';
     protected $table = 'SOLine';
-    public $timestamps = false;
+    protected $primaryKey = 'line_id';
+    public $timestamps = true;
 
     protected $fillable = [
         'so_id',
@@ -24,137 +21,160 @@ class SOLine extends Model
         'unit_price',
         'quantity',
         'uom_id',
+        'delivery_date',
         'discount',
-        'subtotal',
         'tax',
+        'subtotal',
         'total',
-        'base_currency_unit_price', // Baru
-        'base_currency_subtotal', // Baru
-        'base_currency_discount', // Baru
-        'base_currency_tax', // Baru
-        'base_currency_total' // Baru
+        'notes'
     ];
-    
+
     protected $casts = [
-        'unit_price' => 'float',
-        'quantity' => 'float',
-        'discount' => 'float',
-        'subtotal' => 'float',
-        'tax' => 'float',
-        'total' => 'float',
-        'base_currency_unit_price' => 'float', // Baru
-        'base_currency_subtotal' => 'float', // Baru
-        'base_currency_discount' => 'float', // Baru
-        'base_currency_tax' => 'float', // Baru
-        'base_currency_total' => 'float' // Baru
+        'unit_price' => 'decimal:2',
+        'quantity' => 'decimal:3',
+        'discount' => 'decimal:2',
+        'tax' => 'decimal:2',
+        'subtotal' => 'decimal:2',
+        'total' => 'decimal:2',
+        'delivery_date' => 'date',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime'
     ];
 
     /**
-     * Get the sales order that owns the sales order line.
+     * Get the sales order that owns this line
      */
     public function salesOrder(): BelongsTo
     {
-        return $this->belongsTo(SalesOrder::class, 'so_id');
+        return $this->belongsTo(SalesOrder::class, 'so_id', 'so_id');
     }
 
     /**
-     * Get the item that the sales order line belongs to.
+     * Get the item for this line
      */
     public function item(): BelongsTo
     {
-        return $this->belongsTo(Item::class, 'item_id');
+        return $this->belongsTo(Item::class, 'item_id', 'item_id');
     }
 
     /**
-     * Get the unit of measure that the sales order line belongs to.
+     * Get the unit of measure for this line
      */
     public function unitOfMeasure(): BelongsTo
     {
-        return $this->belongsTo(UnitOfMeasure::class, 'uom_id');
+        return $this->belongsTo(UnitOfMeasure::class, 'uom_id', 'uom_id');
     }
 
     /**
-     * Get the delivery lines for the sales order line.
+     * Get delivery lines for this sales order line
      */
     public function deliveryLines(): HasMany
     {
-        return $this->hasMany(DeliveryLine::class, 'so_line_id');
+        return $this->hasMany(DeliveryLine::class, 'so_line_id', 'line_id');
     }
 
     /**
-     * Get the sales invoice lines for the sales order line.
+     * Calculate remaining quantity to be delivered
      */
-    public function salesInvoiceLines(): HasMany
+    public function getRemainingQuantityAttribute()
     {
-        return $this->hasMany(SalesInvoiceLine::class, 'so_line_id');
+        $deliveredQuantity = $this->deliveryLines()->sum('quantity');
+        return $this->quantity - $deliveredQuantity;
     }
-    
+
     /**
-     * Get line amounts in specified currency.
-     *
-     * @param string $toCurrency
-     * @param string|null $date
-     * @return array
+     * Check if this line is fully delivered
      */
-    public function getAmountsInCurrency($toCurrency, $date = null)
+    public function getIsFullyDeliveredAttribute()
     {
-        $salesOrder = $this->salesOrder;
-        $date = $date ?? $salesOrder->so_date;
-        
-        // If already in requested currency, return original amounts
-        if ($salesOrder->currency_code === $toCurrency) {
-            return [
-                'unit_price' => $this->unit_price,
-                'subtotal' => $this->subtotal,
-                'discount' => $this->discount,
-                'tax' => $this->tax,
-                'total' => $this->total
-            ];
+        return $this->remaining_quantity <= 0;
+    }
+
+    /**
+     * Get delivery status for this line
+     */
+    public function getDeliveryStatusAttribute()
+    {
+        $deliveredQuantity = $this->deliveryLines()->sum('quantity');
+
+        if ($deliveredQuantity == 0) {
+            return 'Not Delivered';
+        } elseif ($deliveredQuantity >= $this->quantity) {
+            return 'Fully Delivered';
+        } else {
+            return 'Partially Delivered';
         }
-        
-        // Try to convert via base currency first
-        if ($toCurrency === $salesOrder->base_currency) {
-            return [
-                'unit_price' => $this->base_currency_unit_price,
-                'subtotal' => $this->base_currency_subtotal,
-                'discount' => $this->base_currency_discount,
-                'tax' => $this->base_currency_tax,
-                'total' => $this->base_currency_total
-            ];
+    }
+
+    /**
+     * Check if delivery date has passed
+     */
+    public function getIsOverdueAttribute()
+    {
+        if (!$this->delivery_date) {
+            return false;
         }
-        
-        // Get rate from base currency to requested currency
-        $rate = CurrencyRate::getCurrentRate($salesOrder->base_currency, $toCurrency, $date);
-        
-        if (!$rate) {
-            // Try direct conversion
-            $rate = CurrencyRate::getCurrentRate($salesOrder->currency_code, $toCurrency, $date);
-            if (!$rate) {
-                // If no conversion possible, return original values
-                return [
-                    'unit_price' => $this->unit_price,
-                    'subtotal' => $this->subtotal,
-                    'discount' => $this->discount,
-                    'tax' => $this->tax,
-                    'total' => $this->total
-                ];
-            }
-            
-            return [
-                'unit_price' => $this->unit_price * $rate,
-                'subtotal' => $this->subtotal * $rate,
-                'discount' => $this->discount * $rate,
-                'tax' => $this->tax * $rate,
-                'total' => $this->total * $rate
-            ];
+
+        return $this->delivery_date->isPast() && !$this->is_fully_delivered;
+    }
+
+    /**
+     * Get days until delivery or days overdue
+     */
+    public function getDaysToDeliveryAttribute()
+    {
+        if (!$this->delivery_date) {
+            return null;
         }
-        
-        return [
-            'unit_price' => $this->base_currency_unit_price * $rate,
-            'subtotal' => $this->base_currency_subtotal * $rate,
-            'discount' => $this->base_currency_discount * $rate,
-            'tax' => $this->base_currency_tax * $rate,
-            'total' => $this->base_currency_total * $rate
-        ];
+
+        return now()->diffInDays($this->delivery_date, false);
+    }
+
+    /**
+     * Scope for lines that are overdue
+     */
+    public function scopeOverdue($query)
+    {
+        return $query->whereNotNull('delivery_date')
+            ->where('delivery_date', '<', now())
+            ->whereHas('deliveryLines', function ($q) {
+                $q->havingRaw('SUM(quantity) < ?', [$this->quantity]);
+            }, '<', 1);
+    }
+
+    /**
+     * Scope for lines due today
+     */
+    public function scopeDueToday($query)
+    {
+        return $query->whereDate('delivery_date', today());
+    }
+
+    /**
+     * Scope for lines due this week
+     */
+    public function scopeDueThisWeek($query)
+    {
+        return $query->whereBetween('delivery_date', [
+            now()->startOfWeek(),
+            now()->endOfWeek()
+        ]);
+    }
+
+    /**
+     * Boot method to add model events
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Auto-calculate subtotal and total when saving
+        static::saving(function ($soline) {
+            // Calculate subtotal
+            $soline->subtotal = $soline->unit_price * $soline->quantity;
+
+            // Calculate total (subtotal - discount + tax)
+            $soline->total = $soline->subtotal - ($soline->discount ?? 0) + ($soline->tax ?? 0);
+        });
     }
 }
