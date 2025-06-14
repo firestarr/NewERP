@@ -9,7 +9,7 @@
           </router-link>
         </div>
       </div>
-  
+
       <div class="filters-container">
         <div class="filter-row">
           <div class="filter-group">
@@ -65,29 +65,29 @@
           </button>
         </div>
       </div>
-  
+
       <div v-if="loading" class="loading">
         <i class="fas fa-spinner fa-spin"></i> Loading invoices...
       </div>
-      
+
       <div v-else-if="invoices.length === 0" class="empty-state">
         <i class="fas fa-file-invoice"></i>
         <h3>No invoices found</h3>
         <p>Try changing your filters or create a new invoice.</p>
       </div>
-      
+
       <div v-else class="table-responsive">
         <table class="data-table">
           <thead>
             <tr>
               <th @click="sortBy('invoice_number')">
-                Invoice # 
-                <i v-if="sortField === 'invoice_number'" 
+                Invoice #
+                <i v-if="sortField === 'invoice_number'"
                    :class="sortDirection === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down'"></i>
               </th>
               <th @click="sortBy('invoice_date')">
                 Date
-                <i v-if="sortField === 'invoice_date'" 
+                <i v-if="sortField === 'invoice_date'"
                    :class="sortDirection === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down'"></i>
               </th>
               <th>Vendor</th>
@@ -95,12 +95,12 @@
               <th>Total Amount</th>
               <th @click="sortBy('due_date')">
                 Due Date
-                <i v-if="sortField === 'due_date'" 
+                <i v-if="sortField === 'due_date'"
                    :class="sortDirection === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down'"></i>
               </th>
               <th @click="sortBy('status')">
                 Status
-                <i v-if="sortField === 'status'" 
+                <i v-if="sortField === 'status'"
                    :class="sortDirection === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down'"></i>
               </th>
               <th>Actions</th>
@@ -108,10 +108,10 @@
           </thead>
           <tbody>
             <tr v-for="invoice in invoices" :key="invoice.invoice_id">
-              <td>{{ invoice.invoice_number }}</td>
+              <td>{{ invoice.invoice_number || 'N/A' }}</td>
               <td>{{ formatDate(invoice.invoice_date) }}</td>
               <td>{{ invoice.vendor ? invoice.vendor.name : 'N/A' }}</td>
-              <td>{{ invoice.currency_code }}</td>
+              <td>{{ invoice.currency_code || 'N/A' }}</td>
               <td>{{ formatCurrency(invoice.total_amount, invoice.currency_code) }}</td>
               <td>{{ formatDate(invoice.due_date) }}</td>
               <td>
@@ -121,23 +121,23 @@
                 <router-link :to="`/purchasing/vendor-invoices/${invoice.invoice_id}`" class="btn-icon" title="View">
                   <i class="fas fa-eye"></i>
                 </router-link>
-                <router-link v-if="invoice.status === 'pending'" 
-                  :to="`/purchasing/vendor-invoices/${invoice.invoice_id}/edit`" 
+                <router-link v-if="invoice.status === 'pending'"
+                  :to="`/purchasing/vendor-invoices/${invoice.invoice_id}/edit`"
                   class="btn-icon" title="Edit">
                   <i class="fas fa-edit"></i>
                 </router-link>
-                <router-link v-if="invoice.status === 'pending'" 
-                  :to="`/purchasing/vendor-invoices/${invoice.invoice_id}/approve`" 
+                <router-link v-if="invoice.status === 'pending'"
+                  :to="`/purchasing/vendor-invoices/${invoice.invoice_id}/approve`"
                   class="btn-icon" title="Approve">
                   <i class="fas fa-check-circle"></i>
                 </router-link>
-                <router-link v-if="invoice.status === 'approved'" 
-                  :to="`/purchasing/vendor-invoices/${invoice.invoice_id}/payment`" 
+                <router-link v-if="invoice.status === 'approved'"
+                  :to="`/purchasing/vendor-invoices/${invoice.invoice_id}/payment`"
                   class="btn-icon" title="Payment">
                   <i class="fas fa-money-bill-wave"></i>
                 </router-link>
-                <button v-if="invoice.status === 'pending' || invoice.status === 'cancelled'" 
-                  @click="confirmDelete(invoice)" 
+                <button v-if="(invoice.status === 'pending' || invoice.status === 'cancelled')"
+                  @click="confirmDelete(invoice)"
                   class="btn-icon" title="Delete">
                   <i class="fas fa-trash"></i>
                 </button>
@@ -146,36 +146,36 @@
           </tbody>
         </table>
       </div>
-  
+
       <div class="pagination-container" v-if="totalPages > 1">
         <div class="pagination-info">
           Showing {{ (currentPage - 1) * perPage + 1 }} to {{ Math.min(currentPage * perPage, totalItems) }} of {{ totalItems }} invoices
         </div>
         <div class="pagination-controls">
-          <button class="pagination-btn" 
-            :disabled="currentPage === 1" 
+          <button class="pagination-btn"
+            :disabled="currentPage === 1"
             @click="loadInvoices(currentPage - 1)">
             <i class="fas fa-chevron-left"></i>
           </button>
-          
+
           <template v-for="page in displayedPages" :key="page">
-            <button v-if="page !== '...'" 
-              class="pagination-btn" 
+            <button v-if="page !== '...'"
+              class="pagination-btn"
               :class="{ active: page === currentPage }"
               @click="loadInvoices(page)">
               {{ page }}
             </button>
             <span v-else class="pagination-ellipsis">...</span>
           </template>
-          
-          <button class="pagination-btn" 
-            :disabled="currentPage === totalPages" 
+
+          <button class="pagination-btn"
+            :disabled="currentPage === totalPages"
             @click="loadInvoices(currentPage + 1)">
             <i class="fas fa-chevron-right"></i>
           </button>
         </div>
       </div>
-  
+
       <!-- Confirmation Modal -->
       <div v-if="showDeleteModal" class="modal">
         <div class="modal-backdrop" @click="showDeleteModal = false"></div>
@@ -187,9 +187,9 @@
             </button>
           </div>
           <div class="modal-body">
-            <p>Are you sure you want to delete invoice <strong>{{ invoiceToDelete?.invoice_number }}</strong>?</p>
-            <p v-if="invoiceToDelete?.status === 'cancelled'" class="text-warning">
-              <i class="fas fa-exclamation-triangle"></i> 
+            <p>Are you sure you want to delete invoice <strong>{{ invoiceToDelete ? invoiceToDelete.invoice_number : '' }}</strong>?</p>
+            <p v-if="invoiceToDelete && invoiceToDelete.status === 'cancelled'" class="text-warning">
+              <i class="fas fa-exclamation-triangle"></i>
               This invoice is already cancelled.
             </p>
             <div class="form-actions">
@@ -205,10 +205,10 @@
       </div>
     </div>
   </template>
-  
+
   <script>
   import axios from 'axios';
-  
+
   export default {
     name: 'VendorInvoiceList',
     data() {
@@ -239,7 +239,7 @@
         const total = this.totalPages;
         const current = this.currentPage;
         const pages = [];
-        
+
         if (total <= 7) {
           // Show all pages if 7 or fewer
           for (let i = 1; i <= total; i++) {
@@ -248,31 +248,31 @@
         } else {
           // Always include first page
           pages.push(1);
-          
+
           // Show ellipsis if current page is more than 3
           if (current > 3) {
             pages.push('...');
           }
-          
+
           // Add pages around current page
           const startPage = Math.max(2, current - 1);
           const endPage = Math.min(total - 1, current + 1);
-          
+
           for (let i = startPage; i <= endPage; i++) {
             pages.push(i);
           }
-          
+
           // Show ellipsis if current page is less than total - 2
           if (current < total - 2) {
             pages.push('...');
           }
-          
+
           // Always include last page
           if (total > 1) {
             pages.push(total);
           }
         }
-        
+
         return pages;
       }
     },
@@ -284,15 +284,18 @@
       async loadVendors() {
         try {
           const response = await axios.get('/vendors');
-          this.vendors = response.data.data;
+          console.log('Vendors API response:', response);
+          // Defensive filter to remove null or malformed vendors
+          this.vendors = (response.data.data?.data || response.data.data || []).filter(vendor => vendor && vendor.vendor_id);
         } catch (error) {
           console.error('Error loading vendors:', error);
+          this.vendors = [];
         }
       },
       async loadInvoices(page) {
         this.loading = true;
         this.currentPage = page;
-        
+
         try {
           const params = {
             page: page,
@@ -301,14 +304,25 @@
             sort_direction: this.sortDirection,
             ...this.filters
           };
-          
+
           const response = await axios.get('/vendor-invoices', { params });
           console.log('Vendor invoices API response:', response);
-          this.invoices = response.data.data.data;
-          this.totalPages = response.data.data.last_page;
-          this.totalItems = response.data.data.total;
+
+          // Handle different possible response structures
+          const responseData = response.data.data || response.data;
+          const invoicesData = responseData.data || responseData;
+
+          // Defensive filter to remove null or malformed invoices
+          this.invoices = (Array.isArray(invoicesData) ? invoicesData : []).filter(inv => inv && inv.invoice_id);
+          this.totalPages = responseData.last_page || 1;
+          this.totalItems = responseData.total || this.invoices.length;
+
+          console.log('Processed invoices:', this.invoices);
         } catch (error) {
           console.error('Error loading invoices:', error);
+          this.invoices = [];
+          this.totalPages = 1;
+          this.totalItems = 0;
         } finally {
           this.loading = false;
         }
@@ -320,7 +334,7 @@
           this.sortField = field;
           this.sortDirection = 'asc';
         }
-        
+
         this.loadInvoices(1);
       },
       resetFilters() {
@@ -340,7 +354,7 @@
       },
       async deleteInvoice() {
         if (!this.invoiceToDelete) return;
-        
+
         try {
           await axios.delete(`/vendor-invoices/${this.invoiceToDelete.invoice_id}`);
           this.showDeleteModal = false;
@@ -353,17 +367,25 @@
       },
       formatDate(dateString) {
         if (!dateString) return 'N/A';
-        const date = new Date(dateString);
-        return date.toLocaleDateString();
+        try {
+          const date = new Date(dateString);
+          return date.toLocaleDateString();
+        } catch (error) {
+          return 'N/A';
+        }
       },
       formatCurrency(amount, currency) {
         if (amount === null || amount === undefined) return 'N/A';
-        
-        return new Intl.NumberFormat('en-US', {
-          style: 'currency',
-          currency: currency || 'USD',
-          minimumFractionDigits: 2
-        }).format(amount);
+
+        try {
+          return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: currency || 'USD',
+            minimumFractionDigits: 2
+          }).format(amount);
+        } catch (error) {
+          return amount.toString();
+        }
       },
       getStatusClass(status) {
         const statusClasses = {
@@ -372,7 +394,7 @@
           paid: 'status-paid',
           cancelled: 'status-cancelled'
         };
-        
+
         return `status-badge ${statusClasses[status] || ''}`;
       },
       capitalizeFirst(str) {
@@ -382,19 +404,19 @@
     }
   };
   </script>
-  
+
   <style scoped>
   .vendor-invoice-list {
     padding: 1rem;
   }
-  
+
   .page-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1.5rem;
   }
-  
+
   .filters-container {
     background-color: white;
     border-radius: 0.5rem;
@@ -402,27 +424,27 @@
     padding: 1rem;
     margin-bottom: 1.5rem;
   }
-  
+
   .filter-row {
     display: flex;
     flex-wrap: wrap;
     gap: 1rem;
     margin-bottom: 1rem;
   }
-  
+
   .filter-group {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
     min-width: 150px;
   }
-  
+
   .filter-group label {
     font-size: 0.75rem;
     color: var(--gray-500);
     font-weight: 500;
   }
-  
+
   .filter-group select,
   .filter-group input {
     padding: 0.5rem;
@@ -431,20 +453,20 @@
     font-size: 0.875rem;
     background-color: white;
   }
-  
+
   .search-box {
     flex-grow: 1;
   }
-  
+
   .search-input {
     display: flex;
     gap: 0.5rem;
   }
-  
+
   .search-input input {
     flex-grow: 1;
   }
-  
+
   .table-responsive {
     overflow-x: auto;
     background-color: white;
@@ -452,13 +474,13 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     margin-bottom: 1.5rem;
   }
-  
+
   .data-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.875rem;
   }
-  
+
   .data-table th {
     text-align: left;
     padding: 0.75rem 1rem;
@@ -468,26 +490,26 @@
     color: var(--gray-600);
     cursor: pointer;
   }
-  
+
   .data-table th:hover {
     background-color: var(--gray-100);
   }
-  
+
   .data-table td {
     padding: 0.75rem 1rem;
     border-bottom: 1px solid var(--gray-100);
     color: var(--gray-800);
   }
-  
+
   .data-table tbody tr:hover {
     background-color: var(--gray-50);
   }
-  
+
   .actions-cell {
     display: flex;
     gap: 0.5rem;
   }
-  
+
   .btn-icon {
     display: inline-flex;
     justify-content: center;
@@ -501,12 +523,12 @@
     cursor: pointer;
     transition: all 0.2s;
   }
-  
+
   .btn-icon:hover {
     background-color: var(--gray-100);
     color: var(--gray-800);
   }
-  
+
   .btn {
     display: inline-flex;
     align-items: center;
@@ -518,64 +540,64 @@
     cursor: pointer;
     transition: all 0.2s;
   }
-  
+
   .btn-primary {
     background-color: var(--primary-color);
     color: white;
     border: none;
   }
-  
+
   .btn-primary:hover {
     background-color: var(--primary-dark);
   }
-  
+
   .btn-secondary {
     background-color: var(--gray-200);
     color: var(--gray-700);
     border: none;
   }
-  
+
   .btn-secondary:hover {
     background-color: var(--gray-300);
   }
-  
+
   .btn-outline {
     background-color: white;
     color: var(--gray-700);
     border: 1px solid var(--gray-200);
   }
-  
+
   .btn-outline:hover {
     background-color: var(--gray-100);
   }
-  
+
   .btn-danger {
     background-color: var(--danger-color);
     color: white;
     border: none;
   }
-  
+
   .btn-danger:hover {
     background-color: #b91c1c;
   }
-  
+
   .pagination-container {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 1rem;
   }
-  
+
   .pagination-info {
     color: var(--gray-500);
     font-size: 0.875rem;
   }
-  
+
   .pagination-controls {
     display: flex;
     gap: 0.25rem;
   }
-  
+
   .pagination-btn {
     display: flex;
     justify-content: center;
@@ -588,23 +610,23 @@
     color: var(--gray-500);
     cursor: pointer;
   }
-  
+
   .pagination-btn:hover:not(:disabled) {
     background-color: var(--gray-100);
     color: var(--gray-800);
   }
-  
+
   .pagination-btn.active {
     background-color: var(--primary-color);
     color: white;
     border-color: var(--primary-color);
   }
-  
+
   .pagination-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
-  
+
   .pagination-ellipsis {
     display: flex;
     justify-content: center;
@@ -613,7 +635,7 @@
     height: 2rem;
     color: var(--gray-500);
   }
-  
+
   .loading,
   .empty-state {
     display: flex;
@@ -627,25 +649,25 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     margin-bottom: 1.5rem;
   }
-  
+
   .loading i,
   .empty-state i {
     font-size: 2.5rem;
     color: var(--gray-300);
     margin-bottom: 1rem;
   }
-  
+
   .empty-state h3 {
     font-size: 1.125rem;
     color: var(--gray-700);
     margin-bottom: 0.5rem;
   }
-  
+
   .empty-state p {
     color: var(--gray-500);
     max-width: 24rem;
   }
-  
+
   .modal {
     position: fixed;
     top: 0;
@@ -657,7 +679,7 @@
     justify-content: center;
     align-items: center;
   }
-  
+
   .modal-backdrop {
     position: fixed;
     top: 0;
@@ -667,7 +689,7 @@
     background-color: rgba(0, 0, 0, 0.5);
     z-index: 50;
   }
-  
+
   .modal-content {
     background-color: white;
     border-radius: 0.5rem;
@@ -676,11 +698,11 @@
     z-index: 60;
     overflow: hidden;
   }
-  
+
   .modal-sm {
     max-width: 400px;
   }
-  
+
   .modal-header {
     display: flex;
     justify-content: space-between;
@@ -688,14 +710,14 @@
     padding: 1rem 1.5rem;
     border-bottom: 1px solid var(--gray-200);
   }
-  
+
   .modal-header h2 {
     font-size: 1.25rem;
     font-weight: 600;
     margin: 0;
     color: var(--gray-800);
   }
-  
+
   .close-btn {
     background: none;
     border: none;
@@ -707,30 +729,30 @@
     padding: 0.25rem;
     border-radius: 0.25rem;
   }
-  
+
   .close-btn:hover {
     background-color: var(--gray-100);
     color: var(--gray-800);
   }
-  
+
   .modal-body {
     padding: 1.5rem;
   }
-  
+
   .text-warning {
     color: var(--warning-color);
     display: flex;
     align-items: center;
     gap: 0.5rem;
   }
-  
+
   .form-actions {
     display: flex;
     justify-content: flex-end;
     gap: 1rem;
     margin-top: 1.5rem;
   }
-  
+
   .status-badge {
     display: inline-block;
     padding: 0.25rem 0.5rem;
@@ -738,38 +760,38 @@
     font-size: 0.75rem;
     font-weight: 500;
   }
-  
+
   .status-pending {
     background-color: #fef3c7;
     color: #92400e;
   }
-  
+
   .status-approved {
     background-color: #d1fae5;
     color: #065f46;
   }
-  
+
   .status-paid {
     background-color: #dbeafe;
     color: #1e40af;
   }
-  
+
   .status-cancelled {
     background-color: #fee2e2;
     color: #b91c1c;
   }
-  
+
   @media (max-width: 768px) {
     .page-header {
       flex-direction: column;
       align-items: flex-start;
       gap: 1rem;
     }
-    
+
     .filter-group {
       width: 100%;
     }
-    
+
     .pagination-container {
       flex-direction: column;
       gap: 1rem;

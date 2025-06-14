@@ -387,6 +387,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/{id}', [SalesForecastController::class, 'destroy']);
     });
 
+    // AI Excel Forecast Processing Routes
+    Route::prefix('ai-excel-forecast')->group(function () {
+        Route::post('/process', [App\Http\Controllers\Api\sales\AIExcelForecastController::class, 'processExcelWithAI']);
+        Route::post('/save', [App\Http\Controllers\Api\sales\AIExcelForecastController::class, 'saveExtractedForecasts']);
+        Route::get('/history', [App\Http\Controllers\Api\sales\AIExcelForecastController::class, 'getProcessingHistory']);
+    });
+
     // Routes untuk Outstanding Sales Order
     Route::get('sales-orders/{id}/outstanding-items', 'Api\Sales\SalesOrderController@getOutstandingItems');
     Route::get('sales-orders/outstanding', 'Api\Sales\SalesOrderController@getAllOutstandingSalesOrders');

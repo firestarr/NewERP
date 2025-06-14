@@ -137,17 +137,6 @@
                 </button>
               </td>
             </tr>
-            <tr v-for="line in quotation.lines" :key="line.id" class="quotation-line-row">
-              <td colspan="7" class="line-details-cell">
-                <div class="line-details">
-                  <strong>Item:</strong> {{ line.item ? line.item.name : 'N/A' }} |
-                  <strong>Quantity:</strong> {{ line.quantity }} |
-                  <strong>Unit Price:</strong> {{ line.unit_price }} |
-                  <strong>UOM:</strong> {{ line.unitOfMeasure ? line.unitOfMeasure.name : 'N/A' }} |
-                  <strong>Delivery Date:</strong> {{ formatDate(line.delivery_date) }}
-                </div>
-              </td>
-            </tr>
           </tbody>
         </table>
       </div>
@@ -278,7 +267,7 @@
       }
     },
     methods: {
-fetchQuotations() {
+      fetchQuotations() {
         this.loading = true;
 
         // Construct query parameters
@@ -308,7 +297,6 @@ fetchQuotations() {
 
         axios.get('/vendor-quotations', { params })
           .then(response => {
-            console.log('Fetched quotations:', response.data.data.data);
             if (response.data.status === 'success') {
               this.quotations = response.data.data.data;
 
@@ -881,23 +869,5 @@ fetchQuotations() {
       flex-direction: column;
       gap: 1rem;
     }
-  }
-  </style>
-
-  <style scoped>
-  .quotation-line-row {
-    background-color: #f9fafb;
-  }
-
-  .line-details-cell {
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-    color: #4b5563;
-  }
-
-  .line-details {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
   }
   </style>

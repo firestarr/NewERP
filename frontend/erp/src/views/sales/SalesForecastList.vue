@@ -3,8 +3,18 @@
     <div class="page-header">
       <h1>Sales Forecasts</h1>
       <div class="page-actions">
-        <router-link 
-          to="/sales/forecasts/create" 
+        <!-- <button class="btn btn-outline-primary" @click="aiimportexcell">
+                        <i class="fa-solid fa-brain"></i> Capture Import Excell by AI
+        </button> -->
+        <router-link
+          to="/sales/forecasts/import-excel-ai"
+          class="btn btn-primary"
+        >
+          <i class="fa-solid fa-brain"></i>
+          Capture Import Excell by AI
+        </router-link>
+        <router-link
+          to="/sales/forecasts/create"
           class="btn btn-primary"
         >
           <i class="fas fa-plus"></i>
@@ -25,9 +35,9 @@
             <label>Customer</label>
             <select v-model="filters.customer_id" @change="loadForecasts" class="form-control">
               <option value="">All Customers</option>
-              <option 
-                v-for="customer in customers" 
-                :key="customer.customer_id" 
+              <option
+                v-for="customer in customers"
+                :key="customer.customer_id"
                 :value="customer.customer_id"
               >
                 {{ customer.name }}
@@ -39,9 +49,9 @@
             <label>Item</label>
             <select v-model="filters.item_id" @change="loadForecasts" class="form-control">
               <option value="">All Items</option>
-              <option 
-                v-for="item in items" 
-                :key="item.item_id" 
+              <option
+                v-for="item in items"
+                :key="item.item_id"
                 :value="item.item_id"
               >
                 {{ item.name }}
@@ -51,9 +61,9 @@
 
           <div class="filter-group">
             <label>Period</label>
-            <input 
-              type="month" 
-              v-model="filters.forecast_period" 
+            <input
+              type="month"
+              v-model="filters.forecast_period"
               @change="loadForecasts"
               class="form-control"
             >
@@ -85,8 +95,8 @@
             <i class="fas fa-times"></i>
             Clear Filters
           </button>
-          <router-link 
-            to="/sales/forecasts/analytics" 
+          <router-link
+            to="/sales/forecasts/analytics"
             class="btn btn-info"
           >
             <i class="fas fa-chart-line"></i>
@@ -137,7 +147,7 @@
         </template>
 
         <template #variance="{ item }">
-          <span 
+          <span
             v-if="item.variance !== null"
             :class="getVarianceClass(item.variance)"
           >
@@ -147,7 +157,7 @@
         </template>
 
         <template #variance_percentage="{ item }">
-          <span 
+          <span
             v-if="item.variance !== null && item.forecast_quantity > 0"
             :class="getVarianceClass(item.variance)"
           >
@@ -164,7 +174,7 @@
 
         <template #confidence="{ item }">
           <div class="confidence-bar">
-            <div 
+            <div
               class="confidence-fill"
               :style="{ width: (item.confidence_level * 100) + '%' }"
             ></div>
@@ -175,7 +185,7 @@
         </template>
 
         <template #is_current="{ item }">
-          <span 
+          <span
             class="status-badge"
             :class="item.is_current_version ? 'status-current' : 'status-old'"
           >
@@ -185,15 +195,15 @@
 
         <template #actions="{ item }">
           <div class="action-buttons">
-            <router-link 
+            <router-link
               :to="`/sales/forecasts/${item.forecast_id}`"
               class="btn btn-sm btn-info"
               title="View Details"
             >
               <i class="fas fa-eye"></i>
             </router-link>
-            
-            <router-link 
+
+            <router-link
               v-if="item.is_current_version"
               :to="`/sales/forecasts/${item.forecast_id}/edit`"
               class="btn btn-sm btn-warning"
@@ -201,8 +211,8 @@
             >
               <i class="fas fa-edit"></i>
             </router-link>
-            
-            <button 
+
+            <button
               v-if="item.is_current_version"
               @click="confirmDelete(item)"
               class="btn btn-sm btn-danger"
@@ -295,7 +305,7 @@ export default {
           axios.get('/customers'),
           axios.get('/items')
         ]);
-        
+
         this.customers = customersResponse.data.data || customersResponse.data;
         this.items = itemsResponse.data.data || itemsResponse.data;
       } catch (error) {
@@ -307,20 +317,20 @@ export default {
     async loadForecasts() {
       try {
         this.isLoading = true;
-        
+
         const params = {
           page: this.pagination.current_page,
           search: this.search,
           ...this.filters
         };
-        
+
         if (this.sortBy) {
           params.sort_by = this.sortBy;
           params.sort_order = this.sortOrder;
         }
-        
+
         const response = await axios.get('/forecasts', { params });
-        
+
         if (response.data.data) {
           // Paginated response
           this.forecasts = response.data.data;
@@ -407,9 +417,9 @@ export default {
 
     formatNumber(value) {
       if (value === null || value === undefined) return '';
-      return parseFloat(value).toLocaleString('en-US', { 
-        minimumFractionDigits: 0, 
-        maximumFractionDigits: 2 
+      return parseFloat(value).toLocaleString('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2
       });
     },
 

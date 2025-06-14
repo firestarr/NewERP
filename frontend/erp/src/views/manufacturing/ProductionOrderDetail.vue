@@ -951,7 +951,10 @@
       },
 
       printProductionOrder() {
-        window.print();
+        this.$router.push({
+        name: 'PrintProductionOrder',
+        params: { productionId: this.productionId }
+        });
       },
 
       async viewProductionSummary() {

@@ -1,7 +1,7 @@
 <!-- src/views/Dashboard.vue -->
 <template>
+    <h1>Welcome to AOS</h1>
     <div class="dashboard">
-        <h1>Welcome to AOS</h1>
       <!-- Statistics Cards -->
       <!-- <div class="stats-grid">
         <div class="stat-card">

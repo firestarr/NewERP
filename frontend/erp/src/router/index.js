@@ -58,6 +58,10 @@ import ForecastAccuracyAnalysis from "../views/sales/ForecastAccuracyAnalysis.vu
 import ForecastDashboard from "../views/sales/ForecastDashboard.vue";
 import UpdateActualsPage from "../views/sales/UpdateActualsPage.vue";
 import ForecastHistoryView from "../views/sales/ForecastHistoryView.vue";
+
+//AIExcelImport
+import AIExcellForecastImport from "@/views/sales/AIExcellForecastImport.vue";
+
 //SalesOrder
 import SalesOrderList from "../views/sales/SalesOrderList.vue";
 import SalesOrderDetail from "../views/sales/SalesOrderDetail.vue";
@@ -138,6 +142,7 @@ import ProductionOrderForm from "../views/manufacturing/ProductionOrderForm.vue"
 import ProductionOrderDetail from "../views/manufacturing/ProductionOrderDetail.vue";
 import ProductionConsumptionForm from "../views/manufacturing/ProductionConsumptionForm.vue";
 import ProductionCompletionForm from "../views/manufacturing/ProductionCompletionForm.vue";
+import ProductionOrderPrint from "../views/manufacturing/ProductionOrderPrint.vue";
 //WO PRINT ROUTE
 import WorkOrderPrint from "../views/manufacturing/WorkOrderPrint.vue";
 // Import Quality Inspection components
@@ -567,6 +572,22 @@ const routes = [
                 component: () =>
                     import("../views/sales/ForecastTrendAnalysis.vue"),
                 meta: { requiresAuth: true },
+            },
+
+            //AIExcellImport
+            {
+                path: "/sales/forecasts/import-excel-ai",
+                name: "AIExcellForecastImport",
+                component: AIExcellForecastImport,
+                meta: {
+                    requiresAuth: true,
+                    title: "AI Excel Forecast Import",
+                    breadcrumb: [
+                        { text: "Sales", to: "/sales" },
+                        { text: "Forecasts", to: "/sales/forecasts" },
+                        { text: "AI Excel Import", active: true },
+                    ],
+                },
             },
 
             //SalesOrder
@@ -1464,6 +1485,16 @@ const routes = [
                 component: ProductionCompletionForm,
                 props: true,
                 meta: { requiresAuth: true },
+            },
+            {
+                path: "/manufacturing/production-orders/:productionId/print",
+                name: "PrintProductionOrder",
+                component: ProductionOrderPrint,
+                props: true,
+                meta: {
+                    requiresAuth: true,
+                    title: "Print Production Order",
+                },
             },
             // Quality Inspections routes
             {

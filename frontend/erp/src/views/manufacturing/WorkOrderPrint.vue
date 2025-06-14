@@ -1,1037 +1,696 @@
-<!-- src/views/manufacturing/WorkOrderPrint.vue -->
 <template>
-  <div class="work-order-print-page">
-    <!-- Print Controls (Hidden in print) -->
-    <div class="print-controls no-print">
-      <div class="controls-bar">
-        <button @click="goBack" class="btn btn-secondary">
-          <i class="fas fa-arrow-left"></i> Back
-        </button>
-        <button @click="printDocument" class="btn btn-primary">
-          <i class="fas fa-print"></i> Print
-        </button>
-        <button @click="downloadPDF" class="btn btn-success">
-          <i class="fas fa-download"></i> Download PDF
-        </button>
+  <div class="container">
+    <!-- Header atas (JO No dan Prod Date, Delivery Date) -->
+    <div class="header-top">
+      <div class="jo-no">
+        <span>JO No :</span>
+        <b>J2-25-00004</b>
+      </div>
+
+      <div class="right-dates">
+        <div class="prod-date">
+          Prod Date : <b>17 Dec 2024</b>
+        </div>
+        <div class="delivery-date">
+          Delivery Date : <b>02 Jan 2025</b>
+        </div>
       </div>
     </div>
 
-    <!-- Loading State -->
-    <div v-if="isLoading" class="loading-state">
-      <div class="spinner">
-        <i class="fas fa-spinner fa-spin"></i>
-      </div>
-      <p>Loading work order data...</p>
-    </div>
-
-    <!-- Print Document -->
-    <div v-else class="print-document">
-      <!-- Header Section -->
-      <div class="document-header">
-        <div class="header-top">
-          <div class="company-section">
-            <!-- <h1>WORK ORDER</h1> -->
-            <!-- <div class="standard-label">Standard</div> -->
+    <!-- Bagian utama kiri - left + issue wh di sebelah kiri, dan kanan yield + flow chart -->
+    <div class="main-body">
+      <!-- Kiri: Customer, Part Info, MatCode, TapeCode, Barcodes -->
+      <div class="left-section">
+        <dl>
+          <div class="row">
+              <dt>Customer</dt>
+              <dd>PT. YAMAHA MUSIC MANUFACT</dd>
           </div>
-          <div class="dates-section">
-            <!-- <div class="date-row">
-              <span class="date-label">Issue Date</span>
-              <span class="date-value">{{ formatDate(workOrder.wo_date) }}</span>
+          <div class="row">
+              <dt>Intern Code</dt>
+              <dd>YMM0001</dd>
+          </div>
+          <div class="row">
+              <dt>Cust Code</dt>
+              <dd>V630000</dd>
+          </div>
+          <div class="row">
+              <dt>Part Name</dt>
+              <dd class="bold-dd">CUSHION - TORAY PEF</dd>
+          </div>
+          <div class="row">
+              <dt>Size</dt>
+              <dd>2MMX5MMX480MM</dd>
+          </div>
+          <div class="row">
+              <dt>Process</dt>
+              <dd>SINGLE KNIFE</dd>
+          </div>
+
+          <div class="row cavity-punch-knife">
+            <div class="item">
+              <dt>Cavity</dt>
+              <dd>1</dd>
             </div>
-            <div class="date-row">
-              <span class="date-label">Prod Date:</span>
-              <span class="date-value">{{ formatDate(workOrder.planned_start_date) }}</span>
+            <div class="item">
+              <dt>Total Punch</dt>
+              <dd></dd>
             </div>
-            <div class="date-row">
-              <span class="date-label">Print Date</span>
-              <span class="date-value">{{ formatDate(new Date()) }}</span>
-            </div> -->
+            <div class="item single-knife-inline">
+              SINGLE KNIFE
+            </div>
+          </div>
+
+          <div class="row">
+            <dt>ECN#</dt>
+            <dd></dd>
+          </div>
+          <div class="row">
+            <dt>Set Jump</dt>
+            <dd>0.000</dd>
+            <dd></dd>
+          </div>
+        </dl>
+
+        <div class="mat-codes">
+          <div>
+            <div><b>MatCode 1</b> : <span>□□□□□□</span></div>
+            <div><b>MatNm 1</b> : TORAY PEF/2MM</div>
+            <div><b>Size :</b> 2MMX1000MMX200M</div>
+            <div><b>Yield :</b> 82,784</div>
+            <div><b>Issue Qty :</b> 0.02885 /</div>
+            <div><b>Qty/Mtr :</b> □□□□□□</div>
+          </div>
+          <div>
+            <div><b>MatCode 2</b> : <span>□□□□□□</span></div>
+            <div><b>MatNm2 :</b></div>
+            <div><b>Size :</b></div>
+            <div><b>Yield :</b></div>
+            <div><b>Issue Qty :</b> 0.00000 /</div>
+            <div><b>Qty/Mtr :</b> □□□□□□</div>
+          </div>
+          <div>
+            <div><b>MatCode 3</b> : <span>□□□□□□</span></div>
+            <div><b>Mat Nm 3 :</b></div>
+            <div><b>Size :</b></div>
+            <div><b>Yield :</b></div>
+            <div><b>Issue Qty :</b> 0.00000 /</div>
+            <div><b>Qty/Mtr :</b> □□□□□□</div>
           </div>
         </div>
 
-        <div class="header-main">
-          <div class="left-info">
-            <div class="info-row">
-              <span class="label">Customer</span>
-              <span class="value">{{ workOrder.customer_name || 'Internal Production' }}</span>
-            </div>
-            <div class="info-row">
-              <span class="label">JO No:</span>
-              <span class="value wo-number">{{ workOrder.wo_number }}</span>
-            </div>
-            <div class="info-row">
-              <span class="label">Cust Code</span>
-              <span class="value">{{ workOrder.customer_code || workOrder.item?.item_code }}</span>
-            </div>
+        <div class="tape-codes">
+          <div>
+            <div><b>TapeCode 1</b>: N500A/1210</div>
+            <div><b>TapeNm1 :</b></div>
+            <div><b>Size :</b></div>
+            <div><b>Yield :</b> 20,696</div>
+            <div><b>Issue Qty :</b> 0.11538 / RL</div>
           </div>
-
-          <div class="center-info">
-            <div class="info-row">
-              <span class="label">Part Name</span>
-              <span class="value part-name">{{ workOrder.item?.name || '-' }}</span>
-            </div>
-            <div class="info-row">
-              <span class="label">Intern Code</span>
-              <span class="value">{{ workOrder.item?.item_code || '-' }}</span>
-            </div>
-            <div class="info-row">
-              <span class="label">Size</span>
-              <span class="value">{{ getItemSize() }}</span>
-            </div>
+          <div>
+            <div><b>TapeCode 2</b>:</div>
+            <div><b>TapeNm 2 :</b></div>
+            <div><b>Size :</b></div>
+            <div><b>Yield :</b></div>
+            <div><b>Issue Qty :</b> 0.00000 /</div>
           </div>
-
-          <div class="right-info">
-            <div class="info-row">
-              <span class="label">Order Qty</span>
-              <span class="value qty-value">{{ workOrder.planned_quantity }}</span>
-              <span class="uom">{{ workOrder.item?.unitOfMeasure?.name || 'PCS' }}</span>
-            </div>
-            <div class="info-row">
-              <span class="label">Prod. Qty</span>
-              <span class="value qty-value">{{ workOrder.completed_quantity || 0 }}</span>
-              <span class="uom">{{ workOrder.item?.unitOfMeasure?.name || 'PCS' }}</span>
-            </div>
-            <div class="info-row">
-              <span class="label">Delivery Date:</span>
-              <span class="value">{{ formatDate(workOrder.planned_end_date) }}</span>
-            </div>
-            <div class="date-row">
-              <span class="date-label">Prod Date:</span>
-              <span class="date-value">{{ formatDate(workOrder.planned_start_date) }}</span>
-            </div>
-            <div class="date-row">
-              <span class="date-label">Print Date</span>
-              <span class="date-value">{{ formatDate(new Date()) }}</span>
-            </div>
+          <div>
+            <div><b>Sub Material :</b></div>
+            <div><b>Sub Material :</b></div>
+            <div><b>Sub Material :</b></div>
+            <div><b>Sub Material :</b></div>
           </div>
         </div>
-      </div>
 
-      <!-- Process Information -->
-      <div class="process-section">
-        <div class="process-header">
-          <div class="process-info">
-            <div class="info-item">
-              <span class="label">Process</span>
-              <span class="value">{{ getMainProcess() }}</span>
-            </div>
-            <div class="info-item">
-              <span class="label">Machine</span>
-              <span class="value">{{ getMainMachine() }}</span>
-            </div>
-            <div class="info-item">
-              <span class="label">Setup (mnt)</span>
-              <span class="value">{{ getTotalSetupTime() }}</span>
-            </div>
-            <div class="info-item">
-              <span class="label">Process (mnt)</span>
-              <span class="value">{{ getTotalProcessTime() }}</span>
-            </div>
-          </div>
-          <div class="process-details">
-            <div class="info-item">
-              <span class="label">ARM NO</span>
-              <span class="value">{{ workOrder.arm_no || '-' }}</span>
-            </div>
-            <div class="info-item">
-              <span class="label">Cavity</span>
-              <span class="value">{{ workOrder.cavity || '1' }}</span>
-            </div>
-            <div class="info-item">
-              <span class="label">Total Punch</span>
-              <span class="value">{{ getTotalPunch() }}</span>
-            </div>
-          </div>
+        <div class="barcode-section">
+          <!-- unused for now -->
         </div>
       </div>
 
-      <!-- Materials Section -->
-      <div class="materials-section">
-        <h3>Materials</h3>
-        <div class="materials-grid">
-          <div v-for="(material, index) in materials" :key="index" class="material-block">
-            <div class="material-header">
-              <span class="material-label">Material {{ index + 1 }}</span>
-            </div>
-            <div class="material-details">
-              <div class="detail-row">
-                <span class="label">MatCode{{ index + 1 }}:</span>
-                <span class="value">{{ material.item_code }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="label">MatNm {{ index + 1 }}:</span>
-                <span class="value">{{ material.item_name }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="label">Size:</span>
-                <span class="value">{{ getMaterialSize(material) }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="label">Issue Qty:</span>
-                <span class="value">{{ material.required_quantity }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="label">Yield:</span>
-                <span class="value">{{ material.yield || getCalculatedYield(material) }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="label">Qty/Mtr:</span>
-                <span class="value">{{ material.qty_per_meter || calculateQtyPerMeter(material) }}</span>
-              </div>
-            </div>
-            <div class="lot-tracking">
-              <div class="lot-row">
-                <span class="label">Lot Material</span>
-                <input type="text" class="lot-input" placeholder="Lot No." />
-              </div>
-              <div class="lot-row">
-                <span class="label">Operator</span>
-                <input type="text" class="lot-input" placeholder="Operator" />
-              </div>
-            </div>
-          </div>
-
-          <!-- Adhesive/Tape Materials -->
-          <div v-for="(tape, index) in tapeAdhesives" :key="`tape-${index}`" class="material-block">
-            <div class="material-header">
-              <span class="material-label">Tape{{ index + 1 }}</span>
-            </div>
-            <div class="material-details">
-              <div class="detail-row">
-                <span class="label">TapeCode{{ index + 1 }}:</span>
-                <span class="value">{{ tape.item_code }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="label">TapeNm{{ index + 1 }}:</span>
-                <span class="value">{{ tape.item_name }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="label">Size:</span>
-                <span class="value">{{ getMaterialSize(tape) }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="label">Issue Qty:</span>
-                <span class="value">{{ tape.required_quantity }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="label">Yield:</span>
-                <span class="value">{{ tape.yield || getCalculatedYield(tape) }}</span>
-              </div>
-            </div>
-            <div class="lot-tracking">
-              <div class="lot-row">
-                <span class="label">Lot adhesive</span>
-                <input type="text" class="lot-input" placeholder="Lot No." />
-              </div>
-            </div>
-          </div>
-        </div>
+      <!-- Middle Section: Issue WH sampai Important ada disini, sejajar dengan Customer -->
+      <div class="middle-section">
+        <table class="info-table issue-important">
+          <tbody>
+            <tr><td>Issue WH :</td><td></td></tr>
+            <tr><td>Issue Date</td><td>17 Dec 2024</td></tr>
+            <tr><td>Print Date</td><td>17 May 2025</td></tr>
+            <tr><td>Order Qty</td><td>2,396 PCS</td></tr>
+            <tr><td>Prod. Qty</td><td>2,388 PCS</td></tr>
+            <tr><td>Important</td><td></td></tr>
+            <tr><td>Yield</td><td></td></tr>
+            <tr><td>Size</td><td></td></tr>
+            <tr><td>Qty</td><td></td></tr>
+          </tbody>
+          <!-- <div class="yield-block">
+          <div><b>Yield</b> 199 PCS</div>
+          <div><b>Size</b> 2MMX1000MMX480MM</div>
+          <div><b>Qty</b> 12.00 SHEET</div>
+          </div> -->
+        </table>
       </div>
 
-      <!-- Quality Control Section -->
-      <div class="quality-section">
-        <div class="quality-grid">
-          <div class="quality-item">
-            <span class="label">No. of Plastic</span>
-            <input type="number" class="qty-input" />
-          </div>
-          <div class="quality-item">
-            <span class="label">Reject Qty</span>
-            <input type="number" class="qty-input" value="0" />
-          </div>
-          <div class="quality-item">
-            <span class="label">No. of Carton</span>
-            <input type="number" class="qty-input" />
-          </div>
-          <div class="quality-item">
-            <span class="label">Tolerance Qty</span>
-            <input type="text" class="qty-input" />
-          </div>
-          <div class="quality-item">
-            <span class="label">Set Jump</span>
-            <input type="text" class="qty-input" value="0.000" />
-          </div>
-          <div class="quality-item">
-            <span class="label">Total</span>
-            <input type="number" class="qty-input" />
-          </div>
-        </div>
+      <!-- Kanan: Bagian Yield dan Flow Chart History -->
+      <div class="right-section">
+        <!-- <div class="yield-block">
+          <div><b>Yield</b> 199 PCS</div>
+          <div><b>Size</b> 2MMX1000MMX480MM</div>
+          <div><b>Qty</b> 12.00 SHEET</div>
+        </div> -->
 
-        <div class="partial-section">
-          <div class="partial-row">
-            <span class="label">* Partial / No Partial</span>
-            <div class="checkbox-group">
-              <label><input type="checkbox" /> Partial</label>
-              <label><input type="checkbox" /> No Partial</label>
-            </div>
-          </div>
-          <div class="partial-row">
-            <span class="label">Partial GIN No:</span>
-            <input type="text" class="gin-input" placeholder="/" />
-          </div>
-          <div class="important-note">
-            <strong>PASTIKAN LOT NO. HARUS DI INPUT !!!</strong>
-          </div>
-        </div>
-      </div>
-
-      <!-- Process Flow Chart -->
-      <div class="flow-chart-section">
-        <h3>Work Flow</h3>
-        <table class="flow-chart-table">
+        <table class="flow-chart-history">
           <thead>
+            <tr>
+              <th colspan="4">Flow Chart History</th>
+            </tr>
             <tr>
               <th>Date</th>
               <th>Process</th>
               <th>Qty</th>
               <th>Name</th>
-              <th>Notes</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(operation, index) in operations" :key="index">
-              <td>{{ formatDate(operation.actual_start || operation.scheduled_start) }}</td>
-              <td class="process-cell">
-                <div class="process-code">{{ operation.operation_code || getOperationCode(operation, index) }}</div>
-                <div class="process-name">{{ operation.operation_name }}</div>
-              </td>
-              <td>{{ getOperationQuantity(operation) }}</td>
-              <td>{{ operation.operator_name || '-' }}</td>
-              <td class="notes-cell">{{ operation.notes || getOperationNotes(operation) }}</td>
-            </tr>
-            <!-- Add empty rows for manual entry -->
-            <tr v-for="n in 3" :key="`empty-${n}`" class="empty-row">
-              <td></td>
-              <td></td>
-              <td></td>
-              <td></td>
-              <td></td>
-            </tr>
+            <tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+            <tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+            <tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+            <tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+            <tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+            <tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+            <tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+            <tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+            <tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+            <tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
           </tbody>
         </table>
       </div>
+    </div>
 
-      <!-- Important Notes -->
-      <div class="notes-section">
-        <div class="notes-header">
-          <strong>Catatan Penting:</strong>
+    <!-- Workflow Table (unchanged) -->
+    <table class="workflow-table">
+      <thead>
+        <tr>
+          <th>Process</th>
+          <th>Work Flow</th>
+          <th>Tolerance</th>
+          <th>Check Process</th>
+          <th>Qty</th>
+          <th>Machine</th>
+          <th>Setup (mnt)</th>
+          <th>Proces (mnt)</th>
+          <th>Total (mnt)</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>C</td>
+          <td>CEK MATERIAL<br />SEBELUM PROSES</td>
+          <td>-1.0 +1.0</td>
+          <td></td>
+          <td></td>
+          <td>MANUAL</td>
+          <td>2</td>
+          <td>0.4</td>
+          <td>2.4</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>L</td>
+          <td>LAMIN SESUAIKAN MATERIAL<br />LAM.BAG.YG MENGKILAP</td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td>L-1</td>
+          <td>15</td>
+          <td>1.6</td>
+          <td>16.6</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>P</td>
+          <td>2MM X 1000MM X 480MM F/C<br />POTONG YANG SIKU</td>
+          <td>-1.0 +1.0</td>
+          <td></td>
+          <td></td>
+          <td>P-5</td>
+          <td>15</td>
+          <td>23.9</td>
+          <td>38.9</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>P</td>
+          <td>2MM X 5MM X 480 K/C<br />TIAP 50 BARIS F/C</td>
+          <td>-0.3 +0.3</td>
+          <td></td>
+          <td></td>
+          <td>P-20</td>
+          <td>10</td>
+          <td>23.9</td>
+          <td>33.9</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>PK</td>
+          <td>SESUAIKAN DENGAN ORDER<br />PACKING YANG RAPI</td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td>MANUAL</td>
+          <td>5</td>
+          <td>8.0</td>
+          <td>13.0</td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Catatan Penting (unchanged) -->
+    <div class="catatan-penting">
+      <em><b>Catatan Penting :</b></em>
+      <span class="date-note">02/01/2025</span>
+    </div>
+
+    <!-- Footer (unchanged) -->
+    <div class="footer-bottom">
+      <div class="partial-info">
+        <div>* Partial / No Partial</div>
+        <div class="partial-gin-no">
+          <label for="partial-gin-no-input">Partial GIN No :</label>
+          <input id="partial-gin-no-input" type="text" />
+          <span>/</span>
         </div>
-        <div class="notes-content">
-          {{ workOrder.notes || 'Pastikan semua proses sesuai dengan spesifikasi. Lakukan quality check di setiap tahap.' }}
-        </div>
-        <div class="notes-date">
-          {{ formatDate(workOrder.wo_date) }}
+        <div class="warning-text">
+          <b>PASTIKAN LOT NO. HARUS DI INPUT !!!</b>
         </div>
       </div>
 
-      <!-- Additional Info -->
-      <div class="additional-info">
-        <div class="info-grid">
-          <div class="info-item">
-            <span class="label">Issue WH:</span>
-            <span class="value">{{ workOrder.issue_warehouse || formatDate(workOrder.wo_date) }}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">ECN#</span>
-            <span class="value">{{ workOrder.ecn_number || '-' }}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">Check</span>
-            <div class="checkbox-group">
-              <label><input type="checkbox" /> OK</label>
-              <label><input type="checkbox" /> NG</label>
-            </div>
-          </div>
-        </div>
-      </div>
+      <table class="footer-table">
+        <thead>
+          <tr>
+            <th>Standard</th>
+            <th>Lot Material</th>
+            <th>Lot Material</th>
+            <th>Lot Material</th>
+            <th>Reject Qty</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>No. of Plastic</td>
+            <td>Lot adhesive</td>
+            <td>Lot adhesive</td>
+            <td>Lot adhesive</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>No. of Carton</td>
+            <td>Machine</td>
+            <td>Operator</td>
+            <td>02/01/2025</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
 
-      <!-- Sub Materials -->
-      <div class="sub-materials">
-        <div class="sub-row">
-          <span class="label">Sub Material:</span>
-          <input type="text" class="sub-input" />
-          <input type="text" class="sub-input" />
-          <input type="text" class="sub-input" />
-          <input type="text" class="sub-input" />
-        </div>
+      <div class="footer-note">
+        *) Just streak (coret) if part partial or no partial
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import { ref, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import axios from 'axios';
-
 export default {
-  name: 'WorkOrderPrint',
-  setup() {
-    const route = useRoute();
-    const router = useRouter();
-
-    const isLoading = ref(true);
-    const workOrder = ref({});
-    const materials = ref([]);
-    const tapeAdhesives = ref([]);
-    const operations = ref([]);
-
-    const loadWorkOrderData = async () => {
-      try {
-        isLoading.value = true;
-
-        // Load work order details
-        const response = await axios.get(`/work-orders/${route.params.id}`);
-        workOrder.value = response.data.data;
-
-        // Load materials from BOM
-        if (workOrder.value.bom_id) {
-          const bomResponse = await axios.get(`/boms/${workOrder.value.bom_id}/lines`);
-          const allMaterials = bomResponse.data.data.map(line => {
-            let requiredQty = line.quantity * workOrder.value.planned_quantity;
-            if (line.is_yield_based && line.yield_ratio > 0) {
-              requiredQty = requiredQty / line.yield_ratio;
-            }
-            return {
-              ...line,
-              item_name: line.item?.name || 'Unknown',
-              item_code: line.item?.item_code || 'Unknown',
-              required_quantity: Math.ceil(requiredQty),
-              issued_quantity: line.issued_quantity || 0
-            };
-          });
-
-          // Separate materials and adhesives/tapes
-          materials.value = allMaterials.filter(m =>
-            !m.item_name.toLowerCase().includes('tape') &&
-            !m.item_name.toLowerCase().includes('adhesive')
-          );
-
-          tapeAdhesives.value = allMaterials.filter(m =>
-            m.item_name.toLowerCase().includes('tape') ||
-            m.item_name.toLowerCase().includes('adhesive')
-          );
-        }
-
-        // Load operations
-        const operationsResponse = await axios.get(`/work-orders/${route.params.id}/operations`);
-        operations.value = operationsResponse.data.data.map(op => ({
-          ...op,
-          operation_name: op.routingOperation?.operation_name || 'Unknown',
-          work_center_name: op.routingOperation?.workCenter?.name || 'Unknown',
-          setup_time: op.routingOperation?.setup_time || 0,
-          run_time: op.routingOperation?.run_time || 0,
-          sequence: op.routingOperation?.sequence || 0
-        }));
-
-      } catch (error) {
-        console.error('Error loading work order data:', error);
-      } finally {
-        isLoading.value = false;
-      }
-    };
-
-    const formatDate = (dateString) => {
-      if (!dateString) return '';
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric'
-      });
-    };
-
-    const getItemSize = () => {
-      const item = workOrder.value.item;
-      if (!item) return '';
-
-      const dimensions = [];
-      if (item.length) dimensions.push(`${item.length}MM`);
-      if (item.width) dimensions.push(`${item.width}MM`);
-      if (item.thickness) dimensions.push(`${item.thickness}MM`);
-
-      return dimensions.join('X') || '';
-    };
-
-    const getMaterialSize = (material) => {
-      const item = material.item;
-      if (!item) return '';
-
-      const dimensions = [];
-      if (item.thickness) dimensions.push(`${item.thickness}MM`);
-      if (item.length) dimensions.push(`${item.length}MM`);
-      if (item.width) dimensions.push(`${item.width}MM`);
-
-      return dimensions.join('X') || '';
-    };
-
-    const getMainProcess = () => {
-      return operations.value.length > 0 ? operations.value[0].operation_name : 'SINGLE KNIFE';
-    };
-
-    const getMainMachine = () => {
-      return operations.value.length > 0 ? operations.value[0].work_center_name : '';
-    };
-
-    const getTotalSetupTime = () => {
-      return operations.value.reduce((total, op) => total + (op.setup_time || 0), 0);
-    };
-
-    const getTotalProcessTime = () => {
-      return operations.value.reduce((total, op) => total + (op.run_time || 0), 0);
-    };
-
-    const getTotalPunch = () => {
-      return workOrder.value.planned_quantity || 0;
-    };
-
-    const getCalculatedYield = (material) => {
-      if (material.yield_ratio) return material.yield_ratio;
-      return Math.floor(workOrder.value.planned_quantity / (material.required_quantity || 1));
-    };
-
-    const calculateQtyPerMeter = (material) => {
-      const item = material.item;
-      if (item && item.length) {
-        return (1000 / item.length).toFixed(5);
-      }
-      return '0.00000';
-    };
-
-    const getOperationCode = (operation, index) => {
-      const codes = ['C', 'L', 'P', 'PK'];
-      return codes[index] || `OP${index + 1}`;
-    };
-
-    const getOperationQuantity = (operation) => {
-      return operation.completed_quantity || workOrder.value.planned_quantity || 0;
-    };
-
-    const getOperationNotes = (operation) => {
-      const defaultNotes = [
-        'CEK MATERIAL SEBELUM PROSES',
-        'LAMINATING SESUAIKAN MATERIAL',
-        'POTONG YANG SIKU',
-        'PACKING YANG RAPI'
-      ];
-      return operation.notes || defaultNotes[operation.sequence - 1] || 'SESUAIKAN DENGAN ORDER';
-    };
-
-    const goBack = () => {
-      router.go(-1);
-    };
-
-    const printDocument = () => {
-      window.print();
-    };
-
-    const downloadPDF = () => {
-      // This would require a PDF generation library like jsPDF or html2pdf
-      // For now, just trigger print dialog
-      window.print();
-    };
-
-    onMounted(() => {
-      loadWorkOrderData();
-    });
-
-    return {
-      isLoading,
-      workOrder,
-      materials,
-      tapeAdhesives,
-      operations,
-      formatDate,
-      getItemSize,
-      getMaterialSize,
-      getMainProcess,
-      getMainMachine,
-      getTotalSetupTime,
-      getTotalProcessTime,
-      getTotalPunch,
-      getCalculatedYield,
-      calculateQtyPerMeter,
-      getOperationCode,
-      getOperationQuantity,
-      getOperationNotes,
-      goBack,
-      printDocument,
-      downloadPDF
-    };
-  }
+  name: "DetailReport",
 };
 </script>
 
 <style scoped>
-.work-order-print-page {
-  background: #f5f5f5;
-  min-height: 100vh;
-  padding: 20px;
-}
+@import url('https://fonts.googleapis.com/css2?family=Libre+Barcode+39&display=swap');
 
-.print-controls {
-  background: white;
-  padding: 15px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.controls-bar {
-  display: flex;
-  gap: 10px;
-}
-
-.btn {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.btn-secondary {
-  background: #6c757d;
-  color: white;
-}
-
-.btn-primary {
-  background: #007bff;
-  color: white;
-}
-
-.btn-success {
-  background: #28a745;
-  color: white;
-}
-
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
-  background: white;
-  border-radius: 8px;
-}
-
-.spinner {
-  font-size: 2rem;
-  color: #007bff;
-  margin-bottom: 10px;
-}
-
-.print-document {
-  background: white;
-  width: 210mm;
-  margin: 0 auto;
-  padding: 10mm;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+.container {
   font-family: Arial, sans-serif;
-  font-size: 12px;
-  line-height: 1.3;
+  font-size: 10pt;
+  color: black;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 10px;
 }
 
-/* Header Styles */
-.document-header {
-  border: 2px solid #000;
-  margin-bottom: 15px;
-}
-
+/* Header */
 .header-top {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 10px 15px;
-  border-bottom: 1px solid #000;
-  background: #f8f9fa;
+  margin-bottom: 12px;
+  font-size: 11pt;
 }
 
-.company-section h1 {
+.header-top .jo-no {
+  font-weight: normal;
+}
+
+.header-top .jo-no b {
+  font-weight: bold;
+  font-size: 13pt;
+}
+
+.right-dates {
+  text-align: right;
+  font-weight: normal;
+  font-size: 11pt;
+}
+
+.right-dates .prod-date b,
+.right-dates .delivery-date b {
+  font-size: 16pt;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+/* Main body flex container */
+.main-body {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  gap: 20px;
+}
+
+/* Left Section */
+.left-section {
+  width: 53%;
+  font-size: 9pt;
+}
+
+.left-section dl {
+  margin-bottom: 12px;
+}
+
+/* Default row style */
+.left-section .row {
+  display: flex;
+  width: 100%;
+  gap: 5px 25px;
+  align-items: center;
+  margin-bottom: 3px;
+}
+
+.left-section dt,
+.left-section dd {
   margin: 0;
-  font-size: 20px;
+  padding: 0;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.left-section dt {
+  font-weight: bold;
+  flex: 0 0 90px;
+}
+
+.left-section dd {
+  flex: 0 0 95px;
+}
+
+.left-section dd.bold-dd {
+  font-weight: bold;
+  white-space: normal;
+}
+
+/* Baris khusus untuk Cavity, Total Punch, dan SINGLE KNIFE di satu garis */
+.cavity-punch-knife {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  margin-bottom: 10px;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.cavity-punch-knife .item {
+  display: flex;
+  gap: 3px 8px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.cavity-punch-knife dt {
+  font-weight: bold;
+  flex: none;
+}
+
+.cavity-punch-knife dd {
+  flex: none;
+  min-width: 30px;
+}
+
+.single-knife-inline {
+  font-weight: bold;
+  font-size: 18pt;
+  letter-spacing: 1px;
+  color: black;
+  border: 1.5px solid red;
+  padding: 4px 12px;
+  user-select: none;
+  white-space: nowrap;
+}
+
+/* Mat Codes & Tape Codes Layout */
+.mat-codes,
+.tape-codes {
+  display: flex;
+  justify-content: space-between;
+  font-size: 8pt;
+  margin-top: 10px;
+}
+
+.mat-codes > div,
+.tape-codes > div {
+  width: 31%;
+  line-height: 1.3;
+}
+
+.mat-codes > div b,
+.tape-codes > div b {
   font-weight: bold;
 }
 
-.standard-label {
-  font-size: 10px;
+.mat-codes > div span {
+  display: inline-block;
+  width: 70px;
+}
+
+/* Barcode Section */
+.barcode-section {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  font-size: 9pt;
+}
+
+.barcode-section > div {
+  width: 31%;
+  text-align: center;
+}
+
+.barcode {
+  font-family: 'Libre Barcode 39', cursive;
+  font-size: 32pt;
+  letter-spacing: 2px;
+  user-select: none;
   margin-top: 2px;
 }
 
-.dates-section {
+/* Middle Section for Issue WH & Important */
+.middle-section {
+  width: 20%;
+  font-size: 9pt;
+  text-align: left;
+  align-self: flex-start;
+}
+
+/* Table Issue WH sampai Important */
+.info-table.issue-important {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.info-table.issue-important td {
+  padding: 0 8px 0 0;
+  vertical-align: top;
+  font-weight: normal;
+  white-space: nowrap;
+  border-bottom: 1px solid #ddd;
+}
+
+.info-table.issue-important td:first-child {
+  font-weight: bold;
+  width: 60px;
+}
+
+/* Right Section */
+.right-section {
+  width: 25%;
+  font-size: 9pt;
   text-align: right;
-}
-
-.date-row {
+  line-height: 1.3;
   display: flex;
-  justify-content: space-between;
-  margin-bottom: 2px;
-  min-width: 150px;
+  flex-direction: column;
+  gap: 5px;
 }
 
-.date-label {
-  font-weight: bold;
-  margin-right: 10px;
-}
-
-.header-main {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  padding: 15px;
-  gap: 20px;
-}
-
-.info-row {
-  display: flex;
-  margin-bottom: 8px;
-  align-items: center;
-}
-
-.label {
-  font-weight: bold;
-  min-width: 80px;
-  margin-right: 10px;
-}
-
-.value {
-  flex: 1;
-}
-
-.wo-number {
-  font-size: 16px;
-  font-weight: bold;
-  color: #007bff;
-}
-
-.part-name {
-  font-weight: bold;
-  color: #333;
-}
-
-.qty-value {
-  font-weight: bold;
-  margin-right: 5px;
-}
-
-.uom {
-  font-size: 10px;
-  color: #666;
-}
-
-/* Process Section */
-.process-section {
-  border: 1px solid #000;
-  margin-bottom: 15px;
-  padding: 10px;
-}
-
-.process-header {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 20px;
-}
-
-.process-info, .process-details {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-}
-
-.info-item {
-  display: flex;
-  justify-content: space-between;
-}
-
-/* Materials Section */
-.materials-section {
-  margin-bottom: 20px;
-}
-
-.materials-section h3 {
-  margin: 0 0 10px 0;
-  padding: 8px;
-  background: #e9ecef;
-  border: 1px solid #000;
-  font-size: 14px;
-}
-
-.materials-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 15px;
-}
-
-.material-block {
-  border: 1px solid #333;
-  padding: 8px;
-}
-
-.material-header {
-  background: #f8f9fa;
-  padding: 4px 8px;
-  margin: -8px -8px 8px -8px;
-  border-bottom: 1px solid #333;
-  font-weight: bold;
-}
-
-.material-details {
+.yield-block {
+  font-weight: normal;
+  font-size: 9pt;
+  line-height: 1.4;
+  text-align: left;
   margin-bottom: 10px;
 }
 
-.detail-row {
-  display: flex;
-  margin-bottom: 4px;
-  font-size: 10px;
+.yield-block div {
+  margin: 6px 0 0;
 }
 
-.lot-tracking {
-  border-top: 1px solid #ddd;
+/* Flow Chart History */
+.flow-chart-history {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px dotted black;
+  font-size: 9pt;
+}
+
+.flow-chart-history thead th {
+  border: 1px dotted black;
+  font-weight: bold;
+  padding: 2px;
+  text-align: center;
+  background: none;
+}
+
+.flow-chart-history tbody td {
+  border: 1px dotted black;
+  text-align: center;
+  padding: 3px 2px;
+  height: 20px;
+  font-weight: normal;
+}
+
+/* Workflow Table */
+.workflow-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 8pt;
+  margin-top: 10px;
+  text-align: left;
+}
+
+.workflow-table th,
+.workflow-table td {
+  border: 1px dotted black;
+  padding: 2px 6px;
+  vertical-align: top;
+  font-weight: normal;
+}
+
+.workflow-table th {
+  font-weight: bold;
+  height: 24px;
+}
+
+/* Catatan Penting */
+.catatan-penting {
+  margin-top: 10px;
+  font-size: 10pt;
+  font-style: italic;
+  border-top: none;
+  font-weight: normal;
+  display: flex;
+  justify-content: space-between;
+}
+
+.catatan-penting em b {
+  text-decoration: underline;
+  font-style: italic;
+}
+
+.catatan-penting .date-note {
+  font-weight: bold;
+  font-style: normal;
+}
+
+/* Footer Bottom */
+.footer-bottom {
+  margin-top: 25px;
+  font-size: 9pt;
+  border-top: 1px dotted black;
   padding-top: 8px;
 }
 
-.lot-row {
+/* Partial Info */
+.partial-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  font-weight: normal;
+}
+
+.partial-info > div:first-child {
+  white-space: nowrap;
+}
+
+.partial-gin-no {
   display: flex;
   align-items: center;
-  margin-bottom: 4px;
+  gap: 6px;
 }
 
-.lot-input {
-  width: 80px;
-  height: 20px;
-  border: 1px solid #ccc;
-  padding: 2px;
-  font-size: 10px;
-  margin-left: 5px;
+.partial-gin-no label {
+  white-space: nowrap;
 }
 
-/* Quality Section */
-.quality-section {
-  margin-bottom: 20px;
-  border: 1px solid #000;
-  padding: 10px;
-}
-
-.quality-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-bottom: 15px;
-}
-
-.quality-item {
-  display: flex;
-  align-items: center;
-  font-size: 10px;
-}
-
-.qty-input {
-  width: 60px;
-  height: 20px;
-  border: 1px solid #ccc;
-  padding: 2px;
-  font-size: 10px;
-  margin-left: 5px;
-}
-
-.partial-section {
-  border-top: 1px solid #ddd;
-  padding-top: 10px;
-}
-
-.partial-row {
-  display: flex;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.checkbox-group {
-  display: flex;
-  gap: 10px;
-  margin-left: 10px;
-}
-
-.checkbox-group label {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 10px;
-}
-
-.gin-input {
-  width: 100px;
-  height: 20px;
-  border: 1px solid #ccc;
-  padding: 2px;
-  margin-left: 10px;
-}
-
-.important-note {
-  margin-top: 10px;
-  color: #dc3545;
-  font-size: 11px;
+.partial-gin-no input {
+  width: 70px;
   text-align: center;
+  font-size: 9pt;
+  padding: 2px 4px;
+  border: 1px solid #ccc;
 }
 
-/* Flow Chart Section */
-.flow-chart-section {
-  margin-bottom: 20px;
+/* Warning text */
+.warning-text {
+  font-weight: bold;
+  font-style: italic;
+  font-size: 10pt;
 }
 
-/* .flow-chart-section h3 {
-  margin: 0 0 10px 0;
-  padding: 8px;
-  background: #e9ecef;
-  border: 1px solid #000;
-  font-size: 14px;
-} */
-
-.flow-chart-table {
+/* Footer table */
+.footer-table {
   width: 100%;
   border-collapse: collapse;
-  border: 1px solid #000;
+  border: 1px dotted black;
+  margin-bottom: 5px;
 }
 
-.flow-chart-table th,
-.flow-chart-table td {
-  border: 1px solid #000;
-  padding: 6px;
+.footer-table th,
+.footer-table td {
+  border: 1px dotted black;
+  padding: 3px 5px;
   text-align: left;
-  font-size: 10px;
+  font-weight: normal;
 }
 
-.flow-chart-table th {
-  background: #f8f9fa;
-  font-weight: bold;
-  text-align: center;
+/* Footer note */
+.footer-note {
+  font-size: 8pt;
+  font-style: italic;
+  font-weight: normal;
 }
 
-.process-cell {
-  min-width: 120px;
-}
-
-.process-code {
-  font-weight: bold;
-  margin-bottom: 2px;
-}
-
-.process-name {
-  font-size: 9px;
-  color: #666;
-}
-
-.notes-cell {
-  font-size: 9px;
-  max-width: 150px;
-}
-
-.empty-row {
-  height: 25px;
-}
-
-/* Notes Section */
-.notes-section {
-  border: 1px solid #000;
-  padding: 10px;
-  margin-bottom: 15px;
-}
-
-.notes-header {
-  margin-bottom: 8px;
-  font-size: 12px;
-}
-
-.notes-content {
-  min-height: 40px;
-  font-size: 10px;
-  line-height: 1.4;
-  margin-bottom: 8px;
-}
-
-.notes-date {
-  text-align: right;
-  font-size: 10px;
-  font-weight: bold;
-}
-
-/* Additional Info */
-.additional-info {
-  margin-bottom: 15px;
-}
-
-.info-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-}
-
-.sub-materials {
-  margin-bottom: 20px;
-}
-
-.sub-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.sub-input {
-  width: 100px;
-  height: 20px;
-  border: 1px solid #ccc;
-  padding: 2px;
-  font-size: 10px;
-}
-
-/* Print Styles */
-@media print {
-  .work-order-print-page {
-    background: white;
-    padding: 0;
-  }
-
-  .no-print {
-    display: none !important;
-  }
-
-  .print-document {
-    width: 100%;
-    margin: 0;
-    padding: 5mm;
-    box-shadow: none;
-    font-size: 11px;
-  }
-
-  .materials-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .quality-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .flow-chart-table {
-    page-break-inside: avoid;
-  }
-
-  .material-block {
-    page-break-inside: avoid;
-  }
-
-  .document-header,
-  .process-section,
-  .materials-section,
-  .quality-section,
-  .flow-chart-section,
-  .notes-section {
-    page-break-inside: avoid;
-  }
-}
-
-@page {
-  size: A4;
-  margin: 8mm;
+/* Clear floats */
+.container::after {
+  content: "";
+  display: block;
+  clear: both;
 }
 </style>

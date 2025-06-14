@@ -1,6 +1,6 @@
-<!-- src/layouts/AppLayout.vue -->
+<!-- src/layouts/AppLayout.vue - Template Section -->
 <template>
-    <div class="app-container" :class="{ 'dark': isDarkMode }">
+    <div class="app-container" :class="{ 'dark': isDarkMode, 'sidebar-collapsed': sidebarCollapsed }">
         <!-- Animated Background -->
         <div class="background-animation">
             <div class="floating-orbs">
@@ -12,106 +12,512 @@
             </div>
         </div>
 
-        <!-- Modern Top Navigation -->
-        <nav class="top-navigation">
-            <div class="nav-container">
-                <!-- Brand Section -->
-                <div class="brand-section">
-                    <div class="brand-logo">
-                        <div class="logo-icon">
-                            <i class="fas fa-cube"></i>
-                        </div>
-                        <div class="brand-text">
-                            <h2>Inventory ERP</h2>
-                            <p>Modern Business Suite</p>
-                        </div>
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" :class="{ 'collapsed': sidebarCollapsed }">
+            <!-- Brand Section -->
+            <div class="sidebar-header">
+                <div class="brand-logo">
+                    <div class="logo-icon">
+                        <i class="fas fa-cube"></i>
+                    </div>
+                    <div class="brand-text" v-show="!sidebarCollapsed">
+                        <h2>Inventory ERP</h2>
+                        <p>Modern Business Suite</p>
                     </div>
                 </div>
+                <button class="sidebar-toggle" @click="toggleSidebar">
+                    <i :class="sidebarCollapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left'"></i>
+                </button>
+            </div>
 
-                <!-- Main Navigation -->
-                <div class="main-nav">
-                    <div class="nav-item" @mouseenter="showMegaMenu('dashboard')" @mouseleave="hideMegaMenu">
+            <!-- Sidebar Menu -->
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <!-- Dashboard -->
+                    <div class="nav-item">
                         <router-link to="/dashboard" class="nav-link" :class="{ active: $route.path === '/dashboard' }">
                             <i class="fas fa-tachometer-alt"></i>
-                            <span>Dashboard</span>
+                            <span v-show="!sidebarCollapsed">Dashboard</span>
                         </router-link>
                     </div>
 
-                    <div class="nav-item" @mouseenter="showMegaMenu('inventory')" @mouseleave="hideMegaMenu">
-                        <div class="nav-link">
+                    <!-- Inventory -->
+                    <div class="nav-item has-submenu" :class="{ active: activeSubmenu === 'inventory' }">
+                        <div class="nav-link" @click="toggleSubmenu('inventory')">
                             <i class="fas fa-box"></i>
-                            <span>Inventory</span>
-                            <i class="fas fa-chevron-down nav-arrow"></i>
+                            <span v-show="!sidebarCollapsed">Inventory</span>
+                            <i v-show="!sidebarCollapsed" class="fas fa-chevron-down submenu-arrow" :class="{ rotated: activeSubmenu === 'inventory' }"></i>
+                        </div>
+                        <div class="submenu" v-show="activeSubmenu === 'inventory' && !sidebarCollapsed">
+                            <div class="submenu-section">
+                                <h4>Items & Categories</h4>
+                                <router-link to="/items" class="submenu-link">
+                                    <i class="fas fa-cubes"></i>
+                                    <span>Items</span>
+                                </router-link>
+                                <router-link to="/item-categories" class="submenu-link">
+                                    <i class="fas fa-tags"></i>
+                                    <span>Item Group</span>
+                                </router-link>
+                                <router-link to="/unit-of-measures" class="submenu-link">
+                                    <i class="fas fa-ruler"></i>
+                                    <span>Units</span>
+                                </router-link>
+                            </div>
+                            <div class="submenu-section">
+                                <h4>Storage & Planning</h4>
+                                <router-link to="/warehouses" class="submenu-link">
+                                    <i class="fas fa-warehouse"></i>
+                                    <span>Warehouses</span>
+                                </router-link>
+                                <router-link to="/materials/plans" class="submenu-link">
+                                    <i class="fas fa-clipboard-list"></i>
+                                    <span>Material Planning</span>
+                                </router-link>
+                                <router-link to="/materials/plans/generate" class="submenu-link">
+                                    <i class="fas fa-plus-circle"></i>
+                                    <span>Generate Material Plans</span>
+                                </router-link>
+                                <router-link to="/purchasing/requisitions/generate-from-material-plan" class="submenu-link">
+                                    <i class="fas fa-file-plus"></i>
+                                    <span>Generate PR from Plans</span>
+                                </router-link>
+                                <router-link to="/batches/expiry-dashboard" class="submenu-link">
+                                    <i class="fas fa-calendar-alt"></i>
+                                    <span>Expiry Management</span>
+                                </router-link>
+                            </div>
+                            <div class="submenu-section">
+                                <h4>Pricing</h4>
+                                <router-link to="/item-prices" class="submenu-link">
+                                    <i class="fas fa-tags"></i>
+                                    <span>Item Prices</span>
+                                </router-link>
+                                <router-link to="/price-comparison" class="submenu-link">
+                                    <i class="fas fa-balance-scale"></i>
+                                    <span>Price Comparison</span>
+                                </router-link>
+                                <router-link to="/item-prices-management" class="submenu-link">
+                                    <i class="fas fa-tags"></i>
+                                    <span>Item Prices Management</span>
+                                </router-link>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="nav-item" @mouseenter="showMegaMenu('stockManagement')" @mouseleave="hideMegaMenu">
-                        <div class="nav-link">
+                    <!-- Stock Management -->
+                    <div class="nav-item has-submenu" :class="{ active: activeSubmenu === 'stockManagement' }">
+                        <div class="nav-link" @click="toggleSubmenu('stockManagement')">
                             <i class="fas fa-boxes"></i>
-                            <span>Stock</span>
-                            <i class="fas fa-chevron-down nav-arrow"></i>
+                            <span v-show="!sidebarCollapsed">Stock</span>
+                            <i v-show="!sidebarCollapsed" class="fas fa-chevron-down submenu-arrow" :class="{ rotated: activeSubmenu === 'stockManagement' }"></i>
+                        </div>
+                        <div class="submenu" v-show="activeSubmenu === 'stockManagement' && !sidebarCollapsed">
+                            <div class="submenu-section">
+                                <h4>Stock Overview</h4>
+                                <router-link to="/item-stocks" class="submenu-link">
+                                    <i class="fas fa-box"></i>
+                                    <span>Inventory Stock</span>
+                                </router-link>
+                                <router-link to="/item-stocks/warehouse" class="submenu-link">
+                                    <i class="fas fa-warehouse"></i>
+                                    <span>Warehouse Stock</span>
+                                </router-link>
+                                <router-link to="/item-stocks/negative" class="submenu-link">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <span>Negative Stocks</span>
+                                </router-link>
+                            </div>
+                            <div class="submenu-section">
+                                <h4>Stock Operations</h4>
+                                <router-link to="/item-stocks/transfer" class="submenu-link">
+                                    <i class="fas fa-exchange-alt"></i>
+                                    <span>Stock Transfer</span>
+                                </router-link>
+                                <router-link to="/item-stocks/adjust" class="submenu-link">
+                                    <i class="fas fa-sliders-h"></i>
+                                    <span>Stock Adjustment</span>
+                                </router-link>
+                                <router-link to="/item-stocks/reserve" class="submenu-link">
+                                    <i class="fas fa-lock"></i>
+                                    <span>Stock Reservation</span>
+                                </router-link>
+                            </div>
+                            <div class="submenu-section">
+                                <h4>Transactions & Counting</h4>
+                                <router-link to="/stock-transactions" class="submenu-link">
+                                    <i class="fas fa-random"></i>
+                                    <span>Transactions</span>
+                                </router-link>
+                                <router-link to="/stock-adjustments" class="submenu-link">
+                                    <i class="fas fa-sliders-h"></i>
+                                    <span>Adjustments</span>
+                                </router-link>
+                                <router-link to="/cycle-counts" class="submenu-link">
+                                    <i class="fas fa-clipboard-check"></i>
+                                    <span>Cycle Counting</span>
+                                </router-link>
+                                <router-link to="/cycle-counts/generate" class="submenu-link">
+                                    <i class="fas fa-tasks"></i>
+                                    <span>Generate Count Tasks</span>
+                                </router-link>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="nav-item" @mouseenter="showMegaMenu('purchasing')" @mouseleave="hideMegaMenu">
-                        <div class="nav-link">
+                    <!-- Purchasing -->
+                    <div class="nav-item has-submenu" :class="{ active: activeSubmenu === 'purchasing' }">
+                        <div class="nav-link" @click="toggleSubmenu('purchasing')">
                             <i class="fas fa-shopping-bag"></i>
-                            <span>Purchasing</span>
-                            <i class="fas fa-chevron-down nav-arrow"></i>
+                            <span v-show="!sidebarCollapsed">Purchasing</span>
+                            <i v-show="!sidebarCollapsed" class="fas fa-chevron-down submenu-arrow" :class="{ rotated: activeSubmenu === 'purchasing' }"></i>
+                        </div>
+                        <div class="submenu" v-show="activeSubmenu === 'purchasing' && !sidebarCollapsed">
+                            <div class="submenu-section">
+                                <h4>Vendors</h4>
+                                <router-link to="/purchasing/vendors" class="submenu-link">
+                                    <i class="fas fa-users"></i>
+                                    <span>Vendor Management</span>
+                                </router-link>
+                                <router-link to="/purchasing/vendor-performance" class="submenu-link">
+                                    <i class="fas fa-star"></i>
+                                    <span>Performance</span>
+                                </router-link>
+                                <router-link to="/purchasing/evaluations" class="submenu-link">
+                                    <i class="fas fa-star"></i>
+                                    <span>Vendor Evaluations</span>
+                                </router-link>
+                                <router-link to="/purchasing/evaluation-dashboard" class="submenu-link">
+                                    <i class="fa-solid fa-gauge-high"></i>
+                                    <span>Evaluation Dashboard</span>
+                                </router-link>
+                            </div>
+                            <div class="submenu-section">
+                                <h4>Requisitions & RFQ</h4>
+                                <router-link to="/purchasing/requisitions" class="submenu-link">
+                                    <i class="fas fa-file-alt"></i>
+                                    <span>Requisitions</span>
+                                </router-link>
+                                <router-link to="/purchasing/requisitions/approvals" class="submenu-link">
+                                    <i class="fas fa-check-circle"></i>
+                                    <span>PR Approvals</span>
+                                </router-link>
+                                <router-link to="/purchasing/requisitions/to-rfq" class="submenu-link">
+                                    <i class="fas fa-exchange-alt"></i>
+                                    <span>PR to RFQ</span>
+                                </router-link>
+                                <router-link to="/purchasing/rfqs" class="submenu-link">
+                                    <i class="fas fa-file-invoice-dollar"></i>
+                                    <span>RFQs</span>
+                                </router-link>
+                            </div>
+                            <div class="submenu-section">
+                                <h4>Quotations & Orders</h4>
+                                <router-link to="/purchasing/quotations" class="submenu-link">
+                                    <i class="fas fa-file-invoice-dollar"></i>
+                                    <span>Vendor Quotations</span>
+                                </router-link>
+                                <router-link to="/purchasing/quotations/compare" class="submenu-link">
+                                    <i class="fas fa-balance-scale"></i>
+                                    <span>Compare Quotations</span>
+                                </router-link>
+                                <router-link to="/purchasing/orders" class="submenu-link">
+                                    <i class="fas fa-clipboard-list"></i>
+                                    <span>Purchase Orders</span>
+                                </router-link>
+                                <router-link to="/purchasing/po-status" class="submenu-link">
+                                    <i class="fas fa-clipboard-check"></i>
+                                    <span>PO Status</span>
+                                </router-link>
+                            </div>
+                            <div class="submenu-section">
+                                <h4>Receipts & Analytics</h4>
+                                <router-link to="/purchasing/goods-receipts" class="submenu-link">
+                                    <i class="fas fa-truck-loading"></i>
+                                    <span>Goods Receipts</span>
+                                </router-link>
+                                <router-link to="/purchasing/goods-receipts/dashboard" class="submenu-link">
+                                    <i class="fas fa-tachometer-alt"></i>
+                                    <span>Receipts Dashboard</span>
+                                </router-link>
+                                <router-link to="/purchasing/vendor-invoices" class="submenu-link">
+                                    <i class="fas fa-file-invoice"></i>
+                                    <span>Vendor Invoices</span>
+                                </router-link>
+                                <router-link to="/purchasing/contracts" class="submenu-link">
+                                    <i class="fas fa-file-contract"></i>
+                                    <span>Vendor Contracts</span>
+                                </router-link>
+                                <router-link to="/purchasing/contracts/expiry-dashboard" class="submenu-link">
+                                    <i class="fas fa-chart-line"></i>
+                                    <span>Contract Expiry Dashboard</span>
+                                </router-link>
+                            </div>
+                            <div class="submenu-section">
+                                <h4>Analytics</h4>
+                                <router-link to="/purchasing/dashboard" class="submenu-link">
+                                    <i class="fas fa-tachometer-alt"></i>
+                                    <span>Dashboard</span>
+                                </router-link>
+                                <router-link to="/purchasing/spend-analysis" class="submenu-link">
+                                    <i class="fas fa-chart-pie"></i>
+                                    <span>Spend Analysis</span>
+                                </router-link>
+                                <router-link to="/purchasing/price-trend" class="submenu-link">
+                                    <i class="fas fa-chart-line"></i>
+                                    <span>Price Trends</span>
+                                </router-link>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="nav-item" @mouseenter="showMegaMenu('sales')" @mouseleave="hideMegaMenu">
-                        <div class="nav-link">
+                    <!-- Sales -->
+                    <div class="nav-item has-submenu" :class="{ active: activeSubmenu === 'sales' }">
+                        <div class="nav-link" @click="toggleSubmenu('sales')">
                             <i class="fas fa-shopping-cart"></i>
-                            <span>Sales</span>
-                            <i class="fas fa-chevron-down nav-arrow"></i>
+                            <span v-show="!sidebarCollapsed">Sales</span>
+                            <i v-show="!sidebarCollapsed" class="fas fa-chevron-down submenu-arrow" :class="{ rotated: activeSubmenu === 'sales' }"></i>
+                        </div>
+                        <div class="submenu" v-show="activeSubmenu === 'sales' && !sidebarCollapsed">
+                            <div class="submenu-section">
+                                <h4>Customers</h4>
+                                <router-link to="/sales/customers" class="submenu-link">
+                                    <i class="fas fa-users"></i>
+                                    <span>Customer Management</span>
+                                </router-link>
+                                <router-link to="/sales/quotations" class="submenu-link">
+                                    <i class="fas fa-file-invoice-dollar"></i>
+                                    <span>Quotations</span>
+                                </router-link>
+                            </div>
+                            <div class="submenu-section">
+                                <h4>Orders & Delivery</h4>
+                                <router-link to="/sales/orders" class="submenu-link">
+                                    <i class="fas fa-file-signature"></i>
+                                    <span>Sales Orders</span>
+                                </router-link>
+                                <router-link to="/sales/deliveries" class="submenu-link">
+                                    <i class="fas fa-truck"></i>
+                                    <span>Deliveries</span>
+                                </router-link>
+                                <router-link to="/sales/invoices" class="submenu-link">
+                                    <i class="fas fa-file-invoice"></i>
+                                    <span>Invoices</span>
+                                </router-link>
+                                <router-link to="/sales/returns" class="submenu-link">
+                                    <i class="fas fa-undo"></i>
+                                    <span>Returns</span>
+                                </router-link>
+                            </div>
+                            <div class="submenu-section">
+                                <h4>Forecasting</h4>
+                                <router-link to="/sales/forecasts" class="submenu-link">
+                                    <i class="fas fa-chart-line"></i>
+                                    <span>Sales Forecasts</span>
+                                </router-link>
+                                <router-link to="/sales/forecasts/dashboard" class="submenu-link">
+                                    <i class="fas fa-tachometer-alt"></i>
+                                    <span>Forecast Dashboard</span>
+                                </router-link>
+                                <router-link to="/sales/forecasts/volatility-dashboard" class="submenu-link">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <span>Volatility Monitor</span>
+                                </router-link>
+                                <router-link to="/sales/forecasts/trend-analysis" class="submenu-link">
+                                    <i class="fas fa-chart-area"></i>
+                                    <span>Trend Analysis</span>
+                                </router-link>
+                                <router-link to="/sales/forecasts/consolidated" class="submenu-link">
+                                    <i class="fas fa-table"></i>
+                                    <span>Consolidated View</span>
+                                </router-link>
+                                <router-link to="/sales/forecasts/import" class="submenu-link">
+                                    <i class="fas fa-file-import"></i>
+                                    <span>Import Forecast</span>
+                                </router-link>
+                            </div>
+                            <div class="submenu-section">
+                                <h4>Analysis</h4>
+                                <router-link to="/sales/forecasts/accuracy" class="submenu-link">
+                                    <i class="fas fa-bullseye"></i>
+                                    <span>Accuracy Analysis</span>
+                                </router-link>
+                                <router-link to="/sales/forecasts/update-actuals" class="submenu-link">
+                                    <i class="fas fa-sync-alt"></i>
+                                    <span>Update Actuals</span>
+                                </router-link>
+                                <router-link to="/sales/forecasts/history" class="submenu-link">
+                                    <i class="fas fa-history"></i>
+                                    <span>Version History</span>
+                                </router-link>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="nav-item" @mouseenter="showMegaMenu('manufacturing')" @mouseleave="hideMegaMenu">
-                        <div class="nav-link">
+                    <!-- Manufacturing -->
+                    <div class="nav-item has-submenu" :class="{ active: activeSubmenu === 'manufacturing' }">
+                        <div class="nav-link" @click="toggleSubmenu('manufacturing')">
                             <i class="fas fa-industry"></i>
-                            <span>Manufacturing</span>
-                            <i class="fas fa-chevron-down nav-arrow"></i>
+                            <span v-show="!sidebarCollapsed">Manufacturing</span>
+                            <i v-show="!sidebarCollapsed" class="fas fa-chevron-down submenu-arrow" :class="{ rotated: activeSubmenu === 'manufacturing' }"></i>
+                        </div>
+                        <div class="submenu" v-show="activeSubmenu === 'manufacturing' && !sidebarCollapsed">
+                            <div class="submenu-section">
+                                <h4>Planning</h4>
+                                <router-link to="/manufacturing/boms" class="submenu-link">
+                                    <i class="fas fa-clipboard-list"></i>
+                                    <span>Bill of Materials</span>
+                                </router-link>
+                                <router-link to="/manufacturing/routings" class="submenu-link">
+                                    <i class="fas fa-project-diagram"></i>
+                                    <span>Routing</span>
+                                </router-link>
+                            </div>
+                            <div class="submenu-section">
+                                <h4>Production</h4>
+                                <router-link to="/manufacturing/work-centers" class="submenu-link">
+                                    <i class="fas fa-industry"></i>
+                                    <span>Work Centers</span>
+                                </router-link>
+                                <router-link to="/manufacturing/work-orders" class="submenu-link">
+                                    <i class="fas fa-clipboard-list"></i>
+                                    <span>Job Orders</span>
+                                </router-link>
+                                <router-link to="/manufacturing/production-orders" class="submenu-link">
+                                    <i class="fas fa-cogs"></i>
+                                    <span>Job Process</span>
+                                </router-link>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="nav-item" @mouseenter="showMegaMenu('quality')" @mouseleave="hideMegaMenu">
-                        <div class="nav-link">
+                    <!-- Quality -->
+                    <div class="nav-item has-submenu" :class="{ active: activeSubmenu === 'quality' }">
+                        <div class="nav-link" @click="toggleSubmenu('quality')">
                             <i class="fas fa-check-circle"></i>
-                            <span>Quality</span>
-                            <i class="fas fa-chevron-down nav-arrow"></i>
+                            <span v-show="!sidebarCollapsed">Quality</span>
+                            <i v-show="!sidebarCollapsed" class="fas fa-chevron-down submenu-arrow" :class="{ rotated: activeSubmenu === 'quality' }"></i>
+                        </div>
+                        <div class="submenu" v-show="activeSubmenu === 'quality' && !sidebarCollapsed">
+                            <div class="submenu-section">
+                                <h4>Quality Control</h4>
+                                <router-link to="/quality-inspections" class="submenu-link">
+                                    <i class="fas fa-clipboard-check"></i>
+                                    <span>Inspections</span>
+                                </router-link>
+                                <router-link to="/quality-parameters/create" class="submenu-link">
+                                    <i class="fas fa-sliders-h"></i>
+                                    <span>Parameters</span>
+                                </router-link>
+                                <router-link to="/dashboard" class="submenu-link">
+                                    <i class="fas fa-chart-line"></i>
+                                    <span>Quality Dashboard</span>
+                                </router-link>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="nav-item" @mouseenter="showMegaMenu('accounting')" @mouseleave="hideMegaMenu">
-                        <div class="nav-link">
+                    <!-- Accounting -->
+                    <div class="nav-item has-submenu" :class="{ active: activeSubmenu === 'accounting' }">
+                        <div class="nav-link" @click="toggleSubmenu('accounting')">
                             <i class="fas fa-calculator"></i>
-                            <span>Accounting</span>
-                            <i class="fas fa-chevron-down nav-arrow"></i>
+                            <span v-show="!sidebarCollapsed">Accounting</span>
+                            <i v-show="!sidebarCollapsed" class="fas fa-chevron-down submenu-arrow" :class="{ rotated: activeSubmenu === 'accounting' }"></i>
+                        </div>
+                        <div class="submenu" v-show="activeSubmenu === 'accounting' && !sidebarCollapsed">
+                            <div class="submenu-section">
+                                <h4>Financial Management</h4>
+                                <router-link to="/currency-rates" class="submenu-link">
+                                    <i class="fas fa-money-bill-wave"></i>
+                                    <span>Exchange Rates</span>
+                                </router-link>
+                                <router-link to="/currency-converter" class="submenu-link">
+                                    <i class="fas fa-exchange-alt"></i>
+                                    <span>Currency Converter</span>
+                                </router-link>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="nav-item" @mouseenter="showMegaMenu('reports')" @mouseleave="hideMegaMenu">
-                        <div class="nav-link">
+                    <!-- Reports -->
+                    <div class="nav-item has-submenu" :class="{ active: activeSubmenu === 'reports' }">
+                        <div class="nav-link" @click="toggleSubmenu('reports')">
                             <i class="fas fa-chart-bar"></i>
-                            <span>Reports</span>
-                            <i class="fas fa-chevron-down nav-arrow"></i>
+                            <span v-show="!sidebarCollapsed">Reports</span>
+                            <i v-show="!sidebarCollapsed" class="fas fa-chevron-down submenu-arrow" :class="{ rotated: activeSubmenu === 'reports' }"></i>
+                        </div>
+                        <div class="submenu" v-show="activeSubmenu === 'reports' && !sidebarCollapsed">
+                            <div class="submenu-section">
+                                <h4>Inventory Reports</h4>
+                                <router-link to="/reports/stock" class="submenu-link">
+                                    <i class="fas fa-boxes"></i>
+                                    <span>Stock Report</span>
+                                </router-link>
+                                <router-link to="/reports/movement" class="submenu-link">
+                                    <i class="fas fa-chart-line"></i>
+                                    <span>Movement Report</span>
+                                </router-link>
+                            </div>
+                            <div class="submenu-section">
+                                <h4>Business Reports</h4>
+                                <router-link to="/reports/sales" class="submenu-link">
+                                    <i class="fas fa-chart-pie"></i>
+                                    <span>Sales Report</span>
+                                </router-link>
+                                <router-link to="/purchasing/spend-analysis" class="submenu-link">
+                                    <i class="fas fa-money-bill-wave"></i>
+                                    <span>Purchase Analysis</span>
+                                </router-link>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="nav-item" @mouseenter="showMegaMenu('admin')" @mouseleave="hideMegaMenu">
-                        <div class="nav-link">
+                    <!-- Admin -->
+                    <div class="nav-item has-submenu" :class="{ active: activeSubmenu === 'admin' }">
+                        <div class="nav-link" @click="toggleSubmenu('admin')">
                             <i class="fas fa-user-shield"></i>
-                            <span>Admin</span>
-                            <i class="fas fa-chevron-down nav-arrow"></i>
+                            <span v-show="!sidebarCollapsed">Admin</span>
+                            <i v-show="!sidebarCollapsed" class="fas fa-chevron-down submenu-arrow" :class="{ rotated: activeSubmenu === 'admin' }"></i>
+                        </div>
+                        <div class="submenu" v-show="activeSubmenu === 'admin' && !sidebarCollapsed">
+                            <div class="submenu-section">
+                                <h4>System Administration</h4>
+                                <router-link to="/admin/users" class="submenu-link">
+                                    <i class="fas fa-users-cog"></i>
+                                    <span>User Management</span>
+                                </router-link>
+                                <router-link to="/admin/settings" class="submenu-link">
+                                    <i class="fas fa-cogs"></i>
+                                    <span>System Settings</span>
+                                </router-link>
+                            </div>
                         </div>
                     </div>
                 </div>
+            </nav>
 
-                <!-- Right Section -->
-                <div class="nav-right">
+            <!-- Sidebar Footer -->
+            <div class="sidebar-footer" v-show="!sidebarCollapsed">
+                <div class="footer-stats">
+                    <div class="stat-item">
+                        <i class="fas fa-server"></i>
+                        <span>System Uptime: 99.9%</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <div class="main-wrapper">
+            <!-- Top Header -->
+            <header class="top-header">
+                <div class="header-left">
+                    <button class="mobile-menu-toggle" @click="toggleSidebar">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                </div>
+
+                <div class="header-center">
                     <!-- Search -->
                     <div class="search-container">
                         <div class="search-box" :class="{ active: searchFocused }">
@@ -152,7 +558,9 @@
                             </Transition>
                         </div>
                     </div>
+                </div>
 
+                <div class="header-right">
                     <!-- Quick Actions -->
                     <div class="quick-actions">
                         <button class="action-btn" @click="quickCreateItem" title="Add Item">
@@ -178,797 +586,142 @@
                         </div>
                         <i class="fas fa-chevron-down user-arrow" :class="{ rotated: userMenuOpen }"></i>
                     </div>
+
+                    <!-- Notifications Dropdown -->
+                    <Transition name="slide-down">
+                        <div v-if="showNotifications" class="notifications-dropdown">
+                            <div class="notifications-header">
+                                <h3>Notifications</h3>
+                                <button @click="markAllRead" class="mark-all-btn">Mark all read</button>
+                            </div>
+                            <div class="notifications-list">
+                                <div v-for="notification in notifications" :key="notification.id" class="notification-item">
+                                    <div class="notification-icon" :class="notification.type">
+                                        <i :class="notification.icon"></i>
+                                    </div>
+                                    <div class="notification-content">
+                                        <p class="notification-title">{{ notification.title }}</p>
+                                        <p class="notification-time">{{ notification.time }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </Transition>
+
+                    <!-- User Dropdown -->
+                    <Transition name="slide-down">
+                        <div v-if="userMenuOpen" class="user-dropdown">
+                            <div class="user-profile">
+                                <div class="user-avatar-large">
+                                    <span>{{ user.name ? user.name.charAt(0).toUpperCase() : 'U' }}</span>
+                                </div>
+                                <div class="user-details">
+                                    <h4>{{ user.name || 'John Doe' }}</h4>
+                                    <p>{{ user.email || 'john@company.com' }}</p>
+                                </div>
+                            </div>
+                            <div class="dropdown-divider"></div>
+                            <div class="user-menu-items">
+                                <div class="dropdown-item" @click="navigateToProfile">
+                                    <i class="fas fa-user"></i>
+                                    <span>Profile Settings</span>
+                                </div>
+                                <div class="dropdown-item" @click="navigateToSettings">
+                                    <i class="fas fa-cog"></i>
+                                    <span>System Settings</span>
+                                </div>
+                                <div class="dropdown-item">
+                                    <i class="fas fa-bell"></i>
+                                    <span>Notification Settings</span>
+                                </div>
+                                <div class="dropdown-divider"></div>
+                                <div class="dropdown-item logout-item" @click="logout">
+                                    <div class="logout-icon">
+                                        <i class="fas fa-sign-out-alt"></i>
+                                    </div>
+                                    <span>Logout</span>
+                                    <i class="fas fa-arrow-right logout-arrow"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </Transition>
                 </div>
-            </div>
+            </header>
 
-            <!-- Mega Menu -->
-            <Transition name="slide-down">
-                <div v-if="activeMegaMenu" class="mega-menu" @mouseenter="keepMegaMenuOpen" @mouseleave="hideMegaMenu">
-                    <!-- Inventory Mega Menu -->
-                    <div v-if="activeMegaMenu === 'inventory'" class="mega-menu-content">
-                        <div class="menu-section">
-                            <h3><i class="fas fa-box"></i> Items & Categories</h3>
-                            <div class="menu-links">
-                                <router-link to="/items" class="menu-link">
-                                    <i class="fas fa-cubes"></i>
-                                    <div>
-                                        <span>Items</span>
-                                        <small>Manage inventory items</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/item-categories" class="menu-link">
-                                    <i class="fas fa-tags"></i>
-                                    <div>
-                                        <span>Item Group</span>
-                                        <small>Organize by item group</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/unit-of-measures" class="menu-link">
-                                    <i class="fas fa-ruler"></i>
-                                    <div>
-                                        <span>Units</span>
-                                        <small>Measurement units</small>
-                                    </div>
-                                </router-link>
-                            </div>
-                        </div>
-                        <div class="menu-section">
-                            <h3><i class="fas fa-warehouse"></i> Storage & Planning</h3>
-                            <div class="menu-links">
-                                <router-link to="/warehouses" class="menu-link">
-                                    <i class="fas fa-warehouse"></i>
-                                    <div>
-                                        <span>Warehouses</span>
-                                        <small>Storage locations</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/materials/plans" class="menu-link">
-                                    <i class="fas fa-clipboard-list"></i>
-                                    <div>
-                                        <span>Material Planning</span>
-                                        <small>Plan material needs</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/materials/plans/generate" class="menu-link">
-                                    <i class="fas fa-plus-circle"></i>
-                                    <div>
-                                        <span>Generate Material Plans</span>
-                                        <small>Create planning schedules</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/purchasing/requisitions/generate-from-material-plan" class="menu-link">
-                                    <i class="fas fa-file-plus"></i>
-                                    <div>
-                                        <span>Generate PR from Plans</span>
-                                        <small>Create purchase requests</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/batches/expiry-dashboard" class="menu-link">
-                                    <i class="fas fa-calendar-alt"></i>
-                                    <div>
-                                        <span>Expiry Management</span>
-                                        <small>Track expiration dates</small>
-                                    </div>
-                                </router-link>
-                            </div>
-                        </div>
-                        <div class="menu-section">
-                            <h3><i class="fas fa-dollar-sign"></i> Pricing</h3>
-                            <div class="menu-links">
-                                <router-link to="/item-prices" class="menu-link">
-                                    <i class="fas fa-tags"></i>
-                                    <div>
-                                        <span>Item Prices</span>
-                                        <small>Manage pricing</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/price-comparison" class="menu-link">
-                                    <i class="fas fa-balance-scale"></i>
-                                    <div>
-                                        <span>Price Comparison</span>
-                                        <small>Compare prices</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/item-prices-management" class="menu-link">
-                                    <i class="fas fa-tags"></i>
-                                    <div>
-                                        <span>Item Prices Management</span>
-                                        <small>Advanced price management</small>
-                                    </div>
-                                </router-link>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Stock Management Mega Menu -->
-                    <div v-if="activeMegaMenu === 'stockManagement'" class="mega-menu-content">
-                        <div class="menu-section">
-                            <h3><i class="fas fa-boxes"></i> Stock Overview</h3>
-                            <div class="menu-links">
-                                <router-link to="/item-stocks" class="menu-link">
-                                    <i class="fas fa-box"></i>
-                                    <div>
-                                        <span>Inventory Stock</span>
-                                        <small>Current stock levels</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/item-stocks/warehouse" class="menu-link">
-                                    <i class="fas fa-warehouse"></i>
-                                    <div>
-                                        <span>Warehouse Stock</span>
-                                        <small>Stock by warehouse</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/item-stocks/negative" class="menu-link">
-                                    <i class="fas fa-exclamation-triangle"></i>
-                                    <div>
-                                        <span>Negative Stocks</span>
-                                        <small>Items with negative balance</small>
-                                    </div>
-                                </router-link>
-                            </div>
-                        </div>
-                        <div class="menu-section">
-                            <h3><i class="fas fa-exchange-alt"></i> Stock Operations</h3>
-                            <div class="menu-links">
-                                <router-link to="/item-stocks/transfer" class="menu-link">
-                                    <i class="fas fa-exchange-alt"></i>
-                                    <div>
-                                        <span>Stock Transfer</span>
-                                        <small>Move stock between locations</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/item-stocks/adjust" class="menu-link">
-                                    <i class="fas fa-sliders-h"></i>
-                                    <div>
-                                        <span>Stock Adjustment</span>
-                                        <small>Adjust inventory levels</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/item-stocks/reserve" class="menu-link">
-                                    <i class="fas fa-lock"></i>
-                                    <div>
-                                        <span>Stock Reservation</span>
-                                        <small>Reserve items for orders</small>
-                                    </div>
-                                </router-link>
-                            </div>
-                        </div>
-                        <div class="menu-section">
-                            <h3><i class="fas fa-clipboard-check"></i> Transactions & Counting</h3>
-                            <div class="menu-links">
-                                <router-link to="/stock-transactions" class="menu-link">
-                                    <i class="fas fa-random"></i>
-                                    <div>
-                                        <span>Transactions</span>
-                                        <small>Stock movement history</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/stock-adjustments" class="menu-link">
-                                    <i class="fas fa-sliders-h"></i>
-                                    <div>
-                                        <span>Adjustments</span>
-                                        <small>Adjustment records</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/cycle-counts" class="menu-link">
-                                    <i class="fas fa-clipboard-check"></i>
-                                    <div>
-                                        <span>Cycle Counting</span>
-                                        <small>Physical count schedules</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/cycle-counts/generate" class="menu-link">
-                                    <i class="fas fa-tasks"></i>
-                                    <div>
-                                        <span>Generate Count Tasks</span>
-                                        <small>Create counting schedules</small>
-                                    </div>
-                                </router-link>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Purchasing Mega Menu -->
-                    <div v-if="activeMegaMenu === 'purchasing'" class="mega-menu-content">
-                        <div class="menu-section">
-                            <h3><i class="fas fa-users"></i> Vendors</h3>
-                            <div class="menu-links">
-                                <router-link to="/purchasing/vendors" class="menu-link">
-                                    <i class="fas fa-users"></i>
-                                    <div>
-                                        <span>Vendor Management</span>
-                                        <small>Manage suppliers</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/purchasing/vendor-performance" class="menu-link">
-                                    <i class="fas fa-star"></i>
-                                    <div>
-                                        <span>Performance</span>
-                                        <small>Vendor evaluation</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/purchasing/evaluations" class="menu-link">
-                                    <i class="fas fa-star"></i>
-                                    <div>
-                                        <span>Vendor Evaluations</span>
-                                        <small>Detailed assessments</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/purchasing/evaluation-dashboard" class="menu-link">
-                                    <i class="fa-solid fa-gauge-high"></i>
-                                    <div>
-                                        <span>Evaluation Dashboard</span>
-                                        <small>Performance overview</small>
-                                    </div>
-                                </router-link>
-                            </div>
-                        </div>
-                        <div class="menu-section">
-                            <h3><i class="fas fa-file-alt"></i> Requisitions & RFQ</h3>
-                            <div class="menu-links">
-                                <router-link to="/purchasing/requisitions" class="menu-link">
-                                    <i class="fas fa-file-alt"></i>
-                                    <div>
-                                        <span>Requisitions</span>
-                                        <small>Purchase requests</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/purchasing/requisitions/approvals" class="menu-link">
-                                    <i class="fas fa-check-circle"></i>
-                                    <div>
-                                        <span>PR Approvals</span>
-                                        <small>Approve purchase requests</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/purchasing/requisitions/to-rfq" class="menu-link">
-                                    <i class="fas fa-exchange-alt"></i>
-                                    <div>
-                                        <span>PR to RFQ</span>
-                                        <small>Convert to RFQ</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/purchasing/rfqs" class="menu-link">
-                                    <i class="fas fa-file-invoice-dollar"></i>
-                                    <div>
-                                        <span>RFQs</span>
-                                        <small>Request for quotations</small>
-                                    </div>
-                                </router-link>
-                            </div>
-                        </div>
-                        <div class="menu-section">
-                            <h3><i class="fas fa-file-invoice-dollar"></i> Quotations & Orders</h3>
-                            <div class="menu-links">
-                                <router-link to="/purchasing/quotations" class="menu-link">
-                                    <i class="fas fa-file-invoice-dollar"></i>
-                                    <div>
-                                        <span>Vendor Quotations</span>
-                                        <small>Supplier quotes</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/purchasing/quotations/compare" class="menu-link">
-                                    <i class="fas fa-balance-scale"></i>
-                                    <div>
-                                        <span>Compare Quotations</span>
-                                        <small>Side-by-side comparison</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/purchasing/orders" class="menu-link">
-                                    <i class="fas fa-clipboard-list"></i>
-                                    <div>
-                                        <span>Purchase Orders</span>
-                                        <small>Manage POs</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/purchasing/po-status" class="menu-link">
-                                    <i class="fas fa-clipboard-check"></i>
-                                    <div>
-                                        <span>PO Status</span>
-                                        <small>Track order status</small>
-                                    </div>
-                                </router-link>
-                            </div>
-                        </div>
-                        <div class="menu-section">
-                            <h3><i class="fas fa-truck-loading"></i> Receipts & Analytics</h3>
-                            <div class="menu-links">
-                                <router-link to="/purchasing/goods-receipts" class="menu-link">
-                                    <i class="fas fa-truck-loading"></i>
-                                    <div>
-                                        <span>Goods Receipts</span>
-                                        <small>Receive goods</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/purchasing/goods-receipts/dashboard" class="menu-link">
-                                    <i class="fas fa-tachometer-alt"></i>
-                                    <div>
-                                        <span>Receipts Dashboard</span>
-                                        <small>Receipt tracking</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/purchasing/vendor-invoices" class="menu-link">
-                                    <i class="fas fa-file-invoice"></i>
-                                    <div>
-                                        <span>Vendor Invoices</span>
-                                        <small>Supplier billing</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/purchasing/contracts" class="menu-link">
-                                    <i class="fas fa-file-contract"></i>
-                                    <div>
-                                        <span>Vendor Contracts</span>
-                                        <small>Contract management</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/purchasing/contracts/expiry-dashboard" class="menu-link">
-                                    <i class="fas fa-chart-line"></i>
-                                    <div>
-                                        <span>Contract Expiry Dashboard</span>
-                                        <small>Contract renewals</small>
-                                    </div>
-                                </router-link>
-                            </div>
-                        </div>
-                        <div class="menu-section">
-                            <h3><i class="fas fa-chart-pie"></i> Analytics</h3>
-                            <div class="menu-links">
-                                <router-link to="/purchasing/dashboard" class="menu-link">
-                                    <i class="fas fa-tachometer-alt"></i>
-                                    <div>
-                                        <span>Dashboard</span>
-                                        <small>Overview metrics</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/purchasing/spend-analysis" class="menu-link">
-                                    <i class="fas fa-chart-pie"></i>
-                                    <div>
-                                        <span>Spend Analysis</span>
-                                        <small>Analyze spending</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/purchasing/price-trend" class="menu-link">
-                                    <i class="fas fa-chart-line"></i>
-                                    <div>
-                                        <span>Price Trends</span>
-                                        <small>Historical pricing</small>
-                                    </div>
-                                </router-link>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Sales Mega Menu -->
-                    <div v-if="activeMegaMenu === 'sales'" class="mega-menu-content">
-                        <div class="menu-section">
-                            <h3><i class="fas fa-users"></i> Customers</h3>
-                            <div class="menu-links">
-                                <router-link to="/sales/customers" class="menu-link">
-                                    <i class="fas fa-users"></i>
-                                    <div>
-                                        <span>Customer Management</span>
-                                        <small>Manage customers</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/sales/quotations" class="menu-link">
-                                    <i class="fas fa-file-invoice-dollar"></i>
-                                    <div>
-                                        <span>Quotations</span>
-                                        <small>Sales quotes</small>
-                                    </div>
-                                </router-link>
-                            </div>
-                        </div>
-                        <div class="menu-section">
-                            <h3><i class="fas fa-shopping-cart"></i> Orders & Delivery</h3>
-                            <div class="menu-links">
-                                <router-link to="/sales/orders" class="menu-link">
-                                    <i class="fas fa-file-signature"></i>
-                                    <div>
-                                        <span>Sales Orders</span>
-                                        <small>Manage orders</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/sales/deliveries" class="menu-link">
-                                    <i class="fas fa-truck"></i>
-                                    <div>
-                                        <span>Deliveries</span>
-                                        <small>Track deliveries</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/sales/invoices" class="menu-link">
-                                    <i class="fas fa-file-invoice"></i>
-                                    <div>
-                                        <span>Invoices</span>
-                                        <small>Billing & invoices</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/sales/returns" class="menu-link">
-                                    <i class="fas fa-undo"></i>
-                                    <div>
-                                        <span>Returns</span>
-                                        <small>Handle returns</small>
-                                    </div>
-                                </router-link>
-                            </div>
-                        </div>
-                        <div class="menu-section">
-                            <h3><i class="fas fa-chart-line"></i> Forecasting</h3>
-                            <div class="menu-links">
-                                <router-link to="/sales/forecasts" class="menu-link">
-                                    <i class="fas fa-chart-line"></i>
-                                    <div>
-                                        <span>Sales Forecasts</span>
-                                        <small>Predict sales</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/sales/forecasts/dashboard" class="menu-link">
-                                    <i class="fas fa-tachometer-alt"></i>
-                                    <div>
-                                        <span>Forecast Dashboard</span>
-                                        <small>Forecast analytics</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/sales/forecasts/volatility-dashboard" class="menu-link">
-                                    <i class="fas fa-exclamation-triangle"></i>
-                                    <div>
-                                        <span>Volatility Monitor</span>
-                                        <small>Monitor forecast changes</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/sales/forecasts/trend-analysis" class="menu-link">
-                                    <i class="fas fa-chart-area"></i>
-                                    <div>
-                                        <span>Trend Analysis</span>
-                                        <small>Detailed trend analysis</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/sales/forecasts/consolidated" class="menu-link">
-                                    <i class="fas fa-table"></i>
-                                    <div>
-                                        <span>Consolidated View</span>
-                                        <small>Overall forecasting</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/sales/forecasts/import" class="menu-link">
-                                    <i class="fas fa-file-import"></i>
-                                    <div>
-                                        <span>Import Forecast</span>
-                                        <small>Bulk import</small>
-                                    </div>
-                                </router-link>
-                            </div>
-                        </div>
-                        <div class="menu-section">
-                            <h3><i class="fas fa-bullseye"></i> Analysis</h3>
-                            <div class="menu-links">
-                                <router-link to="/sales/forecasts/accuracy" class="menu-link">
-                                    <i class="fas fa-bullseye"></i>
-                                    <div>
-                                        <span>Accuracy Analysis</span>
-                                        <small>Forecast accuracy</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/sales/forecasts/update-actuals" class="menu-link">
-                                    <i class="fas fa-sync-alt"></i>
-                                    <div>
-                                        <span>Update Actuals</span>
-                                        <small>Update actual data</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/sales/forecasts/history" class="menu-link">
-                                    <i class="fas fa-history"></i>
-                                    <div>
-                                        <span>Version History</span>
-                                        <small>Historical versions</small>
-                                    </div>
-                                </router-link>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Manufacturing Mega Menu -->
-                    <div v-if="activeMegaMenu === 'manufacturing'" class="mega-menu-content">
-                        <div class="menu-section">
-                            <h3><i class="fas fa-clipboard-list"></i> Planning</h3>
-                            <div class="menu-links">
-                                <router-link to="/manufacturing/boms" class="menu-link">
-                                    <i class="fas fa-clipboard-list"></i>
-                                    <div>
-                                        <span>Bill of Materials</span>
-                                        <small>Product recipes</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/manufacturing/routings" class="menu-link">
-                                    <i class="fas fa-project-diagram"></i>
-                                    <div>
-                                        <span>Routing</span>
-                                        <small>Production flow</small>
-                                    </div>
-                                </router-link>
-                            </div>
-                        </div>
-                        <div class="menu-section">
-                            <h3><i class="fas fa-cogs"></i> Production</h3>
-                            <div class="menu-links">
-                                <router-link to="/manufacturing/work-centers" class="menu-link">
-                                    <i class="fas fa-industry"></i>
-                                    <div>
-                                        <span>Work Centers</span>
-                                        <small>Production areas</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/manufacturing/work-orders" class="menu-link">
-                                    <i class="fas fa-clipboard-list"></i>
-                                    <div>
-                                        <span>Job Orders</span>
-                                        <small>Production tasks</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/manufacturing/production-orders" class="menu-link">
-                                    <i class="fas fa-cogs"></i>
-                                    <div>
-                                        <span>Job Process</span>
-                                        <small>Manufacturing jobs</small>
-                                    </div>
-                                </router-link>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Quality Management Mega Menu -->
-                    <div v-if="activeMegaMenu === 'quality'" class="mega-menu-content">
-                        <div class="menu-section">
-                            <h3><i class="fas fa-check-circle"></i> Quality Control</h3>
-                            <div class="menu-links">
-                                <router-link to="/quality-inspections" class="menu-link">
-                                    <i class="fas fa-clipboard-check"></i>
-                                    <div>
-                                        <span>Inspections</span>
-                                        <small>Quality control</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/quality-parameters/create" class="menu-link">
-                                    <i class="fas fa-sliders-h"></i>
-                                    <div>
-                                        <span>Parameters</span>
-                                        <small>Quality standards</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/dashboard" class="menu-link">
-                                    <i class="fas fa-chart-line"></i>
-                                    <div>
-                                        <span>Quality Dashboard</span>
-                                        <small>Quality metrics</small>
-                                    </div>
-                                </router-link>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Accounting Mega Menu -->
-                    <div v-if="activeMegaMenu === 'accounting'" class="mega-menu-content">
-                        <div class="menu-section">
-                            <h3><i class="fas fa-calculator"></i> Financial Management</h3>
-                            <div class="menu-links">
-                                <router-link to="/currency-rates" class="menu-link">
-                                    <i class="fas fa-money-bill-wave"></i>
-                                    <div>
-                                        <span>Exchange Rates</span>
-                                        <small>Currency exchange rates</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/currency-converter" class="menu-link">
-                                    <i class="fas fa-exchange-alt"></i>
-                                    <div>
-                                        <span>Currency Converter</span>
-                                        <small>Convert currencies</small>
-                                    </div>
-                                </router-link>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Reports Mega Menu -->
-                    <div v-if="activeMegaMenu === 'reports'" class="mega-menu-content">
-                        <div class="menu-section">
-                            <h3><i class="fas fa-boxes"></i> Inventory Reports</h3>
-                            <div class="menu-links">
-                                <router-link to="/reports/stock" class="menu-link">
-                                    <i class="fas fa-boxes"></i>
-                                    <div>
-                                        <span>Stock Report</span>
-                                        <small>Current inventory</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/reports/movement" class="menu-link">
-                                    <i class="fas fa-chart-line"></i>
-                                    <div>
-                                        <span>Movement Report</span>
-                                        <small>Stock movements</small>
-                                    </div>
-                                </router-link>
-                            </div>
-                        </div>
-                        <div class="menu-section">
-                            <h3><i class="fas fa-chart-pie"></i> Business Reports</h3>
-                            <div class="menu-links">
-                                <router-link to="/reports/sales" class="menu-link">
-                                    <i class="fas fa-chart-pie"></i>
-                                    <div>
-                                        <span>Sales Report</span>
-                                        <small>Sales analytics</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/purchasing/spend-analysis" class="menu-link">
-                                    <i class="fas fa-money-bill-wave"></i>
-                                    <div>
-                                        <span>Purchase Analysis</span>
-                                        <small>Spending reports</small>
-                                    </div>
-                                </router-link>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Admin Mega Menu -->
-                    <div v-if="activeMegaMenu === 'admin'" class="mega-menu-content">
-                        <div class="menu-section">
-                            <h3><i class="fas fa-user-shield"></i> System Administration</h3>
-                            <div class="menu-links">
-                                <router-link to="/admin/users" class="menu-link">
-                                    <i class="fas fa-users-cog"></i>
-                                    <div>
-                                        <span>User Management</span>
-                                        <small>Manage system users</small>
-                                    </div>
-                                </router-link>
-                                <router-link to="/admin/settings" class="menu-link">
-                                    <i class="fas fa-cogs"></i>
-                                    <div>
-                                        <span>System Settings</span>
-                                        <small>Configuration management</small>
-                                    </div>
-                                </router-link>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </Transition>
-
-            <!-- Notifications Dropdown -->
-            <Transition name="slide-down">
-                <div v-if="showNotifications" class="notifications-dropdown">
-                    <div class="notifications-header">
-                        <h3>Notifications</h3>
-                        <button @click="markAllRead" class="mark-all-btn">Mark all read</button>
-                    </div>
-                    <div class="notifications-list">
-                        <div v-for="notification in notifications" :key="notification.id" class="notification-item">
-                            <div class="notification-icon" :class="notification.type">
-                                <i :class="notification.icon"></i>
-                            </div>
-                            <div class="notification-content">
-                                <p class="notification-title">{{ notification.title }}</p>
-                                <p class="notification-time">{{ notification.time }}</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </Transition>
-
-            <!-- User Dropdown -->
-            <Transition name="slide-down">
-                <div v-if="userMenuOpen" class="user-dropdown">
-                    <div class="user-profile">
-                        <div class="user-avatar-large">
-                            <span>{{ user.name ? user.name.charAt(0).toUpperCase() : 'U' }}</span>
-                        </div>
-                        <div class="user-details">
-                            <h4>{{ user.name || 'John Doe' }}</h4>
-                            <p>{{ user.email || 'john@company.com' }}</p>
-                        </div>
-                    </div>
-                    <div class="dropdown-divider"></div>
-                    <div class="user-menu-items">
-                        <div class="dropdown-item" @click="navigateToProfile">
-                            <i class="fas fa-user"></i>
-                            <span>Profile Settings</span>
-                        </div>
-                        <div class="dropdown-item" @click="navigateToSettings">
-                            <i class="fas fa-cog"></i>
-                            <span>System Settings</span>
-                        </div>
-                        <div class="dropdown-item">
-                            <i class="fas fa-bell"></i>
-                            <span>Notification Settings</span>
-                        </div>
-                        <div class="dropdown-divider"></div>
-                        <div class="dropdown-item logout-item" @click="logout">
-                            <div class="logout-icon">
-                                <i class="fas fa-sign-out-alt"></i>
-                            </div>
-                            <span>Logout</span>
-                            <i class="fas fa-arrow-right logout-arrow"></i>
-                        </div>
-                    </div>
-                </div>
-            </Transition>
-        </nav>
-
-        <!-- Main Content Area -->
-        <main class="main-content">
-            <!-- Breadcrumb -->
-            <div class="breadcrumb-section">
-                <div class="breadcrumb">
-                    <!-- Always start with Dashboard -->
-                    <router-link to="/dashboard" class="breadcrumb-item">
-                        <i class="fas fa-home"></i>
-                        <span>Dashboard</span>
-                    </router-link>
-
-                    <!-- Dynamic breadcrumb items -->
-                    <template v-for="(item, index) in breadcrumbItems" :key="index">
-                        <i class="fas fa-chevron-right breadcrumb-separator"></i>
-                        <router-link
-                            v-if="item.route && index < breadcrumbItems.length - 1"
-                            :to="item.route"
-                            class="breadcrumb-item"
-                        >
-                            <i v-if="item.icon" :class="item.icon"></i>
-                            <span>{{ item.label }}</span>
+            <!-- Main Content -->
+            <main class="main-content">
+                <!-- Breadcrumb -->
+                <div class="breadcrumb-section">
+                    <div class="breadcrumb">
+                        <!-- Always start with Dashboard -->
+                        <router-link to="/dashboard" class="breadcrumb-item">
+                            <i class="fas fa-home"></i>
+                            <span>Dashboard</span>
                         </router-link>
-                        <span
-                            v-else
-                            class="breadcrumb-current"
-                            :class="{ 'with-icon': item.icon }"
-                        >
-                            <i v-if="item.icon" :class="item.icon"></i>
-                            <span>{{ item.label }}</span>
-                        </span>
-                    </template>
-                </div>
-                <div class="page-actions">
-                    <button class="action-button primary" @click="quickCreateItem">
-                        <i class="fas fa-plus"></i>
-                        <span>Quick Add</span>
-                    </button>
-                    <button class="action-button secondary" @click="showQuickActions = !showQuickActions">
-                        <i class="fas fa-ellipsis-h"></i>
-                    </button>
-                </div>
-            </div>
 
-            <!-- Page Header -->
-            <div class="page-header">
-                <div class="page-title-section">
-                    <h1 class="page-title">{{ pageTitle }}</h1>
-                    <p class="page-subtitle">Manage your {{ pageTitle.toLowerCase() }} efficiently</p>
+                        <!-- Dynamic breadcrumb items -->
+                        <template v-for="(item, index) in breadcrumbItems" :key="index">
+                            <i class="fas fa-chevron-right breadcrumb-separator"></i>
+                            <router-link
+                                v-if="item.route && index < breadcrumbItems.length - 1"
+                                :to="item.route"
+                                class="breadcrumb-item"
+                            >
+                                <i v-if="item.icon" :class="item.icon"></i>
+                                <span>{{ item.label }}</span>
+                            </router-link>
+                            <span
+                                v-else
+                                class="breadcrumb-current"
+                                :class="{ 'with-icon': item.icon }"
+                            >
+                                <i v-if="item.icon" :class="item.icon"></i>
+                                <span>{{ item.label }}</span>
+                            </span>
+                        </template>
+                    </div>
+                    <div class="page-actions">
+                        <button class="action-button primary" @click="quickCreateItem">
+                            <i class="fas fa-plus"></i>
+                            <span>Quick Add</span>
+                        </button>
+                        <button class="action-button secondary" @click="showQuickActions = !showQuickActions">
+                            <i class="fas fa-ellipsis-h"></i>
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Quick Stats Cards -->
-                <div class="quick-stats" v-if="$route.name === 'Dashboard'">
-                    <div class="stat-card" v-for="(stat, index) in quickStats" :key="index">
-                        <div class="stat-icon" :style="{ background: stat.gradient }">
-                            <i :class="stat.icon"></i>
-                        </div>
-                        <div class="stat-content">
-                            <h3>{{ stat.value }}</h3>
-                            <p>{{ stat.label }}</p>
-                            <div class="stat-trend" :class="stat.trend">
-                                <i :class="stat.trend === 'up' ? 'fas fa-arrow-up' : 'fas fa-arrow-down'"></i>
-                                <span>{{ stat.change }}</span>
+                <!-- Page Header -->
+                <div class="page-header">
+                    <div class="page-title-section">
+                        <h1 class="page-title">{{ pageTitle }}</h1>
+                        <p class="page-subtitle">Manage your {{ pageTitle.toLowerCase() }} efficiently</p>
+                    </div>
+
+                    <!-- Quick Stats Cards -->
+                    <div class="quick-stats" v-if="$route.name === 'Dashboard'">
+                        <div class="stat-card" v-for="(stat, index) in quickStats" :key="index">
+                            <div class="stat-icon" :style="{ background: stat.gradient }">
+                                <i :class="stat.icon"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3>{{ stat.value }}</h3>
+                                <p>{{ stat.label }}</p>
+                                <div class="stat-trend" :class="stat.trend">
+                                    <i :class="stat.trend === 'up' ? 'fas fa-arrow-up' : 'fas fa-arrow-down'"></i>
+                                    <span>{{ stat.change }}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Content Area -->
-            <div class="content-area">
-                <router-view />
-            </div>
-        </main>
+                <!-- Content Area -->
+                <div class="content-area">
+                    <router-view />
+                </div>
+            </main>
+        </div>
 
         <!-- Floating Action Menu -->
         <div class="floating-actions" :class="{ active: showQuickActions }">
@@ -1007,11 +760,18 @@
                 </div>
             </div>
         </Transition>
+
+        <!-- Sidebar Overlay (Mobile) -->
+        <div
+            v-if="!sidebarCollapsed && isMobile"
+            class="sidebar-overlay"
+            @click="closeSidebar"
+        ></div>
     </div>
 </template>
-
+// src/layouts/AppLayout.vue - Script Section
 <script>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import axios from "axios";
 
@@ -1030,8 +790,9 @@ export default {
         const isDarkMode = ref(localStorage.getItem("darkMode") === "true");
         const isLoading = ref(false);
         const userMenuOpen = ref(false);
-        const activeMegaMenu = ref(null);
-        const megaMenuTimeout = ref(null);
+        const sidebarCollapsed = ref(localStorage.getItem("sidebarCollapsed") === "true");
+        const activeSubmenu = ref(null);
+        const isMobile = ref(window.innerWidth < 768);
 
         // Breadcrumb route hierarchy mapping
         const routeHierarchy = {
@@ -1357,257 +1118,262 @@ export default {
         ]);
 
         const pageTitle = computed(() => {
-    const titleMap = {
-        // Dashboard
-        "Dashboard": "Dashboard",
+            const titleMap = {
+                // Dashboard
+                "Dashboard": "Dashboard",
 
-        // Inventory Management
-        "Items": "Items Management",
-        "ItemDetail": "Item Details",
-        "ItemCategories": "Item Categories",
-        "ItemCategoriesEnhanced": "Enhanced Item Categories",
-        "UnitOfMeasures": "Units of Measure",
-        "UnitOfMeasureDetail": "Unit of Measure Details",
-        "ItemPriceManagement": "Item Prices Management",
+                // Inventory Management
+                "Items": "Items Management",
+                "ItemDetail": "Item Details",
+                "ItemCategories": "Item Categories",
+                "ItemCategoriesEnhanced": "Enhanced Item Categories",
+                "UnitOfMeasures": "Units of Measure",
+                "UnitOfMeasureDetail": "Unit of Measure Details",
+                "ItemPriceManagement": "Item Prices Management",
 
-        // Stock Management
-        "StockTransactions": "Stock Transactions",
-        "CreateStockTransaction": "Create Stock Transaction",
-        "StockTransactionDetail": "Stock Transaction Details",
-        "ItemMovementHistory": "Item Movement History",
-        "StockTransfer": "Stock Transfer",
-        "ItemStocks": "Inventory Stock",
-        "ItemStockDetail": "Item Stock Details",
-        "WarehouseStock": "Warehouse Stock",
-        "StockAdjustment": "Stock Adjustment",
-        "StockReservation": "Stock Reservation",
-        "NegativeStocks": "Negative Stocks",
-        "StockAdjustments": "Stock Adjustments",
-        "CreateStockAdjustment": "Create Stock Adjustment",
-        "StockAdjustmentDetail": "Stock Adjustment Details",
-        "EditStockAdjustment": "Edit Stock Adjustment",
-        "ApproveStockAdjustment": "Approve Stock Adjustment",
+                // Stock Management
+                "StockTransactions": "Stock Transactions",
+                "CreateStockTransaction": "Create Stock Transaction",
+                "StockTransactionDetail": "Stock Transaction Details",
+                "ItemMovementHistory": "Item Movement History",
+                "StockTransfer": "Stock Transfer",
+                "ItemStocks": "Inventory Stock",
+                "ItemStockDetail": "Item Stock Details",
+                "WarehouseStock": "Warehouse Stock",
+                "StockAdjustment": "Stock Adjustment",
+                "StockReservation": "Stock Reservation",
+                "NegativeStocks": "Negative Stocks",
+                "StockAdjustments": "Stock Adjustments",
+                "CreateStockAdjustment": "Create Stock Adjustment",
+                "StockAdjustmentDetail": "Stock Adjustment Details",
+                "EditStockAdjustment": "Edit Stock Adjustment",
+                "ApproveStockAdjustment": "Approve Stock Adjustment",
 
-        // Cycle Counting
-        "CycleCountList": "Cycle Counting",
-        "CreateCycleCount": "Create Cycle Count",
-        "GenerateCycleCounts": "Generate Count Tasks",
-        "CycleCountDetail": "Cycle Count Details",
-        "EditCycleCount": "Edit Cycle Count",
-        "CycleCountApproval": "Cycle Count Approval",
+                // Cycle Counting
+                "CycleCountList": "Cycle Counting",
+                "CreateCycleCount": "Create Cycle Count",
+                "GenerateCycleCounts": "Generate Count Tasks",
+                "CycleCountDetail": "Cycle Count Details",
+                "EditCycleCount": "Edit Cycle Count",
+                "CycleCountApproval": "Cycle Count Approval",
 
-        // Batch Management
-        "ItemBatches": "Item Batches",
-        "CreateBatch": "Create Batch",
-        "BatchDetail": "Batch Details",
-        "EditBatch": "Edit Batch",
-        "ExpiryDashboard": "Expiry Management",
+                // Batch Management
+                "ItemBatches": "Item Batches",
+                "CreateBatch": "Create Batch",
+                "BatchDetail": "Batch Details",
+                "EditBatch": "Edit Batch",
+                "ExpiryDashboard": "Expiry Management",
 
-        // Customers
-        "customers.index": "Customer Management",
-        "customers.create": "Add New Customer",
-        "customers.show": "Customer Details",
-        "customers.edit": "Edit Customer",
+                // Customers
+                "customers.index": "Customer Management",
+                "customers.create": "Add New Customer",
+                "customers.show": "Customer Details",
+                "customers.edit": "Edit Customer",
 
-        // Sales Quotations
-        "SalesQuotations": "Sales Quotations",
-        "CreateSalesQuotation": "Create Sales Quotation",
-        "SalesQuotationDetail": "Sales Quotation Details",
-        "EditSalesQuotation": "Edit Sales Quotation",
-        "PrintSalesQuotation": "Print Sales Quotation",
+                // Sales Quotations
+                "SalesQuotations": "Sales Quotations",
+                "CreateSalesQuotation": "Create Sales Quotation",
+                "SalesQuotationDetail": "Sales Quotation Details",
+                "EditSalesQuotation": "Edit Sales Quotation",
+                "PrintSalesQuotation": "Print Sales Quotation",
 
-        // Sales Forecasts
-        "SalesForecastsList": "Sales Forecasts",
-        "SalesForecastDetail": "Sales Forecast Details",
-        "SalesForecastAnalytics": "Sales Forecast Analytics",
-        "CreateSalesForecast": "Create Sales Forecast",
-        "EditSalesForecast": "Edit Sales Forecast",
-        "ConsolidatedForecastView": "Consolidated Forecast View",
-        "ImportForecastForm": "Import Forecast",
-        "ForecastAccuracyAnalysis": "Forecast Accuracy Analysis",
-        "ForecastDashboard": "Forecast Dashboard",
-        "UpdateActualsPage": "Update Actuals",
-        "ForecastHistoryView": "Forecast Version History",
-        "ForecastVolatilityDashboard": "Forecast Volatility Monitor",
-        "ForecastTrendAnalysis": "Forecast Trend Analysis",
+                // Sales Forecasts
+                "SalesForecastsList": "Sales Forecasts",
+                "SalesForecastDetail": "Sales Forecast Details",
+                "SalesForecastAnalytics": "Sales Forecast Analytics",
+                "CreateSalesForecast": "Create Sales Forecast",
+                "EditSalesForecast": "Edit Sales Forecast",
+                "ConsolidatedForecastView": "Consolidated Forecast View",
+                "ImportForecastForm": "Import Forecast",
+                "ForecastAccuracyAnalysis": "Forecast Accuracy Analysis",
+                "ForecastDashboard": "Forecast Dashboard",
+                "UpdateActualsPage": "Update Actuals",
+                "ForecastHistoryView": "Forecast Version History",
+                "ForecastVolatilityDashboard": "Forecast Volatility Monitor",
+                "ForecastTrendAnalysis": "Forecast Trend Analysis",
 
-        // Sales Orders
-        "SalesOrders": "Sales Orders",
-        "CreateSalesOrder": "Create Sales Order",
-        "SalesOrderDetail": "Sales Order Details",
-        "EditSalesOrder": "Edit Sales Order",
-        "CreateOrderFromQuotation": "Create Order from Quotation",
-        "PrintSalesOrder": "Print Sales Order",
+                // Sales Orders
+                "SalesOrders": "Sales Orders",
+                "CreateSalesOrder": "Create Sales Order",
+                "SalesOrderDetail": "Sales Order Details",
+                "EditSalesOrder": "Edit Sales Order",
+                "CreateOrderFromQuotation": "Create Order from Quotation",
+                "PrintSalesOrder": "Print Sales Order",
 
-        // Sales Invoices
-        "SalesInvoices": "Sales Invoices",
-        "CreateSalesInvoice": "Create Sales Invoice",
-        "CreateInvoiceFromDelivery": "Create Invoice from Delivery",
-        "SalesInvoiceDetail": "Sales Invoice Details",
-        "EditSalesInvoice": "Edit Sales Invoice",
-        "SalesInvoicePayment": "Sales Invoice Payment",
-        "PrintSalesInvoice": "Print Sales Invoice",
+                // Sales Invoices
+                "SalesInvoices": "Sales Invoices",
+                "CreateSalesInvoice": "Create Sales Invoice",
+                "CreateInvoiceFromDelivery": "Create Invoice from Delivery",
+                "SalesInvoiceDetail": "Sales Invoice Details",
+                "EditSalesInvoice": "Edit Sales Invoice",
+                "SalesInvoicePayment": "Sales Invoice Payment",
+                "PrintSalesInvoice": "Print Sales Invoice",
 
-        // Sales Deliveries
-        "DeliveryList": "Deliveries",
-        "CreateDelivery": "Create Delivery",
-        "DeliveryDetail": "Delivery Details",
-        "EditDelivery": "Edit Delivery",
-        "PrintDeliveryOrder": "Print Delivery Order",
+                // Sales Deliveries
+                "DeliveryList": "Deliveries",
+                "CreateDelivery": "Create Delivery",
+                "DeliveryDetail": "Delivery Details",
+                "EditDelivery": "Edit Delivery",
+                "PrintDeliveryOrder": "Print Delivery Order",
 
-        // Sales Returns
-        "SalesReturns": "Sales Returns",
-        "CreateSalesReturn": "Create Sales Return",
-        "SalesReturnDetail": "Sales Return Details",
-        "EditSalesReturn": "Edit Sales Return",
+                // Sales Returns
+                "SalesReturns": "Sales Returns",
+                "CreateSalesReturn": "Create Sales Return",
+                "SalesReturnDetail": "Sales Return Details",
+                "EditSalesReturn": "Edit Sales Return",
 
-        // Manufacturing - BOM
-        "BOMList": "Bill of Materials",
-        "CreateBOM": "Create BOM",
-        "BOMDetail": "BOM Details",
-        "EditBOM": "Edit BOM",
+                // Manufacturing - BOM
+                "BOMList": "Bill of Materials",
+                "CreateBOM": "Create BOM",
+                "BOMDetail": "BOM Details",
+                "EditBOM": "Edit BOM",
 
-        // Manufacturing - Routing
-        "RoutingList": "Routing",
-        "CreateRouting": "Create Routing",
-        "RoutingDetail": "Routing Details",
-        "EditRouting": "Edit Routing",
+                // Manufacturing - Routing
+                "RoutingList": "Routing",
+                "CreateRouting": "Create Routing",
+                "RoutingDetail": "Routing Details",
+                "EditRouting": "Edit Routing",
 
-        // Manufacturing - Work Centers
-        "WorkCentersList": "Work Centers",
-        "CreateWorkCenter": "Create Work Center",
-        "WorkCenterDetail": "Work Center Details",
-        "EditWorkCenter": "Edit Work Center",
-        "WorkCenterSchedule": "Work Center Schedule",
+                // Manufacturing - Work Centers
+                "WorkCentersList": "Work Centers",
+                "CreateWorkCenter": "Create Work Center",
+                "WorkCenterDetail": "Work Center Details",
+                "EditWorkCenter": "Edit Work Center",
+                "WorkCenterSchedule": "Work Center Schedule",
 
-        // Manufacturing - Work Orders
-        "WorkOrders": "Work Orders",
-        "CreateWorkOrder": "Create Work Order",
-        "WorkOrderDetail": "Work Order Details",
-        "EditWorkOrder": "Edit Work Order",
-        "WorkOrderOperation": "Work Order Operation",
-        "ManufacturingDashboard": "Manufacturing Dashboard",
+                // Manufacturing - Work Orders
+                "WorkOrders": "Work Orders",
+                "CreateWorkOrder": "Create Work Order",
+                "WorkOrderDetail": "Work Order Details",
+                "EditWorkOrder": "Edit Work Order",
+                "WorkOrderOperation": "Work Order Operation",
+                "ManufacturingDashboard": "Manufacturing Dashboard",
 
-        // Manufacturing - Production Orders
-        "ProductionOrders": "Production Orders",
-        "CreateProductionOrder": "Create Production Order",
-        "ProductionOrderDetail": "Production Order Details",
-        "EditProductionOrder": "Edit Production Order",
-        "AddProductionConsumption": "Add Production Consumption",
-        "EditProductionConsumption": "Edit Production Consumption",
-        "CompleteProductionOrder": "Complete Production Order",
+                // Manufacturing - Production Orders
+                "ProductionOrders": "Production Orders",
+                "CreateProductionOrder": "Create Production Order",
+                "ProductionOrderDetail": "Production Order Details",
+                "EditProductionOrder": "Edit Production Order",
+                "AddProductionConsumption": "Add Production Consumption",
+                "EditProductionConsumption": "Edit Production Consumption",
+                "CompleteProductionOrder": "Complete Production Order",
 
-        // Purchasing - Vendors
-        "VendorList": "Vendor Management",
-        "VendorCreate": "Add New Vendor",
-        "VendorDetail": "Vendor Details",
-        "VendorEdit": "Edit Vendor",
+                // Purchasing - Vendors
+                "VendorList": "Vendor Management",
+                "VendorCreate": "Add New Vendor",
+                "VendorDetail": "Vendor Details",
+                "VendorEdit": "Edit Vendor",
 
-        // Purchasing - Requisitions
-        "PurchaseRequisitionList": "Purchase Requisitions",
-        "CreatePurchaseRequisition": "Create Purchase Requisition",
-        "PurchaseRequisitionDetail": "Purchase Requisition Details",
-        "EditPurchaseRequisition": "Edit Purchase Requisition",
-        "ApprovePurchaseRequisition": "Approve Purchase Requisition",
-        "ConvertToRFQ": "Convert to RFQ",
-        "PRApprovalList": "PR Approvals",
-        "PRToRFQList": "PR to RFQ",
+                // Purchasing - Requisitions
+                "PurchaseRequisitionList": "Purchase Requisitions",
+                "CreatePurchaseRequisition": "Create Purchase Requisition",
+                "PurchaseRequisitionDetail": "Purchase Requisition Details",
+                "EditPurchaseRequisition": "Edit Purchase Requisition",
+                "ApprovePurchaseRequisition": "Approve Purchase Requisition",
+                "ConvertToRFQ": "Convert to RFQ",
+                "PRApprovalList": "PR Approvals",
+                "PRToRFQList": "PR to RFQ",
 
-        // Purchasing - RFQ
-        "RFQList": "Request for Quotations",
-        "CreateRFQ": "Create RFQ",
-        "RFQDetail": "RFQ Details",
-        "EditRFQ": "Edit RFQ",
-        "SendRFQ": "Send RFQ",
-        "CompareRFQ": "Compare RFQ",
+                // Purchasing - RFQ
+                "RFQList": "Request for Quotations",
+                "CreateRFQ": "Create RFQ",
+                "RFQDetail": "RFQ Details",
+                "EditRFQ": "Edit RFQ",
+                "SendRFQ": "Send RFQ",
+                "CompareRFQ": "Compare RFQ",
 
-        // Purchasing - Vendor Quotations
-        "VendorQuotations": "Vendor Quotations",
-        "CreateVendorQuotation": "Create Vendor Quotation",
-        "VendorQuotationDetail": "Vendor Quotation Details",
-        "EditVendorQuotation": "Edit Vendor Quotation",
-        "CompareVendorQuotations": "Compare Quotations",
-        "CreatePOFromQuotation": "Create PO from Quotation",
+                // Purchasing - Vendor Quotations
+                "VendorQuotations": "Vendor Quotations",
+                "CreateVendorQuotation": "Create Vendor Quotation",
+                "VendorQuotationDetail": "Vendor Quotation Details",
+                "EditVendorQuotation": "Edit Vendor Quotation",
+                "CompareVendorQuotations": "Compare Quotations",
+                "CreatePOFromQuotation": "Create PO from Quotation",
 
-        // Purchasing - Purchase Orders
-        "PurchaseOrders": "Purchase Orders",
-        "CreatePurchaseOrder": "Create Purchase Order",
-        "PurchaseOrderDetail": "Purchase Order Details",
-        "EditPurchaseOrder": "Edit Purchase Order",
-        "PurchaseOrderTrack": "Track Purchase Order",
+                // Purchasing - Purchase Orders
+                "PurchaseOrders": "Purchase Orders",
+                "CreatePurchaseOrder": "Create Purchase Order",
+                "PurchaseOrderDetail": "Purchase Order Details",
+                "EditPurchaseOrder": "Edit Purchase Order",
+                "PurchaseOrderTrack": "Track Purchase Order",
 
-        // Purchasing - Goods Receipts
-        "GoodsReceiptList": "Goods Receipts",
-        "CreateGoodsReceipt": "Create Goods Receipt",
-        "PendingReceiptsDashboard": "Receipts Dashboard",
-        "GoodsReceiptDetail": "Goods Receipt Details",
-        "EditGoodsReceipt": "Edit Goods Receipt",
-        "ConfirmGoodsReceipt": "Confirm Goods Receipt",
+                // Purchasing - Goods Receipts
+                "GoodsReceiptList": "Goods Receipts",
+                "CreateGoodsReceipt": "Create Goods Receipt",
+                "PendingReceiptsDashboard": "Receipts Dashboard",
+                "GoodsReceiptDetail": "Goods Receipt Details",
+                "EditGoodsReceipt": "Edit Goods Receipt",
+                "ConfirmGoodsReceipt": "Confirm Goods Receipt",
 
-        // Purchasing - Vendor Invoices
-        "VendorInvoiceList": "Vendor Invoices",
-        "VendorInvoiceCreate": "Create Vendor Invoice",
-        "VendorInvoiceDetail": "Vendor Invoice Details",
-        "VendorInvoiceEdit": "Edit Vendor Invoice",
-        "VendorInvoiceApproval": "Vendor Invoice Approval",
-        "VendorInvoicePayment": "Vendor Invoice Payment",
+                // Purchasing - Vendor Invoices
+                "VendorInvoiceList": "Vendor Invoices",
+                "VendorInvoiceCreate": "Create Vendor Invoice",
+                "VendorInvoiceDetail": "Vendor Invoice Details",
+                "VendorInvoiceEdit": "Edit Vendor Invoice",
+                "VendorInvoiceApproval": "Vendor Invoice Approval",
+                "VendorInvoicePayment": "Vendor Invoice Payment",
 
-        // Warehouses
-        "Warehouses": "Warehouses",
-        "WarehouseDetail": "Warehouse Details",
-        "WarehouseZones": "Warehouse Zones",
-        "WarehouseLocations": "Warehouse Locations",
-        "LocationInventory": "Location Inventory",
+                // Warehouses
+                "Warehouses": "Warehouses",
+                "WarehouseDetail": "Warehouse Details",
+                "WarehouseZones": "Warehouse Zones",
+                "WarehouseLocations": "Warehouse Locations",
+                "LocationInventory": "Location Inventory",
 
-        // Material Planning
-        "MaterialPlans": "Material Planning",
-        "MaterialPlanDetail": "Material Plan Details",
-        "MaterialPlanGeneration": "Generate Material Plans",
-        "PRGenerationFromMaterialPlan": "Generate PR from Material Plan",
+                // Material Planning
+                "MaterialPlans": "Material Planning",
+                "MaterialPlanDetail": "Material Plan Details",
+                "MaterialPlanGeneration": "Generate Material Plans",
+                "PRGenerationFromMaterialPlan": "Generate PR from Material Plan",
 
-        // Accounting
-        "CurrencyRates": "Exchange Rates",
-        "CreateCurrencyRate": "Create Exchange Rate",
-        "CurrencyRateDetail": "Exchange Rate Details",
-        "EditCurrencyRate": "Edit Exchange Rate",
-        "CurrencyConverter": "Currency Converter",
+                // Accounting
+                "CurrencyRates": "Exchange Rates",
+                "CreateCurrencyRate": "Create Exchange Rate",
+                "CurrencyRateDetail": "Exchange Rate Details",
+                "EditCurrencyRate": "Edit Exchange Rate",
+                "CurrencyConverter": "Currency Converter",
 
-        // Quality Management
-        "quality-inspections": "Quality Inspections",
-        "quality-inspections-create": "Create Quality Inspection",
-        "quality-inspection-detail": "Quality Inspection Details",
-        "quality-inspection-edit": "Edit Quality Inspection",
-        "quality-parameters-create": "Create Quality Parameters",
-        "quality-parameters-edit": "Edit Quality Parameters",
-        "quality-dashboard": "Quality Dashboard",
+                // Quality Management
+                "quality-inspections": "Quality Inspections",
+                "quality-inspections-create": "Create Quality Inspection",
+                "quality-inspection-detail": "Quality Inspection Details",
+                "quality-inspection-edit": "Edit Quality Inspection",
+                "quality-parameters-create": "Create Quality Parameters",
+                "quality-parameters-edit": "Edit Quality Parameters",
+                "quality-dashboard": "Quality Dashboard",
 
-        // Administration
-        "AdminDashboard": "Admin Dashboard",
-        "SystemSettings": "System Settings",
-        "UserList": "User Management",
+                // Administration
+                "AdminDashboard": "Admin Dashboard",
+                "SystemSettings": "System Settings",
+                "UserList": "User Management",
 
-        // Legacy routes yang sudah ada sebelumnya
-        "Customers": "Customers",
-        "Users": "User Management"
-    };
+                // Legacy routes yang sudah ada sebelumnya
+                "Customers": "Customers",
+                "Users": "User Management"
+            };
 
-    return titleMap[route.name] || "Dashboard";
-});
+            return titleMap[route.name] || "Dashboard";
+        });
 
         // Methods
-        const showMegaMenu = (menu) => {
-            clearTimeout(megaMenuTimeout.value);
-            activeMegaMenu.value = menu;
+        const toggleSidebar = () => {
+            sidebarCollapsed.value = !sidebarCollapsed.value;
+            localStorage.setItem("sidebarCollapsed", sidebarCollapsed.value);
         };
 
-        const hideMegaMenu = () => {
-            megaMenuTimeout.value = setTimeout(() => {
-                activeMegaMenu.value = null;
-            }, 100);
+        const closeSidebar = () => {
+            if (isMobile.value) {
+                sidebarCollapsed.value = true;
+            }
         };
 
-        const keepMegaMenuOpen = () => {
-            clearTimeout(megaMenuTimeout.value);
+        const toggleSubmenu = (menu) => {
+            if (sidebarCollapsed.value) {
+                // If sidebar is collapsed, expand it first
+                sidebarCollapsed.value = false;
+                localStorage.setItem("sidebarCollapsed", false);
+            }
+            activeSubmenu.value = activeSubmenu.value === menu ? null : menu;
         };
 
         const handleSearchBlur = () => {
@@ -1623,6 +1389,13 @@ export default {
         const toggleTheme = () => {
             isDarkMode.value = !isDarkMode.value;
             localStorage.setItem("darkMode", isDarkMode.value);
+
+            // Apply dark mode class to document
+            if (isDarkMode.value) {
+                document.documentElement.classList.add("dark");
+            } else {
+                document.documentElement.classList.remove("dark");
+            }
         };
 
         const markAllRead = () => {
@@ -1639,6 +1412,8 @@ export default {
             } finally {
                 localStorage.removeItem("token");
                 localStorage.removeItem("user");
+                localStorage.removeItem("sidebarCollapsed");
+                localStorage.removeItem("darkMode");
                 axios.defaults.headers.common["Authorization"] = "";
                 isLoading.value = false;
                 router.push("/login");
@@ -1676,37 +1451,67 @@ export default {
             userMenuOpen.value = false;
         };
 
+        // Handle window resize
+        const handleResize = () => {
+            const newIsMobile = window.innerWidth < 768;
+            if (newIsMobile !== isMobile.value) {
+                isMobile.value = newIsMobile;
+                if (isMobile.value) {
+                    sidebarCollapsed.value = true;
+                }
+            }
+        };
+
         // Close dropdowns when clicking outside
+        const handleClickOutside = (event) => {
+            const notifications = document.querySelector(".notifications-dropdown");
+            const userDropdown = document.querySelector(".user-dropdown");
+            const searchResults = document.querySelector(".search-results");
+
+            if (notifications && !notifications.contains(event.target) &&
+                !event.target.closest('.action-btn')) {
+                showNotifications.value = false;
+            }
+
+            if (userDropdown && !userDropdown.contains(event.target) &&
+                !event.target.closest('.user-section')) {
+                userMenuOpen.value = false;
+            }
+
+            if (searchResults && !searchResults.contains(event.target) &&
+                !event.target.closest('.search-container')) {
+                searchFocused.value = false;
+            }
+        };
+
+        // Lifecycle hooks
         onMounted(() => {
-            document.addEventListener("click", (event) => {
-                const navContainer = document.querySelector(".nav-container");
-                const megaMenu = document.querySelector(".mega-menu");
-                const notifications = document.querySelector(".notifications-dropdown");
-                const userDropdown = document.querySelector(".user-dropdown");
-
-                if (navContainer && !navContainer.contains(event.target) &&
-                    megaMenu && !megaMenu.contains(event.target)) {
-                    activeMegaMenu.value = null;
-                }
-
-                if (notifications && !notifications.contains(event.target) &&
-                    !event.target.closest('.action-btn')) {
-                    showNotifications.value = false;
-                }
-
-                if (userDropdown && !userDropdown.contains(event.target) &&
-                    !event.target.closest('.user-section')) {
-                    userMenuOpen.value = false;
-                }
-            });
+            // Add event listeners
+            window.addEventListener('resize', handleResize);
+            document.addEventListener('click', handleClickOutside);
 
             // Apply dark mode if saved
             if (isDarkMode.value) {
                 document.documentElement.classList.add("dark");
             }
+
+            // Handle initial mobile state
+            handleResize();
+
+            // Auto-collapse sidebar on mobile
+            if (isMobile.value) {
+                sidebarCollapsed.value = true;
+            }
+        });
+
+        onUnmounted(() => {
+            // Remove event listeners
+            window.removeEventListener('resize', handleResize);
+            document.removeEventListener('click', handleClickOutside);
         });
 
         return {
+            // Refs
             user,
             searchQuery,
             searchFocused,
@@ -1715,14 +1520,21 @@ export default {
             isDarkMode,
             isLoading,
             userMenuOpen,
-            activeMegaMenu,
+            sidebarCollapsed,
+            activeSubmenu,
+            isMobile,
             notificationCount,
             notifications,
             quickStats,
+
+            // Computed
             pageTitle,
-            showMegaMenu,
-            hideMegaMenu,
-            keepMegaMenuOpen,
+            breadcrumbItems,
+
+            // Methods
+            toggleSidebar,
+            closeSidebar,
+            toggleSubmenu,
             handleSearchBlur,
             toggleUserMenu,
             toggleTheme,
@@ -1734,12 +1546,11 @@ export default {
             viewAnalytics,
             navigateToProfile,
             navigateToSettings,
-            breadcrumbItems,
         };
     },
 };
 </script>
-
+/* src/layouts/AppLayout.vue - Style Section */
 <style scoped>
 /* CSS Variables */
 :root {
@@ -1747,7 +1558,9 @@ export default {
     --secondary-gradient: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
     --success-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
     --warning-gradient: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-    --nav-height: 80px;
+    --sidebar-width: 280px;
+    --sidebar-collapsed-width: 80px;
+    --header-height: 70px;
     --content-padding: 2rem;
     --border-radius: 16px;
     --border-radius-lg: 24px;
@@ -1763,7 +1576,8 @@ export default {
     --text-secondary: #64748b;
     --text-muted: #94a3b8;
     --border-color: #e2e8f0;
-    --nav-bg: #ffffff;
+    --sidebar-bg: #ffffff;
+    --header-bg: #ffffff;
     --card-bg: #ffffff;
 }
 
@@ -1776,7 +1590,8 @@ export default {
     --text-secondary: #cbd5e1;
     --text-muted: #94a3b8;
     --border-color: #334155;
-    --nav-bg: rgba(15, 23, 42, 0.95);
+    --sidebar-bg: #1e293b;
+    --header-bg: rgba(15, 23, 42, 0.95);
     --card-bg: #1e293b;
 }
 
@@ -1798,6 +1613,7 @@ body {
     background: var(--bg-secondary);
     position: relative;
     transition: var(--transition);
+    display: flex;
 }
 
 /* Animated Background */
@@ -1892,60 +1708,65 @@ body {
     }
 }
 
-/* Top Navigation */
-.top-navigation {
-    position: sticky;
+/* Sidebar */
+.sidebar {
+    position: fixed;
     top: 0;
+    left: 0;
+    width: var(--sidebar-width);
+    height: 100vh;
+    background: var(--sidebar-bg);
+    border-right: 2px solid var(--border-color);
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+    transition: var(--transition);
     z-index: 1000;
-    background: var(--nav-bg);
-    backdrop-filter: blur(20px);
-    border-bottom: 2px solid var(--border-color);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
-.dark .top-navigation {
-    background: rgba(15, 23, 42, 0.95);
-    border-bottom: 2px solid var(--border-color);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+.dark .sidebar {
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
 }
 
-.nav-container {
-    max-width: none;
-    margin: 0;
-    padding: 0 1rem;
-    height: var(--nav-height);
-    display: grid;
-    grid-template-columns: 280px 1fr auto;
+.sidebar.collapsed {
+    width: var(--sidebar-collapsed-width);
+}
+
+.sidebar-header {
+    display: flex;
     align-items: center;
-    gap: 2rem;
-    width: 100%;
+    justify-content: space-between;
+    padding: 1.5rem 1rem;
+    border-bottom: 2px solid var(--border-color);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
+    min-height: var(--header-height);
 }
 
-/* Brand Section */
-.brand-section {
-    flex-shrink: 0;
-    min-width: 200px;
+.dark .sidebar-header {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
 }
 
 .brand-logo {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.75rem;
     cursor: pointer;
 }
 
 .logo-icon {
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
     background: var(--primary-gradient);
-    border-radius: 12px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    font-size: 1.2rem;
-    box-shadow: 0 8px 25px rgba(99, 102, 241, 0.3);
+    font-size: 1rem;
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.3);
     animation: pulse 3s ease-in-out infinite;
+    flex-shrink: 0;
 }
 
 @keyframes pulse {
@@ -1953,81 +1774,308 @@ body {
     50% { transform: scale(1.05); }
 }
 
+.brand-text {
+    overflow: hidden;
+    white-space: nowrap;
+}
+
 .brand-text h2 {
-    font-size: 1.25rem;
+    font-size: 1.1rem;
     font-weight: 700;
     color: var(--text-primary);
     margin: 0;
+    line-height: 1.2;
 }
 
 .brand-text p {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: var(--text-muted);
     margin: 0;
+    line-height: 1.2;
 }
 
-/* Main Navigation */
-.main-nav {
+.sidebar-toggle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--card-bg);
+    border: 2px solid var(--border-color);
+    color: var(--text-secondary);
+    cursor: pointer;
     display: flex;
-    gap: 0.25rem;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+
+.sidebar-toggle:hover {
+    background: var(--primary-gradient);
+    color: white;
+    border-color: transparent;
+    transform: scale(1.1);
+}
+
+/* Sidebar Navigation */
+.sidebar-nav {
     flex: 1;
-    justify-content: flex-start;
-    max-width: 800px;
-    overflow-x: auto;
-    padding: 0 1rem;
+    overflow-y: auto;
+    padding: 1rem 0;
+}
+
+.sidebar-nav::-webkit-scrollbar {
+    width: 4px;
+}
+
+.sidebar-nav::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.2);
+    border-radius: 4px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+    background: rgba(99, 102, 241, 0.4);
+}
+
+.nav-section {
+    padding: 0 0.5rem;
 }
 
 .nav-item {
-    position: relative;
-    flex-shrink: 0;
+    margin-bottom: 0.25rem;
 }
 
 .nav-link {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1rem;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
     border-radius: 12px;
     color: var(--text-secondary);
     text-decoration: none;
     font-weight: 500;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     transition: var(--transition);
     cursor: pointer;
-    white-space: nowrap;
+    position: relative;
+    margin: 0.25rem 0;
 }
 
 .nav-link:hover {
     background: rgba(99, 102, 241, 0.1);
     color: var(--text-primary);
-    transform: translateY(-2px);
+    transform: translateX(3px);
 }
 
 .nav-link.active {
     background: var(--primary-gradient);
     color: white;
-    box-shadow: 0 8px 25px rgba(99, 102, 241, 0.3);
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.3);
 }
 
-.nav-arrow {
+.nav-link i {
+    width: 20px;
+    font-size: 1rem;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.nav-link span {
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.submenu-arrow {
+    margin-left: auto;
     font-size: 0.7rem;
     transition: transform 0.3s ease;
 }
 
-.nav-item:hover .nav-arrow {
+.submenu-arrow.rotated {
     transform: rotate(180deg);
 }
 
-/* Navigation Right Section */
-.nav-right {
+.nav-item.has-submenu.active > .nav-link {
+    background: rgba(99, 102, 241, 0.1);
+    color: #6366f1;
+}
+
+/* Submenu */
+.submenu {
+    background: rgba(99, 102, 241, 0.02);
+    border-radius: 8px;
+    margin: 0.5rem 0 0.5rem 1rem;
+    padding: 0.5rem 0;
+    border-left: 3px solid rgba(99, 102, 241, 0.2);
+    animation: slideDown 0.3s ease;
+}
+
+.dark .submenu {
+    background: rgba(99, 102, 241, 0.05);
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.submenu-section {
+    margin-bottom: 1rem;
+}
+
+.submenu-section:last-child {
+    margin-bottom: 0;
+}
+
+.submenu-section h4 {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0 0 0.5rem 1rem;
+}
+
+.submenu-link {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    flex-shrink: 0;
-    min-width: 280px;
+    padding: 0.5rem 1rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.85rem;
+    transition: var(--transition);
+    border-radius: 6px;
+    margin: 0.125rem 0.5rem;
 }
 
-/* Enhanced Search */
+.submenu-link:hover {
+    background: rgba(99, 102, 241, 0.1);
+    color: #6366f1;
+    transform: translateX(3px);
+}
+
+.submenu-link.router-link-active {
+    background: rgba(99, 102, 241, 0.15);
+    color: #6366f1;
+    font-weight: 600;
+}
+
+.submenu-link i {
+    width: 16px;
+    font-size: 0.8rem;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+/* Sidebar Footer */
+.sidebar-footer {
+    padding: 1rem;
+    border-top: 2px solid var(--border-color);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.02) 0%, rgba(139, 92, 246, 0.02) 100%);
+}
+
+.dark .sidebar-footer {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
+}
+
+.footer-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.stat-item i {
+    color: #10b981;
+    width: 16px;
+    text-align: center;
+}
+
+/* Main Wrapper */
+.main-wrapper {
+    flex: 1;
+    margin-left: var(--sidebar-width);
+    transition: var(--transition);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-collapsed .main-wrapper {
+    margin-left: var(--sidebar-collapsed-width);
+}
+
+/* Top Header */
+.top-header {
+    position: sticky;
+    top: 0;
+    z-index: 999;
+    background: var(--header-bg);
+    backdrop-filter: blur(20px);
+    border-bottom: 2px solid var(--border-color);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 2rem;
+    padding: 0 2rem;
+    height: var(--header-height);
+}
+
+.dark .top-header {
+    background: var(--header-bg);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.header-left {
+    display: none;
+}
+
+.mobile-menu-toggle {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: var(--card-bg);
+    border: 2px solid var(--border-color);
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+}
+
+.mobile-menu-toggle:hover {
+    background: var(--primary-gradient);
+    color: white;
+    border-color: transparent;
+}
+
+.header-center {
+    display: flex;
+    justify-content: center;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+/* Search */
 .search-container {
     position: relative;
 }
@@ -2046,7 +2094,7 @@ body {
     border: 2px solid var(--border-color);
     border-radius: 25px;
     padding: 0.75rem 1rem 0.75rem 3rem;
-    width: 240px;
+    width: 320px;
     transition: var(--transition);
     color: var(--text-primary);
     font-size: 0.9rem;
@@ -2062,7 +2110,7 @@ body {
     outline: none;
     border-color: #6366f1;
     box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
-    width: 280px;
+    width: 380px;
 }
 
 .search-input::placeholder {
@@ -2134,11 +2182,17 @@ body {
     color: #6366f1;
 }
 
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    position: relative;
+}
+
 /* Quick Actions */
 .quick-actions {
     display: flex;
     gap: 0.5rem;
-    flex-shrink: 0;
 }
 
 .action-btn {
@@ -2221,8 +2275,8 @@ body {
 }
 
 .user-avatar {
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     background: var(--primary-gradient);
     display: flex;
@@ -2230,7 +2284,7 @@ body {
     justify-content: center;
     color: white;
     font-weight: 700;
-    font-size: 1rem;
+    font-size: 0.9rem;
     box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
     border: 3px solid white;
     text-transform: uppercase;
@@ -2250,13 +2304,12 @@ body {
 .username {
     font-weight: 600;
     color: var(--text-primary);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     line-height: 1.2;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .user-role {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: var(--text-muted);
     line-height: 1.2;
     font-weight: 500;
@@ -2264,101 +2317,12 @@ body {
 
 .user-arrow {
     color: var(--text-muted);
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     transition: transform 0.3s ease;
 }
 
 .user-arrow.rotated {
     transform: rotate(180deg);
-}
-
-/* Mega Menu */
-.mega-menu {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: #ffffff;
-    border: 2px solid var(--border-color);
-    border-radius: 0 0 var(--border-radius-lg) var(--border-radius-lg);
-    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
-    z-index: 999;
-}
-
-.dark .mega-menu {
-    background: #1e293b;
-    border-color: #334155;
-    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
-}
-
-.mega-menu-content {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 2rem;
-    padding: 2rem;
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
-.menu-section h3 {
-    color: var(--text-primary);
-    font-size: 1rem;
-    font-weight: 600;
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.menu-section h3 i {
-    color: #6366f1;
-}
-
-.menu-links {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.menu-link {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1rem;
-    border-radius: 12px;
-    color: var(--text-primary);
-    text-decoration: none;
-    transition: var(--transition);
-    border: 1px solid transparent;
-}
-
-.menu-link:hover {
-    background: rgba(99, 102, 241, 0.05);
-    border-color: rgba(99, 102, 241, 0.2);
-    transform: translateX(8px);
-}
-
-.menu-link i {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: rgba(99, 102, 241, 0.1);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #6366f1;
-    font-size: 0.9rem;
-}
-
-.menu-link div span {
-    font-weight: 500;
-    display: block;
-    margin-bottom: 0.25rem;
-}
-
-.menu-link div small {
-    color: var(--text-muted);
-    font-size: 0.8rem;
 }
 
 /* Dropdowns */
@@ -2486,20 +2450,6 @@ body {
 }
 
 /* User Dropdown */
-.user-dropdown {
-    position: absolute;
-    top: calc(100% + 0.5rem);
-    right: 0;
-    background: var(--card-bg);
-    border: 2px solid var(--border-color);
-    border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow-lg);
-    z-index: 200;
-    min-width: 320px;
-    max-height: 400px;
-    overflow: hidden;
-}
-
 .user-profile {
     padding: 1.5rem;
     border-bottom: 2px solid var(--border-color);
@@ -2562,6 +2512,35 @@ body {
     font-size: 0.9rem;
 }
 
+.dropdown-item:not(.logout-item) {
+    border-radius: 8px;
+    margin: 0.25rem 0.5rem;
+}
+
+.dropdown-item:not(.logout-item):hover {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+    color: #6366f1;
+    transform: translateX(3px);
+}
+
+.dropdown-item:not(.logout-item) i {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(99, 102, 241, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6366f1;
+    font-size: 0.85rem;
+    transition: all 0.3s ease;
+}
+
+.dropdown-item:not(.logout-item):hover i {
+    background: rgba(99, 102, 241, 0.2);
+    transform: scale(1.1);
+}
+
 .dropdown-item.logout-item {
     background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
     border: 1px solid #fca5a5;
@@ -2621,11 +2600,6 @@ body {
     transform: translateX(5px);
 }
 
-.dropdown-item:hover {
-    background: rgba(99, 102, 241, 0.05);
-    color: #6366f1;
-}
-
 .dropdown-divider {
     height: 1px;
     background: var(--border-color);
@@ -2634,8 +2608,8 @@ body {
 
 /* Main Content */
 .main-content {
+    flex: 1;
     padding-top: 2rem;
-    min-height: calc(100vh - var(--nav-height));
 }
 
 /* Breadcrumb */
@@ -2966,6 +2940,18 @@ body {
     to { transform: rotate(360deg); }
 }
 
+/* Sidebar Overlay */
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    z-index: 999;
+}
+
 /* Vue Transitions */
 .fade-enter-active, .fade-leave-active {
     transition: opacity 0.3s ease;
@@ -3004,64 +2990,86 @@ body {
 }
 
 /* Responsive Design */
-@media (max-width: 1400px) {
-    .nav-container {
-        grid-template-columns: 260px 1fr auto;
-        padding: 0 1rem;
+@media (max-width: 1200px) {
+    .top-header {
+        padding: 0 1.5rem;
         gap: 1.5rem;
     }
 
-    .main-nav {
-        margin-left: 0.5rem;
-    }
-
-    .brand-text h2 {
-        font-size: 1rem;
-    }
-
-    .brand-text p {
-        font-size: 0.65rem;
-    }
-
     .search-input {
-        width: 200px;
+        width: 280px;
     }
 
     .search-input:focus {
-        width: 240px;
-    }
-}
-
-@media (max-width: 1200px) {
-    .nav-container {
-        grid-template-columns: 240px 1fr auto;
-        padding: 0 1rem;
-        gap: 1rem;
-    }
-
-    .main-nav {
-        margin-left: 0;
-        gap: 0.25rem;
-    }
-
-    .logo-icon {
-        width: 38px;
-        height: 38px;
-        font-size: 1rem;
+        width: 320px;
     }
 
     .breadcrumb-section {
-        padding: 1.5rem 1.5rem 1rem 1.5rem;
+        padding: 0 1.5rem;
     }
 
     .page-header,
     .content-area {
-        padding: 0 1.5rem 2rem 1.5rem;
+        padding: 0 1.5rem;
+    }
+}
+
+@media (max-width: 1024px) {
+    .header-center {
+        max-width: 400px;
     }
 
-    .nav-link {
-        padding: 0.5rem 0.75rem;
-        font-size: 0.8rem;
+    .search-input {
+        width: 240px;
+    }
+
+    .search-input:focus {
+        width: 280px;
+    }
+
+    .user-info {
+        display: none;
+    }
+
+    .breadcrumb-section {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
+    }
+
+    .quick-stats {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .app-container {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        transform: translateX(-100%);
+        z-index: 1001;
+    }
+
+    .sidebar.collapsed {
+        transform: translateX(-100%);
+    }
+
+    .app-container:not(.sidebar-collapsed) .sidebar {
+        transform: translateX(0);
+    }
+
+    .main-wrapper {
+        margin-left: 0;
+    }
+
+    .header-left {
+        display: block;
+    }
+
+    .header-center {
+        max-width: 200px;
     }
 
     .search-input {
@@ -3072,88 +3080,9 @@ body {
         width: 220px;
     }
 
-    .nav-right {
-        gap: 0.5rem;
-    }
-}
-
-@media (max-width: 1024px) {
-    .nav-container {
-        grid-template-columns: 200px 1fr auto;
+    .top-header {
+        padding: 0 1rem;
         gap: 1rem;
-        justify-content: space-between;
-    }
-
-    .main-nav {
-        display: none;
-    }
-
-    .brand-text p {
-        display: none;
-    }
-
-    .search-input {
-        width: 160px;
-    }
-
-    .search-input:focus {
-        width: 200px;
-    }
-
-    .breadcrumb-section {
-        padding: 1.5rem 1rem 1rem 1rem;
-        margin-top: 0.5rem;
-    }
-
-    .mega-menu-content {
-        grid-template-columns: 1fr;
-        padding: 1.5rem;
-    }
-}
-
-@media (max-width: 768px) {
-    .nav-container {
-        grid-template-columns: auto 1fr auto;
-        padding: 0 0.75rem;
-        gap: 0.5rem;
-    }
-
-    .brand-text {
-        display: none;
-    }
-
-    .logo-icon {
-        width: 36px;
-        height: 36px;
-        font-size: 0.95rem;
-    }
-
-    .user-info {
-        display: none;
-    }
-
-    .search-input {
-        width: 120px;
-    }
-
-    .search-input:focus {
-        width: 160px;
-    }
-
-    .quick-actions {
-        gap: 0.25rem;
-    }
-
-    .action-btn {
-        width: 38px;
-        height: 38px;
-        font-size: 0.9rem;
-    }
-
-    .user-avatar {
-        width: 36px;
-        height: 36px;
-        font-size: 0.9rem;
     }
 
     .page-title {
@@ -3165,16 +3094,12 @@ body {
     }
 
     .breadcrumb-section {
-        flex-direction: column;
-        gap: 1rem;
-        align-items: flex-start;
-        padding: 1.5rem 1rem 1rem 1rem;
-        margin-top: 0.5rem;
+        padding: 0 1rem;
     }
 
     .page-header,
     .content-area {
-        padding: 0 1rem 2rem 1rem;
+        padding: 0 1rem;
     }
 
     .floating-actions {
@@ -3196,18 +3121,17 @@ body {
 }
 
 @media (max-width: 480px) {
-    .nav-container {
-        grid-template-columns: auto 1fr auto;
-        padding: 0 0.5rem;
-        gap: 0.25rem;
+    .top-header {
+        padding: 0 0.75rem;
+        gap: 0.5rem;
     }
 
     .search-input {
-        width: 100px;
+        width: 140px;
     }
 
     .search-input:focus {
-        width: 140px;
+        width: 180px;
     }
 
     .user-section {
@@ -3228,13 +3152,12 @@ body {
     }
 
     .breadcrumb-section {
-        padding: 1rem 0.5rem;
-        margin-top: 0.5rem;
+        padding: 0 0.75rem;
     }
 
     .page-header,
     .content-area {
-        padding: 0 1rem 2rem 1rem;
+        padding: 0 0.75rem;
     }
 
     .fab-item {
@@ -3247,34 +3170,135 @@ body {
         min-width: 260px;
         right: -80px;
     }
+
+    .sidebar {
+        width: 100%;
+        max-width: 320px;
+    }
+
+    .page-title {
+        font-size: 1.75rem;
+    }
 }
 
-.dropdown-item:not(.logout-item) {
-    border-radius: 8px;
-    margin: 0.25rem 0.5rem;
+/* Additional Mobile Styles */
+@media (max-width: 320px) {
+    .search-input {
+        width: 120px;
+    }
+
+    .search-input:focus {
+        width: 160px;
+    }
+
+    .page-title {
+        font-size: 1.5rem;
+    }
+
+    .stat-card {
+        padding: 1rem;
+    }
+
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 1.2rem;
+    }
+
+    .stat-content h3 {
+        font-size: 1.5rem;
+    }
 }
 
-.dropdown-item:not(.logout-item):hover {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
-    color: #6366f1;
-    transform: translateX(3px);
+/* Print Styles */
+@media print {
+    .sidebar,
+    .top-header,
+    .floating-actions,
+    .notifications-dropdown,
+    .user-dropdown {
+        display: none !important;
+    }
+
+    .main-wrapper {
+        margin-left: 0 !important;
+    }
+
+    .main-content {
+        padding-top: 0 !important;
+    }
 }
 
-.dropdown-item:not(.logout-item) i {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: rgba(99, 102, 241, 0.1);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #6366f1;
-    font-size: 0.85rem;
-    transition: all 0.3s ease;
+/* High DPI Displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .logo-icon,
+    .user-avatar,
+    .user-avatar-large {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
 }
 
-.dropdown-item:not(.logout-item):hover i {
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    .orb {
+        animation: none;
+    }
+}
+
+/* Focus Styles for Accessibility */
+.nav-link:focus,
+.submenu-link:focus,
+.action-btn:focus,
+.sidebar-toggle:focus,
+.mobile-menu-toggle:focus,
+.search-input:focus,
+.user-section:focus {
+    outline: 3px solid rgba(99, 102, 241, 0.5);
+    outline-offset: 2px;
+}
+
+/* Dark Mode Toggle Animation */
+.dark * {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--primary-gradient);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #5b5bf1 0%, #7c3aed 100%);
+}
+
+/* Selection Styles */
+::selection {
     background: rgba(99, 102, 241, 0.2);
-    transform: scale(1.1);
+    color: var(--text-primary);
+}
+
+::-moz-selection {
+    background: rgba(99, 102, 241, 0.2);
+    color: var(--text-primary);
 }
 </style>
