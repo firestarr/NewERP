@@ -8,7 +8,7 @@
             <i class="fas fa-file-pdf"></i>
             PDF Order Capture
           </h1>
-          <p class="page-subtitle">Upload PDF files and automatically create sales orders using AI</p>
+          <p class="page-subtitle">Upload PDF files and automatically create sales orders using AI with smart page-based processing</p>
         </div>
         <div class="header-actions">
           <button @click="refreshData" class="btn btn-secondary" :disabled="isLoading">
@@ -152,8 +152,8 @@
         </button>
       </div>
 
-      <div v-else class="table-wrapper">
-        <table class="data-table">
+      <div v-else class="custom-table">
+        <table>
           <thead>
             <tr>
               <th class="checkbox-col">
@@ -167,8 +167,10 @@
               <th>Status</th>
               <th>Customer</th>
               <th>Items</th>
+              <th>Item Validation</th>
               <th>Confidence</th>
               <th>Sales Order</th>
+              <th>Pages/Processing</th>
               <th>Created</th>
               <th>Actions</th>
             </tr>
@@ -191,6 +193,10 @@
                   </div>
                   <div class="file-meta">
                     {{ capture.file_size_human }}
+                    <span v-if="isLargeFile(capture.file_size)" class="file-size-indicator large-file">
+                      <i class="fas fa-layer-group" title="Processed with chunking"></i>
+                      Large
+                    </span>
                   </div>
                 </div>
               </td>
@@ -225,6 +231,28 @@
                 <span v-else class="text-muted">-</span>
               </td>
 
+              <!-- Item Validation Column -->
+              <td class="item-validation">
+                <div v-if="capture.item_validation" class="validation-summary">
+                  <div v-if="capture.item_validation.existing_items && capture.item_validation.existing_items.length > 0"
+                       class="validation-item success">
+                    <i class="fas fa-check-circle"></i>
+                    {{ capture.item_validation.existing_items.length }} found
+                  </div>
+                  <div v-if="capture.item_validation.missing_items && capture.item_validation.missing_items.length > 0"
+                       class="validation-item danger">
+                    <i class="fas fa-times-circle"></i>
+                    {{ capture.item_validation.missing_items.length }} missing
+                  </div>
+                  <div v-if="capture.item_validation.fuzzy_matches && capture.item_validation.fuzzy_matches.length > 0"
+                       class="validation-item warning">
+                    <i class="fas fa-question-circle"></i>
+                    {{ capture.item_validation.fuzzy_matches.length }} fuzzy
+                  </div>
+                </div>
+                <span v-else class="text-muted">-</span>
+              </td>
+
               <td class="confidence-score">
                 <div v-if="capture.confidence_score" class="confidence-display">
                   <div class="confidence-bar">
@@ -252,6 +280,26 @@
                 <span v-else class="text-muted">-</span>
               </td>
 
+              <td class="processing-info">
+                <div class="processing-details">
+                  <div v-if="isPageBasedProcessing(capture)" class="processing-method page-based">
+                    <i class="fas fa-file-alt" title="Processed page by page"></i>
+                    {{ getTotalPages(capture) }} pages
+                  </div>
+                  <div v-else-if="isChunkedProcessing(capture)" class="processing-method chunked">
+                    <i class="fas fa-layer-group" title="Processed with chunking"></i>
+                    Chunked
+                  </div>
+                  <div v-else class="processing-method single">
+                    <i class="fas fa-file-alt" title="Single request processing"></i>
+                    Standard
+                  </div>
+                  <div v-if="capture.extracted_data && capture.extracted_data.processing_notes" class="processing-notes">
+                    {{ getProcessingNotesSummary(capture.extracted_data.processing_notes) }}
+                  </div>
+                </div>
+              </td>
+
               <td class="created-date">
                 <div class="date-display">
                   <div class="date-main">{{ formatDate(capture.created_at) }}</div>
@@ -267,6 +315,17 @@
                     title="View Details"
                   >
                     <i class="fas fa-eye"></i>
+                  </button>
+
+                  <!-- Create SO Button -->
+                  <button
+                    v-if="capture.status === 'data_extracted' && !capture.created_so_id && canCreateSalesOrder(capture)"
+                    @click="createSalesOrder(capture.id)"
+                    class="btn-icon btn-success"
+                    title="Create Sales Order"
+                    :disabled="createSoLoading[capture.id]"
+                  >
+                    <i class="fas fa-plus" :class="{ 'fa-spin': createSoLoading[capture.id] }"></i>
                   </button>
 
                   <button
@@ -371,6 +430,7 @@
               <p>or <button @click="$refs.fileInput.click()" class="link-btn">browse files</button></p>
               <div class="upload-info">
                 <small>Supported: PDF files up to 10MB</small>
+                <small>Large files will be automatically processed page-by-page for better accuracy</small>
               </div>
             </div>
 
@@ -379,11 +439,25 @@
                 <i class="fas fa-file-pdf text-danger"></i>
                 <div class="file-details">
                   <div class="file-name">{{ selectedFile.name }}</div>
-                  <div class="file-size">{{ formatFileSize(selectedFile.size) }}</div>
+                  <div class="file-size">
+                    {{ formatFileSize(selectedFile.size) }}
+                    <span v-if="willUseChunking(selectedFile.size)" class="chunking-indicator">
+                      <i class="fas fa-file-alt"></i>
+                      Will use page-based processing
+                    </span>
+                  </div>
                 </div>
                 <button @click="clearSelectedFile" class="remove-btn">
                   <i class="fas fa-times"></i>
                 </button>
+              </div>
+
+              <!-- Processing Time Estimate -->
+              <div v-if="willUseChunking(selectedFile.size)" class="processing-estimate">
+                <div class="estimate-info">
+                  <i class="fas fa-info-circle"></i>
+                  <span>Large file detected. Will be processed page-by-page for optimal accuracy.</span>
+                </div>
               </div>
             </div>
           </div>
@@ -391,13 +465,6 @@
           <!-- Processing Options -->
           <div class="processing-options">
             <h4>Processing Options</h4>
-
-            <div class="option-group">
-              <label class="checkbox-label">
-                <input type="checkbox" v-model="uploadOptions.auto_create_missing_data">
-                <span>Auto-create missing customers and items</span>
-              </label>
-            </div>
 
             <div class="option-row">
               <div class="option-field">
@@ -421,11 +488,15 @@
               </div>
             </div>
 
-            <div class="option-group">
-              <label class="checkbox-label">
-                <input type="checkbox" v-model="uploadOptions.processing_options.auto_approve">
-                <span>Auto-approve if confidence is high enough</span>
-              </label>
+            <!-- Page-based Processing Options for Large Files -->
+            <div v-if="selectedFile && willUseChunking(selectedFile.size)" class="chunking-options">
+              <h5>
+                <i class="fas fa-file-alt"></i>
+                Page-based Processing Settings
+              </h5>
+              <div class="chunking-info">
+                <p>This file will be processed page-by-page to ensure accurate extraction. Each page is analyzed separately and results are intelligently merged.</p>
+              </div>
             </div>
           </div>
         </div>
@@ -434,326 +505,9 @@
           <button @click="closeUploadModal" class="btn btn-secondary">
             Cancel
           </button>
-          <button @click="previewExtraction" class="btn btn-outline" :disabled="!selectedFile || isUploading">
-            <i class="fas fa-eye"></i>
-            Preview
-          </button>
-          <button @click="uploadAndProcess" class="btn btn-primary" :disabled="!selectedFile || isUploading">
+          <button @click="uploadAndExtract" class="btn btn-primary" :disabled="!selectedFile || isUploading">
             <i class="fas fa-upload" :class="{ 'fa-spin': isUploading }"></i>
-            {{ isUploading ? 'Processing...' : 'Upload & Process' }}
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Preview Modal -->
-    <div v-if="showPreviewModal" class="modal-overlay" @click="closePreviewModal">
-      <div class="modal-content modal-large" @click.stop>
-        <div class="modal-header">
-          <h3>
-            <i class="fas fa-eye text-primary"></i>
-            AI Extraction Preview
-          </h3>
-          <button @click="closePreviewModal" class="close-btn">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-
-        <div class="modal-body">
-          <div v-if="previewData" class="preview-content">
-            <!-- Overall Confidence Score -->
-            <div class="preview-section">
-              <div class="confidence-header">
-                <div class="confidence-info">
-                  <h4>
-                    <i class="fas fa-brain"></i>
-                    AI Confidence Score
-                  </h4>
-                  <div class="confidence-display-large">
-                    <div class="confidence-bar-large">
-                      <div
-                        class="confidence-fill"
-                        :style="{ width: previewData.confidence_score + '%' }"
-                        :class="getConfidenceClass(previewData.confidence_score)"
-                      ></div>
-                    </div>
-                    <span class="confidence-text-large">{{ previewData.confidence_score }}%</span>
-                  </div>
-                  <p class="confidence-description">
-                    {{ getConfidenceDescription(previewData.confidence_score) }}
-                  </p>
-                </div>
-                <div class="extraction-status">
-                  <span class="status-badge status-success">
-                    <i class="fas fa-check-circle"></i>
-                    Data Extracted
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Customer Information -->
-            <div v-if="previewData.extracted_data && previewData.extracted_data.customer" class="preview-section">
-              <h4>
-                <i class="fas fa-user"></i>
-                Customer Information
-              </h4>
-              <div class="customer-preview-card">
-                <div class="customer-header">
-                  <div class="customer-name-section">
-                    <h5>{{ previewData.extracted_data.customer.name || 'Unknown Customer' }}</h5>
-                    <div v-if="previewData.extracted_data.customer.confidence" class="field-confidence">
-                      <span :class="getConfidenceClass(previewData.extracted_data.customer.confidence)">
-                        {{ previewData.extracted_data.customer.confidence }}% confidence
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="customer-details">
-                  <div class="customer-field" v-if="previewData.extracted_data.customer.email">
-                    <label>
-                      <i class="fas fa-envelope"></i>
-                      Email
-                    </label>
-                    <span>{{ previewData.extracted_data.customer.email }}</span>
-                  </div>
-
-                  <div class="customer-field" v-if="previewData.extracted_data.customer.phone">
-                    <label>
-                      <i class="fas fa-phone"></i>
-                      Phone
-                    </label>
-                    <span>{{ previewData.extracted_data.customer.phone }}</span>
-                  </div>
-
-                  <div class="customer-field" v-if="previewData.extracted_data.customer.address">
-                    <label>
-                      <i class="fas fa-map-marker-alt"></i>
-                      Address
-                    </label>
-                    <span>{{ previewData.extracted_data.customer.address }}</span>
-                  </div>
-
-                  <div class="customer-field" v-if="previewData.extracted_data.customer.code">
-                    <label>
-                      <i class="fas fa-tag"></i>
-                      Customer Code
-                    </label>
-                    <span>{{ previewData.extracted_data.customer.code }}</span>
-                  </div>
-
-                  <div class="customer-field" v-if="previewData.extracted_data.customer.tax_id">
-                    <label>
-                      <i class="fas fa-file-invoice"></i>
-                      Tax ID
-                    </label>
-                    <span>{{ previewData.extracted_data.customer.tax_id }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Items Information -->
-            <div v-if="previewData.extracted_data && previewData.extracted_data.items && previewData.extracted_data.items.length > 0" class="preview-section">
-              <h4>
-                <i class="fas fa-list"></i>
-                Order Items ({{ previewData.extracted_data.items.length }})
-              </h4>
-
-              <div class="items-summary">
-                <div class="summary-stats">
-                  <div class="summary-stat">
-                    <span class="stat-label">Total Items:</span>
-                    <span class="stat-value">{{ previewData.extracted_data.items.length }}</span>
-                  </div>
-                  <div class="summary-stat" v-if="getTotalQuantity() > 0">
-                    <span class="stat-label">Total Quantity:</span>
-                    <span class="stat-value">{{ getTotalQuantity() }}</span>
-                  </div>
-                  <div class="summary-stat" v-if="getTotalAmount() > 0">
-                    <span class="stat-label">Total Amount:</span>
-                    <span class="stat-value">${{ formatCurrency(getTotalAmount()) }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="items-list">
-                <div v-for="(item, index) in previewData.extracted_data.items" :key="index" class="item-preview-card">
-                  <div class="item-header">
-                    <div class="item-name-section">
-                      <h6>{{ item.name || 'Unknown Item' }}</h6>
-                      <div v-if="item.item_code" class="item-code">
-                        <span class="code-label">Code:</span> {{ item.item_code }}
-                      </div>
-                      <div v-if="item.confidence" class="field-confidence">
-                        <span :class="getConfidenceClass(item.confidence)">
-                          {{ item.confidence }}% confidence
-                        </span>
-                      </div>
-                    </div>
-                    <div class="item-amount">
-                      <span v-if="item.unit_price && item.quantity" class="amount-value">
-                        ${{ formatCurrency(item.unit_price * item.quantity) }}
-                      </span>
-                      <span v-else-if="item.total_value" class="amount-value">
-                        ${{ formatCurrency(item.total_value) }}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div class="item-details">
-                    <div class="item-detail-row">
-                      <div class="item-field" v-if="item.quantity">
-                        <label>Quantity:</label>
-                        <span>{{ item.quantity }}</span>
-                      </div>
-
-                      <div class="item-field" v-if="item.unit_price">
-                        <label>Unit Price:</label>
-                        <span>${{ formatCurrency(item.unit_price) }}</span>
-                      </div>
-
-                      <div class="item-field" v-if="item.uom">
-                        <label>UOM:</label>
-                        <span>{{ item.uom }}</span>
-                      </div>
-
-                      <div class="item-field" v-if="item.total_value">
-                        <label>Total Value:</label>
-                        <span>${{ formatCurrency(item.total_value) }}</span>
-                      </div>
-                    </div>
-
-                    <div v-if="item.description" class="item-description">
-                      <label>Description:</label>
-                      <p>{{ item.description }}</p>
-                    </div>
-
-                    <div v-if="item.validation_check" class="item-validation">
-                      <label>Validation:</label>
-                      <p class="validation-text">{{ item.validation_check }}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Order Information -->
-            <div v-if="previewData.extracted_data && previewData.extracted_data.order_info" class="preview-section">
-              <h4>
-                <i class="fas fa-file-invoice"></i>
-                Order Information
-              </h4>
-              <div class="order-info-card">
-                <div class="order-info-grid">
-                  <div class="order-field" v-if="previewData.extracted_data.order_info.order_number">
-                    <label>Order Number:</label>
-                    <span>{{ previewData.extracted_data.order_info.order_number }}</span>
-                  </div>
-
-                  <div class="order-field" v-if="previewData.extracted_data.order_info.order_date">
-                    <label>Order Date:</label>
-                    <span>{{ previewData.extracted_data.order_info.order_date }}</span>
-                  </div>
-
-                  <div class="order-field" v-if="previewData.extracted_data.order_info.currency">
-                    <label>Currency:</label>
-                    <span>{{ previewData.extracted_data.order_info.currency }}</span>
-                  </div>
-
-                  <div class="order-field" v-if="previewData.extracted_data.order_info.expected_delivery">
-                    <label>Expected Delivery:</label>
-                    <span>{{ previewData.extracted_data.order_info.expected_delivery }}</span>
-                  </div>
-
-                  <div class="order-field" v-if="previewData.extracted_data.order_info.payment_terms">
-                    <label>Payment Terms:</label>
-                    <span>{{ previewData.extracted_data.order_info.payment_terms }}</span>
-                  </div>
-
-                  <div class="order-field" v-if="previewData.extracted_data.order_info.delivery_terms">
-                    <label>Delivery Terms:</label>
-                    <span>{{ previewData.extracted_data.order_info.delivery_terms }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Vendor Information -->
-            <div v-if="previewData.extracted_data && previewData.extracted_data.vendor_info" class="preview-section">
-              <h4>
-                <i class="fas fa-building"></i>
-                Vendor Information
-              </h4>
-              <div class="vendor-info-card">
-                <div class="vendor-details">
-                  <div class="vendor-field" v-if="previewData.extracted_data.vendor_info.name">
-                    <label>
-                      <i class="fas fa-building"></i>
-                      Company Name
-                    </label>
-                    <span>{{ previewData.extracted_data.vendor_info.name }}</span>
-                  </div>
-
-                  <div class="vendor-field" v-if="previewData.extracted_data.vendor_info.address">
-                    <label>
-                      <i class="fas fa-map-marker-alt"></i>
-                      Address
-                    </label>
-                    <span>{{ previewData.extracted_data.vendor_info.address }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Processing Notes -->
-            <div v-if="previewData.extracted_data && (previewData.extracted_data.number_format_notes || previewData.extracted_data.table_structure_notes)" class="preview-section">
-              <h4>
-                <i class="fas fa-sticky-note"></i>
-                Processing Notes
-              </h4>
-              <div class="notes-list">
-                <div v-if="previewData.extracted_data.number_format_notes" class="note-item">
-                  <div class="note-type info">
-                    <i class="fas fa-info-circle"></i>
-                  </div>
-                  <div class="note-content">
-                    <p><strong>Number Format:</strong> {{ previewData.extracted_data.number_format_notes }}</p>
-                  </div>
-                </div>
-
-                <div v-if="previewData.extracted_data.table_structure_notes" class="note-item">
-                  <div class="note-type info">
-                    <i class="fas fa-table"></i>
-                  </div>
-                  <div class="note-content">
-                    <p><strong>Table Structure:</strong> {{ previewData.extracted_data.table_structure_notes }}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div v-else class="preview-loading">
-            <div class="loading-spinner">
-              <i class="fas fa-spinner fa-spin"></i>
-            </div>
-            <p>Generating preview...</p>
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button @click="closePreviewModal" class="btn btn-secondary">
-            Close Preview
-          </button>
-          <button @click="editPreviewData" class="btn btn-outline">
-            <i class="fas fa-edit"></i>
-            Edit Data
-          </button>
-          <button @click="proceedWithPreview" class="btn btn-primary">
-            <i class="fas fa-arrow-right"></i>
-            Proceed to Create Order
+            {{ isUploading ? getProcessingText() : 'Upload & Extract Data' }}
           </button>
         </div>
       </div>
@@ -763,7 +517,10 @@
     <div v-if="showDetailsModal" class="modal-overlay" @click="closeDetailsModal">
       <div class="modal-content modal-large" @click.stop>
         <div class="modal-header">
-          <h3>Capture Details</h3>
+          <h3>
+            <i class="fas fa-file-pdf"></i>
+            Capture Details & Preview
+          </h3>
           <button @click="closeDetailsModal" class="close-btn">
             <i class="fas fa-times"></i>
           </button>
@@ -771,6 +528,51 @@
 
         <div class="modal-body">
           <div v-if="selectedCapture" class="details-content">
+
+            <!-- PREVIEW SUMMARY (NEW SECTION) -->
+            <div class="details-section" v-if="selectedCapture.status === 'data_extracted'">
+              <h4>📋 Extraction Preview</h4>
+
+              <!-- Overall Status -->
+              <div class="preview-status">
+                <div v-if="canCreateSalesOrder(selectedCapture)" class="status-card success">
+                  <div class="status-icon">✅</div>
+                  <div class="status-content">
+                    <h5>Ready to Create Sales Order</h5>
+                    <p>All items found in database. No issues detected.</p>
+                  </div>
+                </div>
+
+                <div v-else class="status-card warning">
+                  <div class="status-icon">⚠️</div>
+                  <div class="status-content">
+                    <h5>Action Required</h5>
+                    <p>Some items are missing from database. Please review below.</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quick Stats -->
+              <div class="preview-stats">
+                <div class="stat-item">
+                  <span class="stat-label">Customer:</span>
+                  <span class="stat-value">{{ selectedCapture.extracted_customer?.name || 'Not detected' }}</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Total Items:</span>
+                  <span class="stat-value">{{ selectedCapture.extracted_items?.length || 0 }}</span>
+                </div>
+                <div class="stat-item" v-if="selectedCapture.item_validation">
+                  <span class="stat-label">Found in DB:</span>
+                  <span class="stat-value success">{{ selectedCapture.item_validation.existing_items?.length || 0 }}</span>
+                </div>
+                <div class="stat-item" v-if="selectedCapture.item_validation && selectedCapture.item_validation.missing_items?.length > 0">
+                  <span class="stat-label">Missing:</span>
+                  <span class="stat-value danger">{{ selectedCapture.item_validation.missing_items?.length || 0 }}</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Basic Info -->
             <div class="details-section">
               <h4>File Information</h4>
@@ -792,6 +594,124 @@
                 <div class="info-item">
                   <label>Confidence Score</label>
                   <span>{{ selectedCapture.confidence_score || 'N/A' }}%</span>
+                </div>
+                <div v-if="isPageBasedProcessing(selectedCapture)" class="info-item">
+                  <label>Processing Method</label>
+                  <span class="processing-method page-based">
+                    <i class="fas fa-file-alt"></i>
+                    Page-based Processing ({{ getTotalPages(selectedCapture) }} pages)
+                  </span>
+                </div>
+                <div v-else-if="isChunkedProcessing(selectedCapture)" class="info-item">
+                  <label>Processing Method</label>
+                  <span class="processing-method chunked">
+                    <i class="fas fa-layer-group"></i>
+                    Chunked Processing
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Item Validation Section -->
+            <div v-if="selectedCapture.item_validation" class="details-section">
+              <h4>Item Validation Results</h4>
+
+              <!-- Missing Items -->
+              <div v-if="selectedCapture.item_validation.missing_items && selectedCapture.item_validation.missing_items.length > 0"
+                   class="validation-section missing-items">
+                <h5 class="validation-title danger">
+                  <i class="fas fa-times-circle"></i>
+                  Missing Items ({{ selectedCapture.item_validation.missing_items.length }})
+                </h5>
+                <div class="missing-items-list">
+                  <div v-for="(item, index) in selectedCapture.item_validation.missing_items"
+                       :key="index"
+                       class="missing-item-card">
+                    <div class="item-header">
+                      <span class="item-code">{{ item.item_code || 'No Code' }}</span>
+                      <span class="item-name">{{ item.item_name || 'No Name' }}</span>
+                      <span v-if="item.source_page" class="page-info">
+                        <i class="fas fa-file-alt"></i>
+                        Page {{ item.source_page }}
+                      </span>
+                    </div>
+                    <div class="item-details">
+                      <span v-if="item.description">{{ item.description }}</span>
+                      <span v-if="item.quantity">Qty: {{ item.quantity }}</span>
+                      <span v-if="item.unit_price">Price: ${{ item.unit_price }}</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="validation-warning">
+                  <i class="fas fa-exclamation-triangle"></i>
+                  These items must be created in the system before a sales order can be generated.
+                </div>
+              </div>
+
+              <!-- Existing Items -->
+              <div v-if="selectedCapture.item_validation.existing_items && selectedCapture.item_validation.existing_items.length > 0"
+                   class="validation-section existing-items">
+                <h5 class="validation-title success">
+                  <i class="fas fa-check-circle"></i>
+                  Found Items ({{ selectedCapture.item_validation.existing_items.length }})
+                </h5>
+                <div class="existing-items-list">
+                  <div v-for="(item, index) in selectedCapture.item_validation.existing_items"
+                       :key="index"
+                       class="existing-item-card">
+                    <div class="item-header">
+                      <span class="item-code">{{ item.matched_item.item_code }}</span>
+                      <span class="item-name">{{ item.matched_item.name }}</span>
+                    </div>
+                    <div class="item-match-info">
+                      <span class="extracted-data">Extracted: {{ item.extracted_data.name }}</span>
+                      <span class="match-indicator">✓ Matched</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Fuzzy Matches -->
+              <div v-if="selectedCapture.item_validation.fuzzy_matches && selectedCapture.item_validation.fuzzy_matches.length > 0"
+                   class="validation-section fuzzy-matches">
+                <h5 class="validation-title warning">
+                  <i class="fas fa-question-circle"></i>
+                  Fuzzy Matches ({{ selectedCapture.item_validation.fuzzy_matches.length }})
+                </h5>
+                <div class="fuzzy-matches-list">
+                  <div v-for="(match, index) in selectedCapture.item_validation.fuzzy_matches"
+                       :key="index"
+                       class="fuzzy-match-card">
+                    <div class="match-header">
+                      <span class="extracted-name">{{ match.extracted_name }}</span>
+                      <span class="similarity-score">{{ Math.round(match.similarity_score) }}% match</span>
+                    </div>
+                    <div class="matched-item">
+                      <span class="matched-code">{{ match.matched_item.item_code }}</span>
+                      <span class="matched-name">{{ match.matched_item.name }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Processing Information -->
+            <div v-if="selectedCapture.extracted_data && selectedCapture.extracted_data.processing_notes" class="details-section">
+              <h4>Processing Information</h4>
+              <div class="processing-details-full">
+                <div class="processing-note">
+                  <strong>Method:</strong>
+                  {{ isPageBasedProcessing(selectedCapture) ? 'Page-based Processing' :
+                      isChunkedProcessing(selectedCapture) ? 'Chunked Processing' : 'Standard Processing' }}
+                </div>
+                <div class="processing-note">
+                  <strong>Details:</strong> {{ selectedCapture.extracted_data.processing_notes }}
+                </div>
+                <div v-if="selectedCapture.extracted_data.table_structure_notes" class="processing-note">
+                  <strong>Table Structure:</strong> {{ selectedCapture.extracted_data.table_structure_notes }}
+                </div>
+                <div v-if="selectedCapture.extracted_data.number_format_notes" class="processing-note">
+                  <strong>Number Format:</strong> {{ selectedCapture.extracted_data.number_format_notes }}
                 </div>
               </div>
             </div>
@@ -831,11 +751,22 @@
                     <div class="item-header">
                       <span class="item-name">{{ item.name }}</span>
                       <span class="item-qty">Qty: {{ item.quantity }}</span>
+                      <span v-if="item.source_page" class="page-info">
+                        <i class="fas fa-file-alt"></i>
+                        Page {{ item.source_page }}
+                      </span>
+                      <span v-else-if="item.source_chunk" class="chunk-info">
+                        <i class="fas fa-layer-group"></i>
+                        Chunk {{ item.source_chunk }}
+                      </span>
                     </div>
                     <div class="item-details">
                       <span v-if="item.unit_price">Price: ${{ item.unit_price }}</span>
                       <span v-if="item.uom">UOM: {{ item.uom }}</span>
                       <span v-if="item.description">{{ item.description }}</span>
+                    </div>
+                    <div v-if="item.validation_check" class="validation-info">
+                      <small>Validation: {{ item.validation_check }}</small>
                     </div>
                   </div>
                 </div>
@@ -854,9 +785,13 @@
         </div>
 
         <div class="modal-footer">
+          <!-- Always show Close button -->
           <button @click="closeDetailsModal" class="btn btn-secondary">
+            <i class="fas fa-times"></i>
             Close
           </button>
+
+          <!-- Download PDF button -->
           <button
             v-if="selectedCapture && selectedCapture.file_path"
             @click="downloadFile(selectedCapture.id)"
@@ -865,13 +800,69 @@
             <i class="fas fa-download"></i>
             Download PDF
           </button>
+
+          <!-- Create Sales Order button (PRIMARY ACTION) -->
+          <button
+            v-if="selectedCapture && selectedCapture.status === 'data_extracted' && !selectedCapture.created_so_id && canCreateSalesOrder(selectedCapture)"
+            @click="createSalesOrder(selectedCapture.id)"
+            class="btn btn-success btn-lg"
+            :disabled="createSoLoading[selectedCapture.id]"
+          >
+            <i class="fas fa-plus" :class="{ 'fa-spin': createSoLoading[selectedCapture.id] }"></i>
+            {{ createSoLoading[selectedCapture.id] ? 'Creating Sales Order...' : 'Create Sales Order' }}
+          </button>
+
+          <!-- Warning message if cannot create SO -->
+          <div
+            v-else-if="selectedCapture && selectedCapture.status === 'data_extracted' && !selectedCapture.created_so_id && !canCreateSalesOrder(selectedCapture)"
+            class="cannot-create-warning"
+          >
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>Sales Order cannot be created:
+              <strong v-if="selectedCapture.item_validation?.missing_items?.length > 0">
+                {{ selectedCapture.item_validation.missing_items.length }} items missing from database
+              </strong>
+              <strong v-else>Items validation required</strong>
+            </span>
+          </div>
+
+          <!-- Already has Sales Order -->
+          <div
+            v-else-if="selectedCapture && selectedCapture.created_so_id"
+            class="has-so-info"
+          >
+            <i class="fas fa-check-circle text-success"></i>
+            <span>Sales Order already created</span>
+            <router-link
+              v-if="selectedCapture.sales_order"
+              :to="`/sales/orders/${selectedCapture.sales_order.so_id}`"
+              class="btn btn-primary btn-sm"
+            >
+              <i class="fas fa-external-link-alt"></i>
+              View SO #{{ selectedCapture.sales_order.so_number }}
+            </router-link>
+          </div>
+
+          <!-- Retry button for failed captures -->
           <button
             v-if="selectedCapture && selectedCapture.status === 'failed'"
             @click="retryCapture(selectedCapture.id)"
             class="btn btn-warning"
+            :disabled="retryLoading[selectedCapture.id]"
           >
-            <i class="fas fa-redo"></i>
+            <i class="fas fa-redo" :class="{ 'fa-spin': retryLoading[selectedCapture.id] }"></i>
             Retry Processing
+          </button>
+
+          <!-- Reprocess with validation button -->
+          <button
+            v-if="selectedCapture && ['data_extracted', 'failed'].includes(selectedCapture.status)"
+            @click="reprocessWithValidation(selectedCapture.id)"
+            class="btn btn-info"
+            :disabled="retryLoading[selectedCapture.id]"
+          >
+            <i class="fas fa-file-alt" :class="{ 'fa-spin': retryLoading[selectedCapture.id] }"></i>
+            Reprocess with Validation
           </button>
         </div>
       </div>
@@ -892,6 +883,7 @@ export default {
       bulkLoading: false,
       retryLoading: {},
       deleteLoading: {},
+      createSoLoading: {},
 
       // Data
       captures: [],
@@ -920,14 +912,12 @@ export default {
       // Modals
       showUploadModal: false,
       showDetailsModal: false,
-      showPreviewModal: false,
       selectedCapture: null,
 
       // Upload
       selectedFile: null,
       isDragOver: false,
       uploadOptions: {
-        auto_create_missing_data: true,
         preferred_currency: 'USD',
         processing_options: {
           confidence_threshold: 80,
@@ -936,8 +926,9 @@ export default {
         }
       },
 
-      // Preview Data
-      previewData: null
+      // Chunking constants
+      CHUNKING_THRESHOLD: 5 * 1024 * 1024, // 5MB
+      LARGE_FILE_THRESHOLD: 2 * 1024 * 1024 // 2MB
     }
   },
 
@@ -1071,79 +1062,14 @@ export default {
       }
     },
 
-    // Preview Functions
-    async previewExtraction() {
-      if (!this.selectedFile) return
-
-      this.isUploading = true
-      this.previewData = null
-      this.showPreviewModal = true
-
-      try {
-        const formData = new FormData()
-        formData.append('pdf_file', this.selectedFile)
-
-        const response = await axios.post('/pdf-order-capture/preview', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        })
-
-        this.previewData = response.data.data
-        this.$toast?.success('Preview generated successfully')
-
-      } catch (error) {
-        console.error('Preview failed:', error)
-        this.$toast?.error(error.response?.data?.message || 'Preview failed')
-        this.closePreviewModal()
-      } finally {
-        this.isUploading = false
-      }
-    },
-
-    // Updated methods for calculating totals
-    getTotalQuantity() {
-      if (!this.previewData?.extracted_data?.items) return 0
-      return this.previewData.extracted_data.items.reduce((sum, item) => sum + (item.quantity || 0), 0)
-    },
-
-    getTotalAmount() {
-      if (!this.previewData?.extracted_data?.items) return 0
-      return this.previewData.extracted_data.items.reduce((sum, item) => {
-        // Prioritize total_value if available, otherwise calculate from unit_price * quantity
-        if (item.total_value) {
-          return sum + parseFloat(item.total_value)
-        } else if (item.unit_price && item.quantity) {
-          return sum + (parseFloat(item.unit_price) * parseFloat(item.quantity))
-        }
-        return sum
-      }, 0)
-    },
-
-    closePreviewModal() {
-      this.showPreviewModal = false
-      this.previewData = null
-    },
-
-    editPreviewData() {
-      // TODO: Implement edit functionality
-      this.$toast?.info('Edit functionality coming soon')
-    },
-
-    async proceedWithPreview() {
-      if (!this.previewData) return
-
-      // Close preview modal and proceed with upload
-      this.closePreviewModal()
-      await this.uploadAndProcess()
-    },
-
-    async uploadAndProcess() {
+    // FIXED: Upload and Extract (auto-open preview modal)
+    async uploadAndExtract() {
       if (!this.selectedFile) return
 
       this.isUploading = true
       try {
         const formData = new FormData()
         formData.append('pdf_file', this.selectedFile)
-        formData.append('auto_create_missing_data', this.uploadOptions.auto_create_missing_data ? '1' : '0')
         formData.append('preferred_currency', this.uploadOptions.preferred_currency)
         formData.append('processing_options', JSON.stringify(this.uploadOptions.processing_options))
 
@@ -1151,13 +1077,29 @@ export default {
           headers: { 'Content-Type': 'multipart/form-data' }
         })
 
-        this.$toast?.success('PDF uploaded and processing started')
+        this.$toast?.success('PDF uploaded and data extracted successfully')
         this.closeUploadModal()
         await this.loadData()
 
-        if (response.data.data.sales_order) {
-          this.$router.push(`/sales/orders/${response.data.data.sales_order.so_id}`)
+        // Get the extracted data directly from response (no need for additional API call)
+        const captureData = response.data.data.pdf_capture
+        const itemValidation = response.data.data.item_validation
+
+        // Show appropriate message based on validation results
+        if (itemValidation && itemValidation.missing_items && itemValidation.missing_items.length > 0) {
+          this.$toast?.warning(`${itemValidation.missing_items.length} items not found in database. Please review the details.`)
+        } else {
+          this.$toast?.info('All items found! You can now create a sales order.')
         }
+
+        // Set the capture data directly and show modal (no API call needed)
+        this.selectedCapture = {
+          ...captureData,
+          item_validation: itemValidation,
+          extracted_customer: captureData.extracted_data?.customer || null,
+          extracted_items: captureData.extracted_data?.items || []
+        }
+        this.showDetailsModal = true
 
       } catch (error) {
         console.error('Upload failed:', error)
@@ -1165,6 +1107,88 @@ export default {
       } finally {
         this.isUploading = false
       }
+    },
+
+    // FIXED: Create Sales Order (separate function)
+    async createSalesOrder(captureId) {
+      // Confirm action
+      const capture = this.captures.find(c => c.id === captureId) || this.selectedCapture
+      if (!capture) {
+        this.$toast?.error('Capture not found')
+        return
+      }
+
+      // Double-check if can create
+      if (!this.canCreateSalesOrder(capture)) {
+        let reason = 'Unknown reason'
+        if (capture.status !== 'data_extracted') {
+          reason = 'Data must be extracted first'
+        } else if (capture.created_so_id) {
+          reason = 'Sales order already exists'
+        } else if (capture.item_validation?.missing_items?.length > 0) {
+          reason = `${capture.item_validation.missing_items.length} items missing from database`
+        }
+
+        this.$toast?.error(`Cannot create sales order: ${reason}`)
+        return
+      }
+
+      const confirmed = confirm(`Create sales order from this PDF?\n\nCustomer: ${capture.extracted_customer?.name || 'Unknown'}\nItems: ${capture.extracted_items?.length || 0}`)
+      if (!confirmed) return
+
+      this.$set(this.createSoLoading, captureId, true)
+      try {
+        const response = await axios.post(`/pdf-order-capture/${captureId}/create-sales-order`)
+
+        this.$toast?.success('Sales order created successfully!')
+        await this.loadData()
+
+        // Navigate to sales order if created
+        if (response.data.data.sales_order) {
+          const soId = response.data.data.sales_order.so_id
+          this.$toast?.info(`Redirecting to Sales Order #${response.data.data.sales_order.so_number}...`)
+
+          // Close modal if open
+          if (this.showDetailsModal) {
+            this.closeDetailsModal()
+          }
+
+          // Redirect after short delay
+          setTimeout(() => {
+            this.$router.push(`/sales/orders/${soId}`)
+          }, 1500)
+        }
+
+      } catch (error) {
+        console.error('Create sales order failed:', error)
+        const errorMessage = error.response?.data?.message || 'Failed to create sales order'
+        this.$toast?.error(errorMessage)
+
+        // Show specific error details if available
+        if (error.response?.data?.data?.missing_items) {
+          const missingItems = error.response.data.data.missing_items
+          const itemNames = missingItems.map(i => i.item_code || i.item_name).slice(0, 3).join(', ')
+          const extraCount = missingItems.length > 3 ? ` and ${missingItems.length - 3} more` : ''
+          this.$toast?.warning(`Missing items: ${itemNames}${extraCount}`)
+        }
+      } finally {
+        this.$set(this.createSoLoading, captureId, false)
+      }
+    },
+
+    // FIXED: Check if sales order can be created
+    canCreateSalesOrder(capture) {
+      // Must be in data_extracted status
+      if (capture.status !== 'data_extracted') return false
+
+      // Must not already have a sales order created
+      if (capture.created_so_id || capture.sales_order) return false
+
+      // Check item validation - no missing items allowed
+      if (!capture.item_validation) return false
+
+      const missingItems = capture.item_validation.missing_items || []
+      return missingItems.length === 0
     },
 
     // Action Functions
@@ -1177,6 +1201,33 @@ export default {
       } catch (error) {
         console.error('Retry failed:', error)
         this.$toast?.error(error.response?.data?.message || 'Retry failed')
+      } finally {
+        this.$set(this.retryLoading, captureId, false)
+      }
+    },
+
+    async reprocessWithValidation(captureId) {
+      this.$set(this.retryLoading, captureId, true)
+      try {
+        const response = await axios.post(`/pdf-order-capture/${captureId}/reprocess-with-validation`)
+        this.$toast?.success('Reprocessing completed with enhanced validation')
+        await this.loadData()
+
+        // Show success info about page-based processing if used
+        if (response.data.data.page_chunking_used) {
+          this.$toast?.info('Large file was processed page-by-page for better accuracy')
+        }
+
+        // Close modal and show new details
+        if (this.showDetailsModal) {
+          this.closeDetailsModal()
+          setTimeout(() => {
+            this.viewDetails(response.data.data.pdf_capture)
+          }, 500)
+        }
+      } catch (error) {
+        console.error('Reprocess failed:', error)
+        this.$toast?.error(error.response?.data?.message || 'Reprocess failed')
       } finally {
         this.$set(this.retryLoading, captureId, false)
       }
@@ -1219,11 +1270,31 @@ export default {
       }
     },
 
+    // FIXED: View Details method
     async viewDetails(capture) {
       try {
-        const response = await axios.get(`/pdf-order-capture/${capture.id}`)
-        this.selectedCapture = response.data.data
+        // If capture is already a full object with data, use it directly
+        if (capture && capture.extracted_data && capture.item_validation) {
+          this.selectedCapture = {
+            ...capture,
+            extracted_customer: capture.extracted_data?.customer || null,
+            extracted_items: capture.extracted_data?.items || []
+          }
+          this.showDetailsModal = true
+          return
+        }
+
+        // Otherwise, fetch from API (for existing captures from table)
+        const captureId = capture.id || capture
+        const response = await axios.get(`/pdf-order-capture/${captureId}`)
+
+        this.selectedCapture = {
+          ...response.data.data,
+          extracted_customer: response.data.data.extracted_data?.customer || null,
+          extracted_items: response.data.data.extracted_data?.items || []
+        }
         this.showDetailsModal = true
+
       } catch (error) {
         console.error('Failed to load details:', error)
         this.$toast?.error('Failed to load capture details')
@@ -1289,6 +1360,90 @@ export default {
       this.selectedCapture = null
     },
 
+    // Chunking-related helper functions
+    isLargeFile(fileSize) {
+      return fileSize > this.LARGE_FILE_THRESHOLD
+    },
+
+    willUseChunking(fileSize) {
+      return fileSize > this.CHUNKING_THRESHOLD
+    },
+
+    isPageBasedProcessing(capture) {
+      if (!capture.extracted_data) return false
+
+      const processingNotes = capture.extracted_data.processing_notes || ''
+      const tableNotes = capture.extracted_data.table_structure_notes || ''
+
+      return processingNotes.includes('pages') ||
+             tableNotes.includes('pages') ||
+             (capture.extracted_data.items &&
+              capture.extracted_data.items.some(item => item.source_page))
+    },
+
+    isChunkedProcessing(capture) {
+      if (this.isPageBasedProcessing(capture)) return false // Page-based takes precedence
+
+      if (!capture.extracted_data) return false
+
+      const processingNotes = capture.extracted_data.processing_notes || ''
+      const tableNotes = capture.extracted_data.table_structure_notes || ''
+
+      return processingNotes.includes('chunks') ||
+             tableNotes.includes('chunks') ||
+             (capture.extracted_data.items &&
+              capture.extracted_data.items.some(item => item.source_chunk))
+    },
+
+    getTotalPages(capture) {
+      if (!capture.extracted_data || !capture.extracted_data.processing_notes) return '?'
+
+      const pageMatch = capture.extracted_data.processing_notes.match(/(\d+)\s+pages?/)
+      if (pageMatch) {
+        return pageMatch[1]
+      }
+
+      // Count unique source pages from items
+      if (capture.extracted_data.items) {
+        const pages = new Set()
+        capture.extracted_data.items.forEach(item => {
+          if (item.source_page) {
+            pages.add(item.source_page)
+          }
+        })
+        return pages.size > 0 ? pages.size : '?'
+      }
+
+      return '?'
+    },
+
+    getProcessingNotesSummary(notes) {
+      if (!notes) return ''
+
+      // Extract key information from processing notes
+      const pageMatch = notes.match(/(\d+)\s+pages?/)
+      if (pageMatch) {
+        return `${pageMatch[1]} pages`
+      }
+
+      const chunkMatch = notes.match(/(\d+)\s+chunks?/)
+      if (chunkMatch) {
+        return `${chunkMatch[1]} chunks`
+      }
+
+      return notes.length > 30 ? notes.substring(0, 27) + '...' : notes
+    },
+
+    getProcessingText() {
+      if (!this.selectedFile) return 'Processing...'
+
+      if (this.willUseChunking(this.selectedFile.size)) {
+        return 'Extracting from pages...'
+      }
+
+      return 'Extracting data...'
+    },
+
     // Helper Functions
     getStatusClass(status) {
       const statusClasses = {
@@ -1298,6 +1453,7 @@ export default {
         validating: 'status-info',
         creating_order: 'status-warning',
         completed: 'status-success',
+        so_created: 'status-success',
         failed: 'status-danger',
         cancelled: 'status-secondary'
       }
@@ -1312,6 +1468,7 @@ export default {
         validating: 'Validating',
         creating_order: 'Creating Order',
         completed: 'Completed',
+        so_created: 'Completed',
         failed: 'Failed',
         cancelled: 'Cancelled'
       }
@@ -1322,24 +1479,6 @@ export default {
       if (score >= 80) return 'confidence-high'
       if (score >= 60) return 'confidence-medium'
       return 'confidence-low'
-    },
-
-    getConfidenceDescription(score) {
-      if (score >= 90) return 'Excellent accuracy - Data is highly reliable'
-      if (score >= 80) return 'Good accuracy - Data is reliable with minor verification needed'
-      if (score >= 70) return 'Moderate accuracy - Please review extracted data carefully'
-      if (score >= 60) return 'Fair accuracy - Manual verification strongly recommended'
-      return 'Low accuracy - Extracted data requires thorough review'
-    },
-
-    getNoteIcon(type) {
-      const icons = {
-        warning: 'fas fa-exclamation-triangle',
-        error: 'fas fa-times-circle',
-        info: 'fas fa-info-circle',
-        success: 'fas fa-check-circle'
-      }
-      return icons[type] || 'fas fa-info-circle'
     },
 
     formatDate(dateString) {
@@ -1374,59 +1513,15 @@ export default {
 </script>
 
 <style scoped>
-/* CSS Variables untuk konsistensi */
-:root {
-  --primary-color: #2563eb;
-  --primary-hover: #1d4ed8;
-  --success-color: #10b981;
-  --warning-color: #f59e0b;
-  --danger-color: #ef4444;
-  --info-color: #3b82f6;
-
-  --text-primary: #1f2937;
-  --text-secondary: #6b7280;
-  --text-muted: #9ca3af;
-
-  --bg-primary: #ffffff;
-  --bg-secondary: #f9fafb;
-  --bg-light: #f3f4f6;
-
-  --card-bg: #ffffff;
-  --border-color: #e5e7eb;
-  --border-light: #f3f4f6;
-
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-}
-
-/* Reset dan Base Styles */
-* {
-  box-sizing: border-box;
-}
-
 .pdf-order-capture {
   padding: 2rem;
   max-width: 1400px;
   margin: 0 auto;
-  background: var(--bg-secondary);
-  min-height: 100vh;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-/* Header Section */
+/* Header */
 .page-header {
   margin-bottom: 2rem;
-  background: var(--card-bg);
-  border-radius: var(--radius-lg);
-  padding: 2rem;
-  border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-sm);
 }
 
 .header-content {
@@ -1441,39 +1536,35 @@ export default {
 }
 
 .page-title {
-  font-size: 2.25rem;
+  font-size: 2rem;
   font-weight: 700;
   color: var(--text-primary);
-  margin: 0 0 0.75rem 0;
+  margin: 0 0 0.5rem 0;
   display: flex;
   align-items: center;
   gap: 1rem;
-  line-height: 1.2;
 }
 
 .page-title i {
-  color: var(--danger-color);
-  font-size: 2rem;
+  color: #dc3545;
 }
 
 .page-subtitle {
-  color: var(--text-secondary);
-  font-size: 1.125rem;
+  color: var(--text-muted);
+  font-size: 1.1rem;
   margin: 0;
-  line-height: 1.5;
 }
 
 .header-actions {
   display: flex;
   gap: 1rem;
   flex-shrink: 0;
-  align-items: center;
 }
 
-/* Statistics Cards */
+/* Statistics */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1.5rem;
   margin-bottom: 2rem;
 }
@@ -1481,79 +1572,70 @@ export default {
 .stat-card {
   background: var(--card-bg);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  padding: 1.75rem;
+  border-radius: 12px;
+  padding: 1.5rem;
   display: flex;
   align-items: center;
-  gap: 1.25rem;
-  transition: all 0.2s ease;
-  box-shadow: var(--shadow-sm);
+  gap: 1rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
 }
 
 .stat-icon {
-  width: 64px;
-  height: 64px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
   color: white;
-  flex-shrink: 0;
 }
 
-.stat-icon.success { background: var(--success-color); }
-.stat-icon.warning { background: var(--warning-color); }
-.stat-icon.danger { background: var(--danger-color); }
-.stat-icon.info { background: var(--info-color); }
-
-.stat-content {
-  flex: 1;
-}
+.stat-icon.success { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+.stat-icon.warning { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+.stat-icon.danger { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+.stat-icon.info { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
 
 .stat-content h3 {
-  font-size: 2.25rem;
+  font-size: 2rem;
   font-weight: 700;
   color: var(--text-primary);
   margin: 0 0 0.25rem 0;
-  line-height: 1;
 }
 
 .stat-content p {
   color: var(--text-secondary);
   margin: 0 0 0.5rem 0;
   font-weight: 500;
-  font-size: 1rem;
 }
 
 .stat-change {
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   font-weight: 500;
 }
 
-.stat-change.success { color: var(--success-color); }
-.stat-change.danger { color: var(--danger-color); }
+.stat-change.success { color: #10b981; }
+.stat-change.danger { color: #ef4444; }
 .stat-change.neutral { color: var(--text-muted); }
-.stat-change.info { color: var(--info-color); }
+.stat-change.info { color: #3b82f6; }
 
-/* Filters Section */
+/* Filters */
 .filters-section {
   background: var(--card-bg);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  padding: 1.75rem;
+  border-radius: 12px;
+  padding: 1.5rem;
   margin-bottom: 2rem;
-  box-shadow: var(--shadow-sm);
 }
 
 .search-filters {
   display: flex;
-  gap: 1.5rem;
+  gap: 1rem;
   align-items: end;
   flex-wrap: wrap;
 }
@@ -1562,326 +1644,257 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  min-width: 160px;
+  min-width: 150px;
 }
 
 .filter-group label {
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-secondary);
-  font-size: 0.875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-size: 0.9rem;
 }
 
 .filter-group select {
-  padding: 0.75rem 1rem;
+  padding: 0.75rem;
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  background: #ffffff;
+  border-radius: 8px;
+  background: white;
   color: var(--text-primary);
-  font-size: 0.875rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
+  font-size: 0.9rem;
 }
 
-.filter-group select:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-}
-
-/* Table Container */
+/* Table */
 .table-container {
   background: var(--card-bg);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: var(--shadow-sm);
 }
 
 .table-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.75rem;
+  padding: 1.5rem;
   border-bottom: 1px solid var(--border-color);
-  background: #f1f5f9;
+  background: var(--bg-secondary);
 }
 
 .table-header h3 {
   margin: 0;
   color: var(--text-primary);
-  font-size: 1.25rem;
-  font-weight: 700;
 }
 
 .table-actions {
   display: flex;
   gap: 1rem;
-  align-items: center;
 }
 
-/* Table Wrapper */
-.table-wrapper {
+.custom-table {
   overflow-x: auto;
-  background: #ffffff;
 }
 
-.data-table {
+.custom-table table {
   width: 100%;
   border-collapse: collapse;
-  background: #ffffff;
 }
 
-.data-table th {
+.custom-table th {
   text-align: left;
-  padding: 1.25rem 1rem;
-  background: #f1f5f9;
+  padding: 1rem;
+  background: var(--bg-secondary);
   border-bottom: 2px solid var(--border-color);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-secondary);
-  font-size: 0.875rem;
+  font-size: 0.9rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  white-space: nowrap;
 }
 
-.data-table td {
-  padding: 1.25rem 1rem;
-  border-bottom: 1px solid var(--border-light);
+.custom-table td {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
   vertical-align: middle;
-  background: #ffffff;
-}
-
-.table-row {
-  transition: background-color 0.2s ease;
 }
 
 .table-row:hover {
-  background: #f8fafc;
+  background: var(--bg-secondary);
 }
 
-.table-row:hover td {
-  background: #f8fafc;
-}
-
-/* Table Cell Specific Styles */
 .checkbox-col {
-  width: 50px;
+  width: 40px;
   text-align: center;
 }
 
+/* Table Cell Styles */
 .file-info {
-  min-width: 220px;
+  min-width: 200px;
 }
 
 .file-details {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
+  gap: 0.25rem;
 }
 
 .file-name {
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-primary);
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 0.875rem;
-}
-
-.file-meta {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  font-weight: 500;
-}
-
-/* Status Badges */
-.status-badge {
-  padding: 0.5rem 0.875rem;
-  border-radius: var(--radius-md);
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  white-space: nowrap;
-  border: 1px solid transparent;
-  display: inline-flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.status-success {
-  background: #dcfce7;
-  color: #15803d;
-  border-color: #bbf7d0;
-}
-
-.status-warning {
-  background: #fef3c7;
-  color: #a16207;
-  border-color: #fde68a;
-}
-
-.status-danger {
-  background: #fee2e2;
-  color: #dc2626;
-  border-color: #fecaca;
-}
-
-.status-info {
-  background: #dbeafe;
-  color: #1d4ed8;
-  border-color: #bfdbfe;
-}
-
-.status-secondary {
-  background: var(--bg-light);
+.file-meta {
+  font-size: 0.8rem;
   color: var(--text-muted);
-  border-color: var(--border-color);
 }
 
-/* Customer and Items Info */
+.status-badge {
+  padding: 0.375rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.status-success { background: #d1fae5; color: #065f46; }
+.status-warning { background: #fef3c7; color: #92400e; }
+.status-danger { background: #fee2e2; color: #991b1b; }
+.status-info { background: #dbeafe; color: #1e40af; }
+.status-secondary { background: var(--bg-secondary); color: var(--text-muted); }
+
 .customer-info, .items-info {
-  min-width: 180px;
+  min-width: 150px;
 }
 
 .customer-name, .items-count {
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-primary);
-  font-size: 0.875rem;
 }
 
 .customer-meta, .items-preview {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
-  margin-top: 0.25rem;
 }
 
-/* Confidence Display */
+/* Item Validation Styles */
+.item-validation {
+  min-width: 120px;
+}
+
+.validation-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.validation-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.validation-item.success { color: #059669; }
+.validation-item.danger { color: #dc2626; }
+.validation-item.warning { color: #d97706; }
+
 .confidence-display {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  min-width: 120px;
+  gap: 0.5rem;
+  min-width: 100px;
 }
 
 .confidence-bar {
   flex: 1;
-  height: 10px;
-  background: #f1f5f9;
-  border-radius: var(--radius-sm);
+  height: 8px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
   overflow: hidden;
-  border: 1px solid var(--border-color);
 }
 
 .confidence-fill {
   height: 100%;
-  border-radius: var(--radius-sm);
+  border-radius: 4px;
   transition: width 0.3s ease;
 }
 
-.confidence-high { background: var(--success-color); }
-.confidence-medium { background: var(--warning-color); }
-.confidence-low { background: var(--danger-color); }
+.confidence-high { background: #10b981; }
+.confidence-medium { background: #f59e0b; }
+.confidence-low { background: #ef4444; }
 
 .confidence-text {
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: 0.8rem;
+  font-weight: 500;
   color: var(--text-primary);
-  min-width: 35px;
 }
 
-/* Order Links */
 .order-link {
   color: var(--primary-color);
   text-decoration: none;
-  font-weight: 600;
-  font-size: 0.875rem;
-  transition: color 0.2s ease;
+  font-weight: 500;
 }
 
 .order-link:hover {
-  color: var(--primary-hover);
   text-decoration: underline;
 }
 
 .order-amount {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
-  margin-top: 0.25rem;
-  font-weight: 500;
 }
 
-/* Date Display */
 .date-display {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  min-width: 120px;
 }
 
 .date-main {
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-primary);
-  font-size: 0.875rem;
 }
 
 .date-time {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
 }
 
-/* Action Buttons */
 .action-buttons {
   display: flex;
   gap: 0.5rem;
-  align-items: center;
 }
 
 .btn-icon {
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: 1px solid var(--border-color);
-  background: #ffffff;
+  background: white;
   color: var(--text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-size: 0.875rem;
+  font-size: 0.9rem;
 }
 
 .btn-icon:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.btn-icon:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none;
-}
+.btn-icon.btn-success { border-color: #10b981; color: #10b981; }
+.btn-icon.btn-warning { border-color: #f59e0b; color: #f59e0b; }
+.btn-icon.btn-secondary { border-color: var(--gray-400); color: var(--gray-600); }
+.btn-icon.btn-danger { border-color: #ef4444; color: #ef4444; }
 
-.btn-icon.btn-warning {
-  border-color: var(--warning-color);
-  color: var(--warning-color);
-}
-
-.btn-icon.btn-secondary {
-  border-color: var(--border-color);
-  color: var(--text-secondary);
-}
-
-.btn-icon.btn-danger {
-  border-color: var(--danger-color);
-  color: var(--danger-color);
-}
-
+.btn-icon.btn-success:hover { background: #d1fae5; }
 .btn-icon.btn-warning:hover { background: #fef3c7; }
-.btn-icon.btn-secondary:hover { background: #f1f5f9; }
+.btn-icon.btn-secondary:hover { background: var(--gray-100); }
 .btn-icon.btn-danger:hover { background: #fee2e2; }
 
 /* Loading and Empty States */
@@ -1892,27 +1905,22 @@ export default {
   justify-content: center;
   padding: 4rem 2rem;
   text-align: center;
-  background: #ffffff;
 }
 
 .loading-spinner, .empty-icon {
-  font-size: 3.5rem;
+  font-size: 3rem;
   color: var(--text-muted);
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .empty-state h3 {
-  margin: 0 0 0.75rem 0;
+  margin: 0 0 0.5rem 0;
   color: var(--text-primary);
-  font-size: 1.5rem;
-  font-weight: 700;
 }
 
 .empty-state p {
   color: var(--text-muted);
-  margin-bottom: 2rem;
-  font-size: 1rem;
-  line-height: 1.5;
+  margin-bottom: 1.5rem;
 }
 
 /* Pagination */
@@ -1920,15 +1928,13 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.75rem;
+  padding: 1.5rem;
   border-top: 1px solid var(--border-color);
-  background: #f8fafc;
 }
 
 .pagination-info {
   color: var(--text-muted);
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: 0.9rem;
 }
 
 .pagination-controls {
@@ -1940,110 +1946,120 @@ export default {
 .page-numbers {
   display: flex;
   gap: 0.25rem;
-  margin: 0 1rem;
 }
 
-/* Button Styles */
+/* Buttons */
 .btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.875rem 1.5rem;
-  border-radius: var(--radius-md);
-  border: 1px solid transparent;
-  font-weight: 600;
-  font-size: 0.875rem;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  border: none;
+  font-weight: 500;
+  font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.2s ease;
   text-decoration: none;
-  line-height: 1;
-  white-space: nowrap;
 }
 
 .btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-  transform: none !important;
 }
 
 .btn-primary {
-  background: var(--primary-color);
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: white;
-  border-color: var(--primary-color);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--primary-hover);
-  border-color: var(--primary-hover);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
 }
 
 .btn-secondary {
-  background: #ffffff;
+  background: var(--card-bg);
   color: var(--text-secondary);
-  border-color: var(--border-color);
+  border: 1px solid var(--border-color);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: #f1f5f9;
-  border-color: var(--text-secondary);
-  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border-color: var(--gray-400);
 }
 
 .btn-outline {
-  background: #ffffff;
+  background: transparent;
   color: var(--text-secondary);
-  border-color: var(--border-color);
+  border: 1px solid var(--border-color);
 }
 
 .btn-outline:hover:not(:disabled) {
-  background: #f1f5f9;
+  background: var(--bg-secondary);
   border-color: var(--primary-color);
   color: var(--primary-color);
 }
 
-.btn-warning {
-  background: var(--warning-color);
+.btn-success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   color: white;
-  border-color: var(--warning-color);
+}
+
+.btn-success:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+}
+
+.btn-warning {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
 }
 
 .btn-warning:hover:not(:disabled) {
-  background: #d97706;
-  border-color: #d97706;
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(245, 158, 11, 0.3);
 }
 
 .btn-danger {
-  background: var(--danger-color);
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   color: white;
-  border-color: var(--danger-color);
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #dc2626;
-  border-color: #dc2626;
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(239, 68, 68, 0.3);
+}
+
+.btn-info {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+}
+
+.btn-info:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
 }
 
 .btn-sm {
-  padding: 0.625rem 1rem;
-  font-size: 0.75rem;
-  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.8rem;
 }
 
-/* Modal Styles */
+.btn-lg {
+  padding: 0.875rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* Modals */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: #000000;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2052,17 +2068,15 @@ export default {
 }
 
 .modal-content {
-  background: #ffffff;
-  border-radius: var(--radius-xl);
+  background: var(--card-bg);
+  border-radius: 12px;
   width: 100%;
-  max-width: 650px;
+  max-width: 600px;
   max-height: 90vh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
-  border: 1px solid var(--border-color);
-  position: relative;
+  background: #ffffff
 }
 
 .modal-large {
@@ -2073,97 +2087,88 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 2rem;
+  padding: 1.5rem;
   border-bottom: 1px solid var(--border-color);
-  background: #f8fafc;
 }
 
 .modal-header h3 {
   margin: 0;
   color: var(--text-primary);
-  font-size: 1.5rem;
-  font-weight: 700;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 .close-btn {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  border: 1px solid var(--border-color);
-  background: #ffffff;
+  border: none;
+  background: var(--bg-secondary);
   color: var(--text-muted);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
-  font-size: 1.125rem;
 }
 
 .close-btn:hover {
-  background: #f1f5f9;
+  background: var(--border-color);
   color: var(--text-primary);
-  border-color: var(--text-secondary);
 }
 
 .modal-body {
   flex: 1;
-  padding: 2rem;
+  padding: 1.5rem;
   overflow-y: auto;
-  background: #ffffff;
 }
 
 .modal-footer {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 1rem;
-  padding: 2rem;
+  padding: 1.5rem;
   border-top: 1px solid var(--border-color);
-  background: #f8fafc;
+  flex-wrap: wrap;
 }
 
 /* Upload Area */
 .upload-area {
   border: 2px dashed var(--border-color);
-  border-radius: var(--radius-lg);
+  border-radius: 12px;
   padding: 3rem 2rem;
   text-align: center;
   transition: all 0.2s ease;
   margin-bottom: 2rem;
-  background: #f8fafc;
 }
 
 .upload-area.dragover {
   border-color: var(--primary-color);
-  background: #eff6ff;
+  background: rgba(59, 130, 246, 0.05);
 }
 
 .upload-placeholder {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.25rem;
+  gap: 1rem;
 }
 
 .upload-icon {
-  font-size: 3.5rem;
+  font-size: 3rem;
   color: var(--text-muted);
 }
 
 .upload-placeholder h4 {
   margin: 0;
   color: var(--text-primary);
-  font-size: 1.25rem;
-  font-weight: 700;
 }
 
 .upload-placeholder p {
   margin: 0;
   color: var(--text-muted);
-  font-size: 1rem;
 }
 
 .link-btn {
@@ -2172,17 +2177,10 @@ export default {
   color: var(--primary-color);
   cursor: pointer;
   text-decoration: underline;
-  font-weight: 600;
-  font-size: inherit;
 }
 
 .upload-info {
   margin-top: 1rem;
-}
-
-.upload-info small {
-  color: var(--text-muted);
-  font-size: 0.875rem;
 }
 
 .file-selected {
@@ -2193,540 +2191,189 @@ export default {
 .file-preview {
   display: flex;
   align-items: center;
-  gap: 1.25rem;
-  padding: 1.25rem 1.75rem;
-  background: #ffffff;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-color);
-  max-width: 450px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  max-width: 400px;
 }
 
 .file-preview i {
-  font-size: 2.25rem;
+  font-size: 2rem;
 }
 
 .remove-btn {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  border: 1px solid var(--border-color);
-  background: #f1f5f9;
+  border: none;
+  background: var(--border-color);
   color: var(--text-muted);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
 }
 
 .remove-btn:hover {
-  background: var(--danger-color);
+  background: #ef4444;
   color: white;
-  border-color: var(--danger-color);
 }
 
 /* Processing Options */
 .processing-options {
   border-top: 1px solid var(--border-color);
-  padding-top: 2rem;
+  padding-top: 1.5rem;
 }
 
 .processing-options h4 {
-  margin: 0 0 1.5rem 0;
+  margin: 0 0 1rem 0;
   color: var(--text-primary);
-  font-size: 1.125rem;
-  font-weight: 700;
-}
-
-.option-group {
-  margin-bottom: 1.5rem;
 }
 
 .option-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
+  gap: 1rem;
+  margin-bottom: 1rem;
 }
 
 .option-field {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 .option-field label {
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-secondary);
-  font-size: 0.875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-size: 0.9rem;
 }
 
 .option-field select {
-  padding: 0.875rem 1rem;
+  padding: 0.75rem;
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  background: #ffffff;
+  border-radius: 8px;
+  background: white;
   color: var(--text-primary);
-  font-weight: 500;
-  transition: all 0.2s ease;
 }
 
-.option-field select:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+/* NEW: Preview Section Styles */
+.preview-status {
+  margin-bottom: 1.5rem;
 }
 
-.checkbox-label {
+.status-card {
   display: flex;
   align-items: center;
   gap: 1rem;
-  cursor: pointer;
-  color: var(--text-primary);
-  font-weight: 500;
-  padding: 0.5rem 0;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid;
 }
 
-.checkbox-label input[type="checkbox"] {
-  width: 20px;
-  height: 20px;
-  accent-color: var(--primary-color);
+.status-card.success {
+  background: #ecfdf5; /* Solid green background instead of transparent */
+  border-color: #10b981;
+  color: #065f46;
 }
 
-/* Preview Modal Styles */
-.preview-content {
-  display: flex;
-  flex-direction: column;
-  gap: 2.5rem;
+.status-card.warning {
+  background: #fffbeb; /* Solid yellow background instead of transparent */
+  border-color: #f59e0b;
+  color: #92400e;
 }
 
-.preview-section {
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 2rem;
+.status-icon {
+  font-size: 2rem;
 }
 
-.preview-section:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
+.status-content h5 {
+  margin: 0 0 0.25rem 0;
+  font-weight: 600;
 }
 
-.preview-section h4 {
-  margin: 0 0 1.5rem 0;
-  color: var(--text-primary);
-  font-size: 1.25rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-/* Confidence Header */
-.confidence-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 2rem;
-}
-
-.confidence-info {
-  flex: 1;
-}
-
-.confidence-display-large {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin: 1rem 0;
-}
-
-.confidence-bar-large {
-  flex: 1;
-  height: 16px;
-  background: #f1f5f9;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  border: 1px solid var(--border-color);
-  max-width: 300px;
-}
-
-.confidence-text-large {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  min-width: 60px;
-}
-
-.confidence-description {
-  color: var(--text-secondary);
+.status-content p {
   margin: 0;
-  font-size: 0.875rem;
-  line-height: 1.5;
+  font-size: 0.9rem;
 }
 
-.extraction-status {
-  flex-shrink: 0;
+.preview-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: 8px;
 }
 
-/* Customer Preview Card */
-.customer-preview-card {
-  background: #f8fafc;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  padding: 1.75rem;
-}
-
-.customer-header {
+.stat-item {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1.5rem;
-}
-
-.customer-name-section h5 {
-  margin: 0 0 0.5rem 0;
-  color: var(--text-primary);
-  font-size: 1.25rem;
-  font-weight: 700;
-}
-
-.field-confidence {
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.customer-details {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.25rem;
-}
-
-.customer-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.customer-field label {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  display: flex;
   align-items: center;
-  gap: 0.5rem;
-}
-
-.customer-field span {
-  color: var(--text-primary);
-  font-weight: 600;
-  font-size: 0.875rem;
-}
-
-/* Items Summary */
-.items-summary {
-  background: #f8fafc;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  padding: 1.25rem;
-  margin-bottom: 1.5rem;
-}
-
-.summary-stats {
-  display: flex;
-  gap: 2rem;
-  flex-wrap: wrap;
-}
-
-.summary-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
 }
 
 .stat-label {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.stat-value {
-  font-size: 1.125rem;
-  color: var(--text-primary);
-  font-weight: 700;
-}
-
-/* Item Preview Cards */
-.items-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.item-preview-card {
-  background: #f8fafc;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  padding: 1.5rem;
-  transition: all 0.2s ease;
-}
-
-.item-preview-card:hover {
-  background: #ffffff;
-  box-shadow: var(--shadow-md);
-}
-
-.item-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1rem;
-}
-
-.item-name-section h6 {
-  margin: 0 0 0.5rem 0;
-  color: var(--text-primary);
-  font-size: 1rem;
-  font-weight: 700;
-}
-
-.amount-value {
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: var(--success-color);
-}
-
-.item-details {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.item-detail-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.item-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.item-field label {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.item-field span {
-  color: var(--text-primary);
-  font-weight: 600;
-  font-size: 0.875rem;
-}
-
-.item-description {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.item-description p {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: 0.875rem;
-  line-height: 1.5;
-}
-
-/* Item Code Styling */
-.item-code {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  margin-top: 0.25rem;
-}
-
-.code-label {
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-secondary);
 }
 
-/* Vendor Info Card */
-.vendor-info-card {
-  background: #f8fafc;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  padding: 1.75rem;
-}
-
-.vendor-details {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.25rem;
-}
-
-.vendor-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.vendor-field label {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.vendor-field span {
-  color: var(--text-primary);
+.stat-value {
   font-weight: 600;
-  font-size: 0.875rem;
-}
-
-/* Item Validation Styling */
-.item-validation {
-  margin-top: 1rem;
-  padding: 0.75rem;
-  background: #f0f9ff;
-  border: 1px solid #bae6fd;
-  border-radius: var(--radius-md);
-}
-
-.validation-text {
-  margin: 0;
-  color: #0369a1;
-  font-size: 0.875rem;
-  font-family: 'Monaco', 'Menlo', monospace;
-  font-weight: 500;
-}
-
-/* Order Info Card */
-.order-info-card {
-  background: #f8fafc;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  padding: 1.75rem;
-}
-
-.order-info-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.25rem;
-}
-
-.order-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.order-field label {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.order-field span {
   color: var(--text-primary);
-  font-weight: 600;
-  font-size: 0.875rem;
 }
 
-/* Notes List */
-.notes-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+.stat-value.success {
+  color: #059669;
 }
 
-.note-item {
-  display: flex;
-  gap: 1rem;
-  align-items: flex-start;
-  padding: 1rem;
-  background: #f8fafc;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-color);
-}
-
-.note-type {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  font-size: 0.875rem;
-}
-
-.note-type.info {
-  background: #dbeafe;
-  color: #1d4ed8;
-}
-
-.note-type.warning {
-  background: #fef3c7;
-  color: #a16207;
-}
-
-.note-type.error {
-  background: #fee2e2;
+.stat-value.danger {
   color: #dc2626;
 }
 
-.note-type.success {
-  background: #dcfce7;
-  color: #15803d;
-}
-
-.note-content p {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: 0.875rem;
-  line-height: 1.5;
-}
-
-.note-content strong {
-  color: var(--text-primary);
-  font-weight: 700;
-}
-
-/* Preview Loading */
-.preview-loading {
+/* Also update the cannot-create-warning and has-so-info styles for consistency */
+.cannot-create-warning {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 4rem 2rem;
-  text-align: center;
+  gap: 0.5rem;
+  background: #fffbeb; /* Solid yellow background */
+  color: #92400e;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  border: 1px solid #f59e0b;
+  font-size: 0.9rem;
+  flex: 1;
+  min-width: 300px;
 }
 
-/* Details Modal Content */
+.has-so-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: #ecfdf5; /* Solid green background */
+  color: #065f46;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  border: 1px solid #10b981;
+  font-size: 0.9rem;
+  flex: 1;
+  min-width: 300px;
+}
+
+.text-success {
+  color: #059669;
+}
+
+/* Details Modal */
 .details-content {
   display: flex;
   flex-direction: column;
-  gap: 2.5rem;
+  gap: 2rem;
 }
 
 .details-section {
   border-bottom: 1px solid var(--border-color);
-  padding-bottom: 2rem;
+  padding-bottom: 1.5rem;
 }
 
 .details-section:last-child {
@@ -2735,114 +2382,322 @@ export default {
 }
 
 .details-section h4 {
-  margin: 0 0 1.5rem 0;
+  margin: 0 0 1rem 0;
   color: var(--text-primary);
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: 1.1rem;
 }
 
 .details-section h5 {
-  margin: 0 0 1.25rem 0;
+  margin: 0 0 1rem 0;
   color: var(--text-secondary);
   font-size: 1rem;
-  font-weight: 600;
 }
 
 .info-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
 }
 
 .info-item {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.25rem;
 }
 
 .info-item label {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
-  font-weight: 700;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .info-item span {
   color: var(--text-primary);
-  font-weight: 600;
-  font-size: 0.875rem;
+  font-weight: 500;
 }
 
-.extracted-section {
-  margin-bottom: 2rem;
-}
-
-.item-card {
-  background: #f8fafc;
+/* Validation Section Styles */
+.validation-section {
+  margin-bottom: 1.5rem;
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  padding: 1.5rem;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.validation-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.validation-title.success {
+  background: #d1fae5;
+  color: #065f46;
+  border-bottom: 1px solid #10b981;
+}
+
+.validation-title.danger {
+  background: #fee2e2;
+  color: #991b1b;
+  border-bottom: 1px solid #ef4444;
+}
+
+.validation-title.warning {
+  background: #fef3c7;
+  color: #92400e;
+  border-bottom: 1px solid #f59e0b;
+}
+
+.missing-items-list, .existing-items-list, .fuzzy-matches-list {
+  padding: 1rem;
+}
+
+.missing-item-card, .existing-item-card, .fuzzy-match-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.missing-item-card:last-child, .existing-item-card:last-child, .fuzzy-match-card:last-child {
+  margin-bottom: 0;
+}
+
+.item-header, .match-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.item-code {
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--card-bg);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
 }
 
 .item-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.page-info, .chunk-info {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  background: var(--card-bg);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.item-details {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.item-match-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+}
+
+.extracted-data {
+  color: var(--text-muted);
+}
+
+.match-indicator {
+  color: #059669;
+  font-weight: 500;
+}
+
+.similarity-score {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.matched-item {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.matched-code {
   font-weight: 600;
   color: var(--text-primary);
-  font-size: 1rem;
+}
+
+.matched-name {
+  color: var(--text-primary);
+}
+
+.validation-warning {
+  background: #fffbeb; /* Solid yellow background */
+  border: 1px solid #f59e0b;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #92400e;
+  font-weight: 500;
+}
+
+.extracted-section {
+  margin-bottom: 1.5rem;
+}
+
+.items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.item-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1rem;
 }
 
 .item-qty {
-  font-size: 0.875rem;
+  font-size: 0.9rem;
   color: var(--text-muted);
-  background: #ffffff;
-  padding: 0.375rem 0.75rem;
-  border-radius: var(--radius-md);
-  font-weight: 600;
-  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.validation-info {
+  margin-top: 0.5rem;
 }
 
 .error-message {
   display: flex;
   align-items: flex-start;
-  gap: 1rem;
-  padding: 1.5rem;
+  gap: 0.75rem;
+  padding: 1rem;
   background: #fee2e2;
   border: 1px solid #fecaca;
-  border-radius: var(--radius-lg);
+  border-radius: 8px;
   color: #991b1b;
-  font-weight: 500;
 }
 
-.error-message i {
-  font-size: 1.25rem;
-  flex-shrink: 0;
-  margin-top: 0.125rem;
-}
-
-/* Utility Classes */
 .text-muted {
   color: var(--text-muted);
 }
 
 .text-danger {
-  color: var(--danger-color);
+  color: #ef4444;
 }
 
-.text-primary {
-  color: var(--primary-color);
+/* Processing Methods */
+.processing-method {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 500;
 }
 
-/* Responsive Design */
-@media (max-width: 1200px) {
-  .pdf-order-capture {
-    padding: 1.5rem;
-  }
+.processing-method.page-based { color: #3b82f6; }
+.processing-method.chunked { color: #f59e0b; }
+.processing-method.single { color: var(--text-muted); }
 
-  .stats-grid {
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  }
+.processing-notes {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
 }
 
+.processing-details-full {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.processing-note {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.chunking-options {
+  background: #f0f9ff;
+  border: 1px solid #3b82f6;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.chunking-options h5 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem 0;
+  color: #1e40af;
+}
+
+.chunking-info p {
+  margin: 0;
+  color: #1e40af;
+  font-size: 0.9rem;
+}
+
+.processing-estimate {
+  background: #f0f9ff;
+  border: 1px solid #3b82f6;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.estimate-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #1e40af;
+  font-size: 0.9rem;
+}
+
+.chunking-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.7rem;
+  color: #3b82f6;
+  margin-left: 0.5rem;
+}
+
+.file-size-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.7rem;
+  margin-left: 0.5rem;
+}
+
+.file-size-indicator.large-file {
+  color: #f59e0b;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
   .pdf-order-capture {
     padding: 1rem;
@@ -2850,7 +2705,7 @@ export default {
 
   .header-content {
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1rem;
   }
 
   .header-actions {
@@ -2872,29 +2727,27 @@ export default {
 
   .pagination-container {
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1rem;
     align-items: stretch;
-    text-align: center;
   }
 
   .table-header {
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1rem;
     align-items: stretch;
   }
 
-  .data-table {
+  .custom-table {
     font-size: 0.8rem;
   }
 
-  .data-table th,
-  .data-table td {
-    padding: 0.75rem 0.5rem;
+  .custom-table th,
+  .custom-table td {
+    padding: 0.5rem;
   }
 
   .action-buttons {
     flex-direction: column;
-    gap: 0.375rem;
   }
 
   .option-row {
@@ -2909,99 +2762,18 @@ export default {
     max-height: 95vh;
   }
 
-  .modal-header,
-  .modal-body,
-  .modal-footer {
-    padding: 1.5rem;
-  }
-
   .info-grid {
     grid-template-columns: 1fr;
   }
 
-  .page-title {
-    font-size: 1.875rem;
-  }
-
-  .upload-area {
-    padding: 2rem 1rem;
-  }
-
-  .file-preview {
-    max-width: 100%;
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .confidence-header {
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-
-  .customer-details {
-    grid-template-columns: 1fr;
-  }
-
-  .summary-stats {
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .item-detail-row {
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
-  }
-
-  .order-info-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .vendor-details {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 480px) {
-  .btn {
-    padding: 0.75rem 1.25rem;
-    font-size: 0.8rem;
-  }
-
-  .btn-sm {
-    padding: 0.5rem 0.875rem;
-    font-size: 0.7rem;
-  }
-
-  .stat-card {
-    padding: 1.25rem;
-  }
-
-  .stat-icon {
-    width: 56px;
-    height: 56px;
-    font-size: 1.25rem;
-  }
-
-  .stat-content h3 {
-    font-size: 1.875rem;
-  }
-
   .modal-footer {
     flex-direction: column;
-    gap: 0.75rem;
+    align-items: stretch;
   }
 
-  .modal-footer .btn {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .summary-stats {
-    gap: 0.5rem;
-  }
-
-  .item-detail-row {
-    gap: 0.5rem;
+  .cannot-create-warning,
+  .has-so-info {
+    min-width: auto;
   }
 }
 </style>
