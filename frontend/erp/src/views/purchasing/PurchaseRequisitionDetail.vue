@@ -54,12 +54,6 @@
           </router-link>
 
           <router-link v-if="pr.status === 'approved'"
-            :to="{ name: 'PRVendorRecommendations', params: { id: pr.pr_id } }"
-            class="btn btn-primary">
-            📊 Vendor Recommendations
-          </router-link>
-
-          <router-link v-if="pr.status === 'approved'"
             :to="{ name: 'ProcurementPathAnalysis', params: { id: pr.pr_id } }"
             class="btn btn-outline">
             🔍 Procurement Analysis

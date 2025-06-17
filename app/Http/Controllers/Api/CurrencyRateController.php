@@ -248,6 +248,16 @@ class CurrencyRateController extends Controller
      */
     public function getCurrentRate(Request $request)
     {
+        // Map 'from' and 'to' to 'from_currency' and 'to_currency' if present
+        $input = $request->all();
+        if (!isset($input['from_currency']) && isset($input['from'])) {
+            $input['from_currency'] = $input['from'];
+        }
+        if (!isset($input['to_currency']) && isset($input['to'])) {
+            $input['to_currency'] = $input['to'];
+        }
+        $request->merge($input);
+
         $validator = Validator::make($request->all(), [
             'from_currency' => 'required|string|size:3',
             'to_currency' => 'required|string|size:3',

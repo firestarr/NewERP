@@ -241,7 +241,8 @@
                             :key="index"
                             class="order-line"
                         >
-                            <div class="line-item" data-label="Item">
+                            <!-- ITEM DROPDOWN - FIXED VERSION -->
+                            <div class="line-item" data-label="Item" :data-line-index="index">
                                 <div class="item-code" v-if="line.item_code" style="font-weight: bold; margin-bottom: 0.25rem;">
                                     {{ line.item_code }}
                                 </div>
@@ -251,20 +252,47 @@
                                         v-model="line.itemSearch"
                                         class="form-control"
                                         placeholder="Search for an item..."
-                                        @focus="line.showDropdown = true"
-                                        @input="line.showDropdown = true"
+                                        @focus="showItemDropdown(index)"
+                                        @input="handleItemSearch(index, $event)"
+                                        @click="showItemDropdown(index)"
+                                        autocomplete="off"
                                     />
                                     <div v-if="line.showDropdown" class="dropdown-menu">
-                                        <div
-                                            v-for="item in getFilteredItems(line.itemSearch)"
-                                            :key="item.item_id"
-                                            @mousedown="selectItem(item, index)"
-                                            class="dropdown-item"
-                                        >
-                                            {{ item.item_code }} - {{ item.name }}
+                                        <!-- Show filtered items -->
+                                        <div v-if="getFilteredItems(line.itemSearch || '').length > 0">
+                                            <div
+                                                v-for="item in getFilteredItems(line.itemSearch || '')"
+                                                :key="item.item_id"
+                                                @mousedown.prevent="selectItem(item, index)"
+                                                class="dropdown-item"
+                                                style="cursor: pointer;"
+                                            >
+                                                <div class="item-display">
+                                                    <strong>{{ item.item_code }}</strong> - {{ item.name }}
+                                                    <small v-if="item.description" class="text-muted d-block">{{ item.description }}</small>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div v-if="getFilteredItems(line.itemSearch).length === 0" class="dropdown-item text-muted">
-                                            No items found
+                                        <!-- Show "no items found" if search term exists but no results -->
+                                        <div v-else-if="line.itemSearch && line.itemSearch.trim().length > 0" class="dropdown-item text-muted">
+                                            No items found for "{{ line.itemSearch }}"
+                                        </div>
+                                        <!-- Show sample items when no search term -->
+                                        <div v-else>
+                                            <div class="dropdown-item text-muted">
+                                                Type to search items... ({{ sellableItems.length }} items available)
+                                            </div>
+                                            <div
+                                                v-for="item in sellableItems.slice(0, 10)"
+                                                :key="'sample-' + item.item_id"
+                                                @mousedown.prevent="selectItem(item, index)"
+                                                class="dropdown-item"
+                                                style="cursor: pointer;"
+                                            >
+                                                <div class="item-display">
+                                                    <strong>{{ item.item_code }}</strong> - {{ item.name }}
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -273,22 +301,24 @@
                             <div class="line-item" data-label="Unit Price">
                                 <input
                                     type="number"
-                                    v-model="line.unit_price"
+                                    v-model.number="line.unit_price"
                                     min="0"
                                     step="0.01"
                                     required
                                     @input="calculateLineTotals(index)"
+                                    placeholder="0.00"
                                 />
                             </div>
 
                             <div class="line-item" data-label="Quantity">
                                 <input
                                     type="number"
-                                    v-model="line.quantity"
+                                    v-model.number="line.quantity"
                                     min="0"
                                     step="0.01"
                                     required
                                     @input="calculateLineTotals(index)"
+                                    placeholder="1"
                                 />
                             </div>
 
@@ -320,20 +350,22 @@
                             <div class="line-item" data-label="Discount">
                                 <input
                                     type="number"
-                                    v-model="line.discount"
+                                    v-model.number="line.discount"
                                     min="0"
                                     step="0.01"
                                     @input="calculateLineTotals(index)"
+                                    placeholder="0.00"
                                 />
                             </div>
 
                             <div class="line-item" data-label="Tax">
                                 <input
                                     type="number"
-                                    v-model="line.tax"
+                                    v-model.number="line.tax"
                                     min="0"
                                     step="0.01"
                                     @input="calculateLineTotals(index)"
+                                    placeholder="0.00"
                                 />
                             </div>
 
@@ -341,11 +373,11 @@
                                 class="line-item subtotal"
                                 data-label="Subtotal"
                             >
-                                {{ formatCurrency(line.subtotal) }}
+                                {{ formatCurrency(line.subtotal || 0) }}
                             </div>
 
                             <div class="line-item total" data-label="Total">
-                                {{ formatCurrency(line.total) }}
+                                {{ formatCurrency(line.total || 0) }}
                             </div>
 
                             <div class="line-item actions">
@@ -370,9 +402,7 @@
                             <div class="total-row">
                                 <div class="total-label">Total Discount:</div>
                                 <div class="total-value">
-                                    {{
-                                        formatCurrency(calculateTotalDiscount())
-                                    }}
+                                    {{ formatCurrency(calculateTotalDiscount()) }}
                                 </div>
                             </div>
                             <div class="total-row">
@@ -406,9 +436,15 @@ export default {
         const router = useRouter();
         const route = useRoute();
 
+        const safeParseFloat = (value) => {
+            if (value === null || value === undefined || value === '') return 0;
+            const parsed = parseFloat(value);
+            return isNaN(parsed) ? 0 : parsed;
+        };
+
         // Form data
         const form = ref({
-            so_number: "", // This will be auto-generated (removed manual generation)
+            so_number: "",
             po_number_customer: "",
             so_date: new Date().toISOString().substr(0, 10),
             customer_id: "",
@@ -435,11 +471,13 @@ export default {
         const isLoading = ref(false);
         const isSubmitting = ref(false);
         const error = ref("");
-        const nextSoNumber = ref(''); // For preview
+        const nextSoNumber = ref('');
 
-        // Computed property for sellable items
+        // Computed property for sellable items with debug logging
         const sellableItems = computed(() => {
-            return items.value.filter(item => item.is_sellable);
+            const sellable = items.value.filter(item => item.is_sellable === true || item.is_sellable === 1);
+            console.log('🔍 Sellable items computed:', sellable.length, 'out of', items.value.length);
+            return sellable;
         });
 
         // Check if we're in edit mode
@@ -460,23 +498,36 @@ export default {
             }
         };
 
-        // Load reference data
+        // FIXED: Load reference data with enhanced logging
         const loadReferenceData = async () => {
             try {
+                console.log('🔄 Loading reference data...');
+
                 // Load customers
                 const customersResponse = await axios.get("/customers");
-                customers.value = customersResponse.data.data;
+                customers.value = customersResponse.data.data || [];
+                console.log('✅ Customers loaded:', customers.value.length);
 
                 // Load items
                 const itemsResponse = await axios.get("/items");
-                items.value = itemsResponse.data.data;
+                items.value = itemsResponse.data.data || [];
+                console.log('✅ Items loaded:', items.value.length);
+
+                // Debug: show sample items
+                if (items.value.length > 0) {
+                    console.log('📦 Sample item:', items.value[0]);
+                    const sellableCount = items.value.filter(item => item.is_sellable).length;
+                    console.log('🏷️ Sellable items:', sellableCount);
+                }
 
                 // Load unit of measures
                 const uomResponse = await axios.get("/unit-of-measures");
-                unitOfMeasures.value = uomResponse.data.data;
+                unitOfMeasures.value = uomResponse.data.data || [];
+                console.log('✅ UOMs loaded:', unitOfMeasures.value.length);
+
             } catch (err) {
-                console.error("Error loading reference data:", err);
-                error.value = "Error loading reference data.";
+                console.error("❌ Error loading reference data:", err);
+                error.value = "Error loading reference data: " + err.message;
             }
         };
 
@@ -497,7 +548,6 @@ export default {
         // Load order data if in edit mode
         const loadOrder = async () => {
             if (!isEditMode.value) {
-                // In create mode, load next SO number for preview
                 await loadNextSalesOrderNumber();
                 return;
             }
@@ -515,7 +565,7 @@ export default {
                 // Set form data
                 form.value = {
                     so_id: order.soId,
-                    so_number: order.soNumber, // Now this is auto-generated and read-only
+                    so_number: order.soNumber,
                     po_number_customer: order.poNumberCustomer || "",
                     so_date: order.soDate.substr(0, 10),
                     customer_id: order.customerId,
@@ -530,7 +580,7 @@ export default {
                     lines: [],
                 };
 
-                // Set line items
+                // Set line items dengan validasi
                 if (order.salesOrderLines && order.salesOrderLines.length > 0) {
                     form.value.lines = order.salesOrderLines.map((line) => {
                         const selectedItem = items.value.find(i => i.item_id == line.itemId);
@@ -541,15 +591,20 @@ export default {
                             item_code: selectedItem ? selectedItem.item_code : '',
                             itemSearch: selectedItem ? `${selectedItem.item_code} - ${selectedItem.name}` : '',
                             showDropdown: false,
-                            unit_price: line.unitPrice,
-                            quantity: line.quantity,
+                            unit_price: safeParseFloat(line.unitPrice),
+                            quantity: safeParseFloat(line.quantity) || 1,
                             uom_id: line.uomId,
                             delivery_date: line.deliveryDate ? line.deliveryDate.substr(0, 10) : '',
-                            discount: line.discount || 0,
-                            tax: line.tax || 0,
-                            subtotal: line.subtotal,
-                            total: line.total,
+                            discount: safeParseFloat(line.discount),
+                            tax: safeParseFloat(line.tax),
+                            subtotal: safeParseFloat(line.subtotal),
+                            total: safeParseFloat(line.total),
                         };
+                    });
+
+                    // Recalculate all line totals
+                    form.value.lines.forEach((_, index) => {
+                        calculateLineTotals(index);
                     });
                 }
 
@@ -594,20 +649,64 @@ export default {
             }
         };
 
-        // Method to filter items based on search input
+        // FIXED: Enhanced item filtering with better logic
         const getFilteredItems = (searchInput) => {
-            if (!searchInput) {
-                return sellableItems.value;
+            const searchTerm = (searchInput || '').trim();
+
+            if (!searchTerm) {
+                // Return first 20 sellable items when no search term
+                return sellableItems.value.slice(0, 20);
             }
-            return sellableItems.value.filter(item =>
-                item.name.toLowerCase().includes(searchInput.toLowerCase()) ||
-                item.item_code.toLowerCase().includes(searchInput.toLowerCase())
-            );
+
+            const searchLower = searchTerm.toLowerCase();
+            const filtered = sellableItems.value.filter(item => {
+                const matchCode = item.item_code && item.item_code.toLowerCase().includes(searchLower);
+                const matchName = item.name && item.name.toLowerCase().includes(searchLower);
+                const matchDesc = item.description && item.description.toLowerCase().includes(searchLower);
+
+                return matchCode || matchName || matchDesc;
+            });
+
+            console.log(`🔍 Search "${searchTerm}" found ${filtered.length} items`);
+            return filtered.slice(0, 50); // Limit to 50 results for performance
         };
 
-        // Method to select an item from the dropdown
+        // NEW: Show item dropdown with proper state management
+        const showItemDropdown = (index) => {
+            console.log('👆 Show dropdown for line', index);
+
+            // Hide all other dropdowns first
+            form.value.lines.forEach((line, i) => {
+                if (i !== index) {
+                    line.showDropdown = false;
+                }
+            });
+
+            // Show current dropdown
+            if (form.value.lines[index]) {
+                form.value.lines[index].showDropdown = true;
+                console.log('📋 Available sellable items:', sellableItems.value.length);
+            }
+        };
+
+        // NEW: Handle item search input
+        const handleItemSearch = (index, event) => {
+            const searchTerm = event.target.value;
+            console.log('🔍 Search term changed:', searchTerm, 'for line', index);
+
+            // Always show dropdown when typing
+            if (form.value.lines[index]) {
+                form.value.lines[index].showDropdown = true;
+            }
+        };
+
+        // FIXED: Enhanced item selection with better price handling
         const selectItem = async (item, lineIndex) => {
+            console.log('✅ Selecting item:', item.item_code, 'for line', lineIndex);
+
             const line = form.value.lines[lineIndex];
+
+            // Set item data
             line.item_id = item.item_id;
             line.item_code = item.item_code;
             line.itemSearch = `${item.item_code} - ${item.name}`;
@@ -616,9 +715,10 @@ export default {
             // Set UOM automatically if available
             if (item.uom_id) {
                 line.uom_id = item.uom_id;
+                console.log('🏷️ UOM set from item.uom_id:', item.uom_id);
             }
 
-            // Set default delivery date to expected delivery or SO date + 7 days
+            // Set default delivery date
             if (!line.delivery_date) {
                 if (form.value.expected_delivery) {
                     line.delivery_date = form.value.expected_delivery;
@@ -631,34 +731,41 @@ export default {
 
             // Get price information
             try {
-                // Get best price in current currency
-                const response = await axios.get(`/items/${item.item_id}/best-sale-price`, {
-                    params: {
-                        customer_id: form.value.customer_id,
-                        quantity: line.quantity || 1,
-                        currency_code: form.value.currency_code
+                if (form.value.customer_id) {
+                    // Try to get best price from API
+                    const response = await axios.get(`/items/${item.item_id}/best-sale-price`, {
+                        params: {
+                            customer_id: form.value.customer_id,
+                            quantity: safeParseFloat(line.quantity) || 1,
+                            currency_code: form.value.currency_code
+                        }
+                    });
+
+                    if (response.data && response.data.price) {
+                        line.unit_price = safeParseFloat(response.data.price);
+                        console.log('💰 Price from API:', line.unit_price);
+                    } else {
+                        line.unit_price = safeParseFloat(item.sale_price);
+                        console.log('💰 Price from item.sale_price:', line.unit_price);
                     }
-                });
-
-                if (response.data && response.data.price) {
-                    line.unit_price = response.data.price;
                 } else {
-                    // If no specific price, use default sale price
-                    line.unit_price = item.sale_price || 0;
+                    // No customer selected, use item sale price
+                    line.unit_price = safeParseFloat(item.sale_price);
+                    console.log('💰 Price from item (no customer):', line.unit_price);
                 }
-
-                calculateLineTotals(lineIndex);
             } catch (err) {
-                console.error("Error fetching item price:", err);
-                // Use default sale price if API call fails
-                line.unit_price = item.sale_price || 0;
-                calculateLineTotals(lineIndex);
+                console.error("❌ Error fetching item price:", err);
+                line.unit_price = safeParseFloat(item.sale_price);
+                console.log('💰 Fallback price:', line.unit_price);
             }
+
+            // Always recalculate after setting price
+            calculateLineTotals(lineIndex);
+            console.log('🧮 Line totals calculated');
         };
 
         // Line item operations
         const addLine = () => {
-            // Set default delivery date when adding new line
             let defaultDeliveryDate = '';
             if (form.value.expected_delivery) {
                 defaultDeliveryDate = form.value.expected_delivery;
@@ -682,60 +789,76 @@ export default {
                 subtotal: 0,
                 total: 0,
             });
+
+            console.log('➕ Added new line, total lines:', form.value.lines.length);
         };
 
         const removeLine = (index) => {
             form.value.lines.splice(index, 1);
+            console.log('➖ Removed line', index, ', total lines:', form.value.lines.length);
         };
 
         const calculateLineTotals = (index) => {
             const line = form.value.lines[index];
 
+            // Pastikan semua nilai numerik valid
+            const unitPrice = safeParseFloat(line.unit_price);
+            const quantity = safeParseFloat(line.quantity);
+            const discount = safeParseFloat(line.discount);
+            const tax = safeParseFloat(line.tax);
+
             // Calculate subtotal (unit_price * quantity)
-            line.subtotal =
-                parseFloat(line.unit_price) * parseFloat(line.quantity);
+            line.subtotal = unitPrice * quantity;
 
             // Calculate total (subtotal - discount + tax)
-            line.total = line.subtotal - (line.discount || 0) + (line.tax || 0);
+            line.total = line.subtotal - discount + tax;
+
+            // Pastikan nilai tidak negatif
+            line.subtotal = Math.max(0, line.subtotal);
+            line.total = Math.max(0, line.total);
         };
 
         // Calculate totals
         const calculateSubtotal = () => {
-            return form.value.lines.reduce(
-                (sum, line) => sum + (line.subtotal || 0),
-                0
-            );
+            return form.value.lines.reduce((sum, line) => {
+                return sum + safeParseFloat(line.subtotal);
+            }, 0);
         };
 
         const calculateTotalDiscount = () => {
-            return form.value.lines.reduce(
-                (sum, line) => sum + (line.discount || 0),
-                0
-            );
+            return form.value.lines.reduce((sum, line) => {
+                return sum + safeParseFloat(line.discount);
+            }, 0);
         };
 
         const calculateTotalTax = () => {
-            return form.value.lines.reduce(
-                (sum, line) => sum + (line.tax || 0),
-                0
-            );
+            return form.value.lines.reduce((sum, line) => {
+                return sum + safeParseFloat(line.tax);
+            }, 0);
         };
 
         const calculateGrandTotal = () => {
-            return form.value.lines.reduce(
-                (sum, line) => sum + (line.total || 0),
-                0
-            );
+            return form.value.lines.reduce((sum, line) => {
+                return sum + safeParseFloat(line.total);
+            }, 0);
         };
 
         // Format currency
         const formatCurrency = (value) => {
-            return new Intl.NumberFormat("id-ID", {
-                style: "currency",
-                currency: form.value.currency_code || "IDR",
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            }).format(value || 0);
+            const safeValue = safeParseFloat(value);
+            const currencyCode = form.value.currency_code || "IDR";
+
+            try {
+                return new Intl.NumberFormat("id-ID", {
+                    style: "currency",
+                    currency: currencyCode,
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                }).format(safeValue);
+            } catch (error) {
+                console.error('Currency formatting error:', error);
+                return `${currencyCode} ${safeValue.toFixed(2)}`;
+            }
         };
 
         // Navigation
@@ -778,18 +901,18 @@ export default {
             error.value = "";
 
             try {
-                // Prepare order data - Remove UI-specific properties
+                // Prepare order data dengan nilai yang sudah divalidasi
                 const orderLines = form.value.lines.map(line => ({
                     line_id: line.line_id,
                     item_id: line.item_id,
-                    unit_price: line.unit_price,
-                    quantity: line.quantity,
+                    unit_price: safeParseFloat(line.unit_price),
+                    quantity: safeParseFloat(line.quantity),
                     uom_id: line.uom_id,
                     delivery_date: line.delivery_date,
-                    discount: line.discount || 0,
-                    tax: line.tax || 0,
-                    subtotal: line.subtotal,
-                    total: line.total
+                    discount: safeParseFloat(line.discount),
+                    tax: safeParseFloat(line.tax),
+                    subtotal: safeParseFloat(line.subtotal),
+                    total: safeParseFloat(line.total)
                 }));
 
                 const orderData = {
@@ -799,21 +922,16 @@ export default {
                     lines: orderLines
                 };
 
-                // Remove so_number from orderData for both create and update
-                // as it's auto-generated on backend
                 delete orderData.so_number;
 
                 if (isEditMode.value) {
-                    // Update existing order
                     await axios.put(`/orders/${form.value.so_id}`, orderData);
                     alert("Order successfully updated!");
                 } else {
-                    // Create new order
                     await axios.post("/orders", orderData);
                     alert("Order successfully created!");
                 }
 
-                // Redirect to orders list
                 router.push("/sales/orders");
             } catch (err) {
                 console.error("Error saving order:", err);
@@ -832,44 +950,42 @@ export default {
             }
         };
 
-        // Close dropdowns when clicking outside
-        onMounted(() => {
+        // Setup click outside handler
+        const setupClickOutsideHandler = () => {
             document.addEventListener('click', (e) => {
                 // Handle customer dropdown
-                const customerDropdownEls = document.querySelectorAll('.dropdown-container');
-                let clickedInsideCustomer = false;
-
-                customerDropdownEls.forEach(el => {
-                    if (el.contains(e.target)) {
-                        clickedInsideCustomer = true;
+                if (!e.target.closest('.dropdown-container') || e.target.closest('#customer_search')) {
+                    const customerContainer = e.target.closest('.dropdown-container');
+                    if (!customerContainer || customerContainer.querySelector('#customer_search')) {
+                        if (!e.target.closest('.dropdown-menu')) {
+                            showCustomerDropdown.value = false;
+                        }
                     }
-                });
-
-                if (!clickedInsideCustomer) {
-                    showCustomerDropdown.value = false;
                 }
 
                 // Handle item dropdowns
-                form.value.lines.forEach(line => {
-                    if (line.showDropdown) {
-                        const dropdownEls = document.querySelectorAll('.dropdown-container');
-                        let clickedInside = false;
-
-                        dropdownEls.forEach(el => {
-                            if (el.contains(e.target)) {
-                                clickedInside = true;
-                            }
-                        });
-
-                        if (!clickedInside) {
-                            line.showDropdown = false;
-                        }
+                form.value.lines.forEach((line, index) => {
+                    const lineContainer = e.target.closest(`[data-line-index="${index}"]`);
+                    if (!lineContainer && !e.target.closest('.dropdown-menu')) {
+                        line.showDropdown = false;
                     }
                 });
             });
+        };
 
-            loadReferenceData();
-            loadOrder();
+        // Component initialization
+        onMounted(async () => {
+            console.log('🚀 Component mounted, initializing...');
+
+            setupClickOutsideHandler();
+
+            try {
+                await loadReferenceData();
+                await loadOrder();
+                console.log('✅ Component initialization complete');
+            } catch (error) {
+                console.error('❌ Error during initialization:', error);
+            }
         });
 
         return {
@@ -885,10 +1001,13 @@ export default {
             selectedCustomer,
             customerSearch,
             showCustomerDropdown,
-            nextSoNumber, // Add this for preview
+            nextSoNumber,
+            safeParseFloat,
             getFilteredCustomers,
             selectCustomer,
             getFilteredItems,
+            showItemDropdown,
+            handleItemSearch,
             selectItem,
             addLine,
             removeLine,
@@ -1014,7 +1133,6 @@ export default {
     cursor: not-allowed;
 }
 
-/* Badge styling for order number preview */
 .badge {
     display: inline-block;
     padding: 0.5rem 0.75rem;
@@ -1172,13 +1290,6 @@ export default {
     color: #1e293b;
 }
 
-.form-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 1rem;
-    margin-top: 1rem;
-}
-
 .btn {
     padding: 0.625rem 1rem;
     font-size: 0.875rem;
@@ -1220,10 +1331,11 @@ export default {
     background-color: #cbd5e1;
 }
 
-/* Dropdown styling */
+/* Enhanced dropdown styling */
 .dropdown-container {
     position: relative;
     width: 100%;
+    z-index: 10;
 }
 
 .dropdown-menu {
@@ -1231,32 +1343,62 @@ export default {
     top: 100%;
     left: 0;
     width: 100%;
-    max-height: 200px;
+    max-height: 250px;
     overflow-y: auto;
     background-color: white;
     border: 1px solid #e2e8f0;
     border-radius: 0.375rem;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    z-index: 10;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    z-index: 1000;
     margin-top: 0.25rem;
 }
 
 .dropdown-item {
-    padding: 0.625rem 1rem;
+    padding: 0.75rem 1rem;
     cursor: pointer;
     transition: background-color 0.2s;
+    border-bottom: 1px solid #f8fafc;
+}
+
+.dropdown-item:last-child {
+    border-bottom: none;
 }
 
 .dropdown-item:hover {
-    background-color: #f1f5f9;
+    background-color: #f8fafc;
 }
 
 .dropdown-item.text-muted {
     color: #94a3b8;
     cursor: default;
+    font-style: italic;
 }
 
-/* Customer dropdown specific styling */
+.dropdown-item.text-muted:hover {
+    background-color: transparent;
+}
+
+/* Item display styling */
+.item-display {
+    display: flex;
+    flex-direction: column;
+}
+
+.item-display strong {
+    color: #1e293b;
+    font-weight: 600;
+}
+
+.item-display small {
+    color: #64748b;
+    font-size: 0.75rem;
+    margin-top: 0.125rem;
+}
+
+.d-block {
+    display: block;
+}
+
 .customer-info {
     display: flex;
     flex-direction: column;
@@ -1273,7 +1415,6 @@ export default {
     margin-top: 0.125rem;
 }
 
-/* Form control validation styling */
 .form-control.is-invalid {
     border-color: #dc2626;
 }
@@ -1283,38 +1424,6 @@ export default {
     outline-offset: 1px;
 }
 
-/* Delivery date specific styling */
-.line-item input[type="date"] {
-    position: relative;
-}
-
-.line-item input[type="date"]:invalid {
-    border-color: #f59e0b;
-    background-color: #fffbeb;
-}
-
-.line-item .text-muted {
-    font-size: 0.625rem;
-    margin-top: 0.125rem;
-    color: #f59e0b;
-}
-
-/* Warning styles for overdue dates */
-.delivery-date-warning {
-    color: #dc2626;
-    font-weight: 500;
-}
-
-.delivery-date-today {
-    color: #059669;
-    font-weight: 500;
-}
-
-.delivery-date-upcoming {
-    color: #0d9488;
-}
-
-/* Item code styling */
 .item-code {
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
     font-size: 0.75rem;
@@ -1323,6 +1432,15 @@ export default {
     padding: 0.125rem 0.25rem;
     border-radius: 0.25rem;
     display: inline-block;
+}
+
+/* Improve line item container for better dropdown positioning */
+.line-item {
+    position: relative;
+}
+
+.line-item .dropdown-container {
+    z-index: 100;
 }
 
 @media (max-width: 1024px) {

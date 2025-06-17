@@ -456,18 +456,33 @@ $q->whereRaw('quantity > (
     
     public function createFromQuotation(Request $request)
     {
-        $request->validate([
-            'quotation_id' => 'required|exists:vendor_quotations,quotation_id'
+        $validator = Validator::make($request->all(), [
+            'quotation_id' => 'required|exists:vendor_quotations,quotation_id',
+            'po_date' => 'required|date',
+            'expected_delivery' => 'nullable|date|after_or_equal:po_date',
+            'payment_terms' => 'nullable|string|max:255',
+            'delivery_terms' => 'nullable|string|max:255', 
+            'currency_code' => 'nullable|string|size:3',
+            'exchange_rate' => 'nullable|numeric|min:0.000001',
+            'notes' => 'nullable|string|max:1000'
         ]);
-        
-        $quotation = VendorQuotation::with(['lines', 'vendor', 'requestForQuotation'])
-                                  ->findOrFail($request->quotation_id);
-        
-        // Check if quotation is in accepted status
-        if ($quotation->status !== 'accepted') {
+
+        if ($validator->fails()) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Purchase Order can only be created from accepted quotations'
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+        
+        $quotation = VendorQuotation::with(['lines.item', 'lines.unitOfMeasure', 'vendor', 'requestForQuotation'])
+                                ->findOrFail($request->quotation_id);
+        
+        // Check if quotation can be used (allow both accepted and received status for flexibility)
+        if (!in_array($quotation->status, ['accepted', 'received'])) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Purchase Order can only be created from accepted or received quotations'
             ], 400);
         }
         
@@ -477,31 +492,122 @@ $q->whereRaw('quantity > (
             // Generate PO number
             $poNumber = $this->poNumberGenerator->generate();
             
-            // Calculate totals
+            // Get vendor for defaults
+            $vendor = $quotation->vendor;
+            
+            // Determine currency to use (priority: request > quotation > vendor > system default)
+            $currencyCode = $request->currency_code 
+                        ?? $quotation->currency_code 
+                        ?? $vendor->preferred_currency 
+                        ?? config('app.base_currency', 'USD');
+            
+            $baseCurrency = config('app.base_currency', 'USD');
+            
+            // Get exchange rate
+            $exchangeRate = $request->exchange_rate;
+            
+            if (!$exchangeRate) {
+                if ($currencyCode === $baseCurrency) {
+                    $exchangeRate = 1.0;
+                } else {
+                    // Try to get exchange rate from quotation first
+                    if ($quotation->currency_code === $currencyCode && $quotation->exchange_rate) {
+                        $exchangeRate = $quotation->exchange_rate;
+                    } else {
+                        // Get current exchange rate
+                        $rate = CurrencyRate::where('from_currency', $currencyCode)
+                            ->where('to_currency', $baseCurrency)
+                            ->where('is_active', true)
+                            ->where('effective_date', '<=', $request->po_date)
+                            ->where(function($query) use ($request) {
+                                $query->where('end_date', '>=', $request->po_date)
+                                    ->orWhereNull('end_date');
+                            })
+                            ->orderBy('effective_date', 'desc')
+                            ->first();
+                            
+                        if (!$rate) {
+                            // Try reverse rate
+                            $reverseRate = CurrencyRate::where('from_currency', $baseCurrency)
+                                ->where('to_currency', $currencyCode)
+                                ->where('is_active', true)
+                                ->where('effective_date', '<=', $request->po_date)
+                                ->where(function($query) use ($request) {
+                                    $query->where('end_date', '>=', $request->po_date)
+                                        ->orWhereNull('end_date');
+                                })
+                                ->orderBy('effective_date', 'desc')
+                                ->first();
+                                
+                            if ($reverseRate) {
+                                $exchangeRate = 1 / $reverseRate->rate;
+                            } else {
+                                // Fallback to quotation exchange rate if available
+                                $exchangeRate = $quotation->exchange_rate ?? 1.0;
+                            }
+                        } else {
+                            $exchangeRate = $rate->rate;
+                        }
+                    }
+                }
+            }
+            
+            // Calculate totals from quotation lines
             $subtotal = 0;
             $taxTotal = 0;
             
             foreach ($quotation->lines as $line) {
                 $lineSubtotal = $line->unit_price * $line->quantity;
                 $subtotal += $lineSubtotal;
+                // Tax calculation can be added here if needed
             }
+            
+            $totalAmount = $subtotal + $taxTotal;
+            
+            // Calculate base currency amounts
+            $baseCurrencyTotal = $totalAmount * $exchangeRate;
+            $baseCurrencyTax = $taxTotal * $exchangeRate;
+            
+            // Determine values with fallbacks
+            $paymentTerms = $request->payment_terms 
+                        ?? $quotation->payment_terms 
+                        ?? ($vendor->payment_term ? "Net {$vendor->payment_term}" : null);
+            
+            $deliveryTerms = $request->delivery_terms 
+                        ?? $quotation->delivery_terms;
+            
+            $notes = $request->notes ?? $quotation->notes;
             
             // Create purchase order
             $purchaseOrder = PurchaseOrder::create([
                 'po_number' => $poNumber,
-                'po_date' => now(),
+                'po_date' => $request->po_date,
                 'vendor_id' => $quotation->vendor_id,
-                'payment_terms' => null,
-                'delivery_terms' => null,
-                'expected_delivery' => null,
+                'payment_terms' => $paymentTerms,
+                'delivery_terms' => $deliveryTerms,
+                'expected_delivery' => $request->expected_delivery,
                 'status' => 'draft',
-                'total_amount' => $subtotal,
-                'tax_amount' => 0
+                'total_amount' => $totalAmount,
+                'tax_amount' => $taxTotal,
+                'currency_code' => $currencyCode,
+                'exchange_rate' => $exchangeRate,
+                'base_currency_total' => $baseCurrencyTotal,
+                'base_currency_tax' => $baseCurrencyTax,
+                'base_currency' => $baseCurrency,
+                'notes' => $notes
             ]);
             
             // Create PO lines from quotation lines
             foreach ($quotation->lines as $line) {
                 $lineSubtotal = $line->unit_price * $line->quantity;
+                $lineTax = 0; // Can be calculated based on item tax settings
+                $lineTotal = $lineSubtotal + $lineTax;
+                
+                // Calculate base currency amounts for line
+                $baseUnitPrice = $line->unit_price * $exchangeRate;
+                $baseSubtotal = $lineSubtotal * $exchangeRate;
+                $baseTax = $lineTax * $exchangeRate;
+                $baseTotal = $lineTotal * $exchangeRate;
                 
                 $purchaseOrder->lines()->create([
                     'item_id' => $line->item_id,
@@ -509,10 +615,22 @@ $q->whereRaw('quantity > (
                     'quantity' => $line->quantity,
                     'uom_id' => $line->uom_id,
                     'subtotal' => $lineSubtotal,
-                    'tax' => 0,
-                    'total' => $lineSubtotal
+                    'tax' => $lineTax,
+                    'total' => $lineTotal,
+                    'base_currency_unit_price' => $baseUnitPrice,
+                    'base_currency_subtotal' => $baseSubtotal,
+                    'base_currency_tax' => $baseTax,
+                    'base_currency_total' => $baseTotal
                 ]);
             }
+            
+            // Mark quotation as accepted if it was in received status
+            if ($quotation->status === 'received') {
+                $quotation->update(['status' => 'accepted']);
+            }
+            
+            // Create stock reservations if needed (optional feature)
+            $this->createStockReservations($purchaseOrder);
             
             DB::commit();
             
@@ -525,10 +643,16 @@ $q->whereRaw('quantity > (
         } catch (\Exception $e) {
             DB::rollBack();
             
+            \Log::error('Error creating PO from quotation', [
+                'quotation_id' => $request->quotation_id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to create Purchase Order from quotation',
-                'error' => $e->getMessage()
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
             ], 500);
         }
     }

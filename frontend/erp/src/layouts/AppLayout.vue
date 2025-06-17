@@ -1083,38 +1083,38 @@ export default {
         ]);
 
         const quickStats = ref([
-            {
-                value: "1,234",
-                label: "Total Items",
-                icon: "fas fa-box",
-                gradient: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                trend: "up",
-                change: "+12%"
-            },
-            {
-                value: "$45,678",
-                label: "Monthly Sales",
-                icon: "fas fa-chart-line",
-                gradient: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-                trend: "up",
-                change: "+8.5%"
-            },
-            {
-                value: "89",
-                label: "Pending Orders",
-                icon: "fas fa-clock",
-                gradient: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
-                trend: "down",
-                change: "-5%"
-            },
-            {
-                value: "96%",
-                label: "System Uptime",
-                icon: "fas fa-server",
-                gradient: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
-                trend: "up",
-                change: "+2%"
-            }
+            // {
+            //     value: "1,234",
+            //     label: "Total Items",
+            //     icon: "fas fa-box",
+            //     gradient: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            //     trend: "up",
+            //     change: "+12%"
+            // },
+            // {
+            //     value: "$45,678",
+            //     label: "Monthly Sales",
+            //     icon: "fas fa-chart-line",
+            //     gradient: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+            //     trend: "up",
+            //     change: "+8.5%"
+            // },
+            // {
+            //     value: "89",
+            //     label: "Pending Orders",
+            //     icon: "fas fa-clock",
+            //     gradient: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+            //     trend: "down",
+            //     change: "-5%"
+            // },
+            // {
+            //     value: "96%",
+            //     label: "System Uptime",
+            //     icon: "fas fa-server",
+            //     gradient: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
+            //     trend: "up",
+            //     change: "+2%"
+            // }
         ]);
 
         const pageTitle = computed(() => {

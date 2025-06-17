@@ -577,8 +577,8 @@ export default {
       if (amount === null || amount === undefined) return '-';
       return new Intl.NumberFormat('id-ID', {
         style: 'decimal',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
+        minimumFractionDigits: 4,
+        maximumFractionDigits: 4
       }).format(amount);
     },
 

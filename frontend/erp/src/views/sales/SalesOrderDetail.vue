@@ -128,21 +128,21 @@
                         <div class="info-group">
                             <label>Expected Delivery</label>
                             <div class="info-value">
-                                {{ formatDate(order.expected_delivery) || "-" }}
+                                {{ formatDate(order.expectedDelivery) || "-" }}
                             </div>
                         </div>
 
                         <div class="info-group">
                             <label>Payment Terms</label>
                             <div class="info-value">
-                                {{ order.payment_terms || "-" }}
+                                {{ order.paymentTerms || "-" }}
                             </div>
                         </div>
 
                         <div class="info-group">
                             <label>Delivery Terms</label>
                             <div class="info-value">
-                                {{ order.delivery_terms || "-" }}
+                                {{ order.deliveryTerms || "-" }}
                             </div>
                         </div>
                     </div>
@@ -229,11 +229,10 @@
                                     <th>Total</th>
                                 </tr>
                             </thead>
-                            <!-- Update untuk bagian item table di SalesOrderDetail.vue -->
                             <tbody>
                                 <tr
                                     v-for="line in order.salesOrderLines"
-                                    :key="line.line_id"
+                                    :key="line.lineId"
                                     :class="{'has-outstanding': getOutstandingQuantity(line) > 0}"
                                 >
                                     <td>
@@ -257,7 +256,7 @@
                                     <td class="right">
                                         {{ formatCurrency(line.unitPrice) }}
                                     </td>
-                                    <td class="right">{{ line.quantity }}</td>
+                                    <td class="right">{{ safeParseFloat(line.quantity) }}</td>
                                     <td class="right">{{ getDeliveredQuantity(line) }}</td>
                                     <td class="right outstanding-qty">
                                         <span :class="{'text-danger': getOutstandingQuantity(line) > 0, 'text-success': getOutstandingQuantity(line) <= 0}">
@@ -286,9 +285,7 @@
                                         Subtotal
                                     </td>
                                     <td colspan="2" class="totals-value">
-                                        {{
-                                            formatCurrency(calculateSubtotal())
-                                        }}
+                                        {{ formatCurrency(calculateSubtotal()) }}
                                     </td>
                                 </tr>
                                 <tr>
@@ -296,11 +293,7 @@
                                         Total Diskon
                                     </td>
                                     <td colspan="2" class="totals-value">
-                                        {{
-                                            formatCurrency(
-                                                calculateTotalDiscount()
-                                            )
-                                        }}
+                                        {{ formatCurrency(calculateTotalDiscount()) }}
                                     </td>
                                 </tr>
                                 <tr>
@@ -308,9 +301,7 @@
                                         Total Pajak
                                     </td>
                                     <td colspan="2" class="totals-value">
-                                        {{
-                                            formatCurrency(calculateTotalTax())
-                                        }}
+                                        {{ formatCurrency(calculateTotalTax()) }}
                                     </td>
                                 </tr>
                                 <tr class="grand-total">
@@ -339,7 +330,7 @@
                             <div class="summary-value">{{ getTotalOrderedItems() }}</div>
                         </div>
                         <div class="summary-card">
-                            <div class="summary-title">Total Order Items</div>
+                            <div class="summary-title">Total Delivered Items</div>
                             <div class="summary-value">{{ getTotalDeliveredQuantity() }}</div>
                         </div>
                         <div class="summary-card">
@@ -384,11 +375,11 @@
                             <tbody>
                                 <tr
                                     v-for="delivery in order.deliveries"
-                                    :key="delivery.delivery_id"
+                                    :key="delivery.deliveryId"
                                 >
-                                    <td>{{ delivery.delivery_number }}</td>
+                                    <td>{{ delivery.deliveryNumber }}</td>
                                     <td>
-                                        {{ formatDate(delivery.delivery_date) }}
+                                        {{ formatDate(delivery.deliveryDate) }}
                                     </td>
                                     <td>
                                         <span
@@ -402,7 +393,7 @@
                                         </span>
                                     </td>
                                     <td>
-                                        {{ delivery.shipping_method || "-" }}
+                                        {{ delivery.shippingMethod || "-" }}
                                     </td>
                                     <td>
                                         <button
@@ -439,11 +430,11 @@
                             <tbody>
                                 <tr
                                     v-for="invoice in order.salesInvoices"
-                                    :key="invoice.invoice_id"
+                                    :key="invoice.invoiceId"
                                 >
-                                    <td>{{ invoice.invoice_number }}</td>
+                                    <td>{{ invoice.invoiceNumber }}</td>
                                     <td>
-                                        {{ formatDate(invoice.invoice_date) }}
+                                        {{ formatDate(invoice.invoiceDate) }}
                                     </td>
                                     <td>
                                         <span
@@ -457,9 +448,7 @@
                                         </span>
                                     </td>
                                     <td>
-                                        {{
-                                            formatCurrency(invoice.total_amount)
-                                        }}
+                                        {{ formatCurrency(invoice.totalAmount) }}
                                     </td>
                                     <td>
                                         <button
@@ -489,6 +478,7 @@
         />
     </div>
 </template>
+
 <script>
 import { ref, computed, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
@@ -503,6 +493,13 @@ export default {
     setup() {
         const router = useRouter();
         const route = useRoute();
+
+        // Helper function for safe number parsing
+        const safeParseFloat = (value) => {
+            if (value === null || value === undefined || value === '') return 0;
+            const parsed = parseFloat(value);
+            return isNaN(parsed) ? 0 : parsed;
+        };
 
         // Data
         const order = ref(null);
@@ -532,7 +529,7 @@ export default {
             return order.value && order.value.salesOrderLines && order.value.salesOrderLines.length > 0;
         });
 
-        // Load order and reference data
+        // FIXED: Load order and reference data with enhanced logging
         const loadData = async () => {
             isLoading.value = true;
 
@@ -551,17 +548,37 @@ export default {
             };
 
             try {
+                console.log('🔄 Loading order data...');
+
                 // Load unit of measures for reference
                 const uomResponse = await axios.get("/unit-of-measures");
-                unitOfMeasures.value = uomResponse.data.data;
+                unitOfMeasures.value = uomResponse.data.data || [];
+                console.log('✅ UOMs loaded:', unitOfMeasures.value.length);
 
                 // Load order details
-                const orderResponse = await axios.get(
-                    `orders/${route.params.id}`
-                );
+                const orderResponse = await axios.get(`orders/${route.params.id}`);
                 order.value = toCamelCase(orderResponse.data.data);
+
+                console.log('✅ Order loaded:', order.value.soNumber);
+                console.log('💰 Currency code:', order.value.currencyCode);
+                console.log('📊 Order lines:', order.value.salesOrderLines?.length || 0);
+
+                // Debug: log sample line data
+                if (order.value.salesOrderLines && order.value.salesOrderLines.length > 0) {
+                    const sampleLine = order.value.salesOrderLines[0];
+                    console.log('📦 Sample line data:', {
+                        itemCode: sampleLine.item?.itemCode,
+                        unitPrice: sampleLine.unitPrice,
+                        quantity: sampleLine.quantity,
+                        subtotal: sampleLine.subtotal,
+                        discount: sampleLine.discount,
+                        tax: sampleLine.tax,
+                        total: sampleLine.total
+                    });
+                }
+
             } catch (error) {
-                console.error("Error loading order:", error);
+                console.error("❌ Error loading order:", error);
                 order.value = null;
             } finally {
                 isLoading.value = false;
@@ -579,14 +596,24 @@ export default {
             });
         };
 
-        // Format currency
+        // FIXED: Format currency with proper error handling
         const formatCurrency = (value) => {
-            return new Intl.NumberFormat("en-US", {
-                style: "currency",
-                currency: "USD",
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-            }).format(value || 0);
+            const safeValue = safeParseFloat(value);
+
+            // Get currency from order or default to USD
+            const currencyCode = order.value?.currencyCode || "USD";
+
+            try {
+                return new Intl.NumberFormat("en-US", {
+                    style: "currency",
+                    currency: currencyCode,
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                }).format(safeValue);
+            } catch (error) {
+                console.error('Currency formatting error:', error);
+                return `${currencyCode} ${safeValue.toFixed(2)}`;
+            }
         };
 
         // Get UOM symbol
@@ -639,7 +666,7 @@ export default {
             }
         };
 
-        // Calculate delivered quantity for a line
+        // FIXED: Calculate delivered quantity for a line with safe parsing
         const getDeliveredQuantity = (line) => {
             if (!line.deliveryLines || line.deliveryLines.length === 0) {
                 return 0;
@@ -648,27 +675,26 @@ export default {
             // Sum up quantities from completed deliveries
             return line.deliveryLines.reduce((total, deliveryLine) => {
                 // Check if the delivery is completed
-                const delivery = order.value.deliveries.find(d =>
+                const delivery = order.value.deliveries?.find(d =>
                     d.deliveryId === deliveryLine.deliveryId);
                 if (delivery && ['Completed', 'Delivered', 'Invoiced'].includes(delivery.status)) {
-                // if (delivery && delivery.status === 'Completed') {
-                    return total + (parseFloat(deliveryLine.deliveredQuantity) || 0);
+                    return total + safeParseFloat(deliveryLine.deliveredQuantity);
                 }
                 return total;
             }, 0);
         };
 
-        // Calculate outstanding quantity for a line
+        // FIXED: Calculate outstanding quantity for a line with safe parsing
         const getOutstandingQuantity = (line) => {
-            const ordered = parseFloat(line.quantity) || 0;
+            const ordered = safeParseFloat(line.quantity);
             const delivered = getDeliveredQuantity(line);
-            return ordered - delivered;
+            return Math.max(0, ordered - delivered);
         };
 
         // Get delivery status for a line
         const getDeliveryStatusLabel = (line) => {
             const outstanding = getOutstandingQuantity(line);
-            const ordered = parseFloat(line.quantity) || 0;
+            const ordered = safeParseFloat(line.quantity);
 
             if (outstanding <= 0) {
                 return "Terkirim Penuh";
@@ -701,15 +727,15 @@ export default {
             return order.value.salesOrderLines.length;
         };
 
-        // Get total ordered quantity across all lines
+        // FIXED: Get total ordered quantity across all lines with safe parsing
         const getTotalOrderedQuantity = () => {
             if (!order.value || !order.value.salesOrderLines) return 0;
             return order.value.salesOrderLines.reduce((total, line) => {
-                return total + (parseFloat(line.quantity) || 0);
+                return total + safeParseFloat(line.quantity);
             }, 0);
         };
 
-        // Get total delivered quantity across all lines
+        // FIXED: Get total delivered quantity across all lines with safe parsing
         const getTotalDeliveredQuantity = () => {
             if (!order.value || !order.value.salesOrderLines) return 0;
             return order.value.salesOrderLines.reduce((total, line) => {
@@ -717,7 +743,7 @@ export default {
             }, 0);
         };
 
-        // Get total outstanding quantity across all lines
+        // FIXED: Get total outstanding quantity across all lines with safe parsing
         const getTotalOutstandingQuantity = () => {
             if (!order.value || !order.value.salesOrderLines) return 0;
             return order.value.salesOrderLines.reduce((total, line) => {
@@ -725,7 +751,7 @@ export default {
             }, 0);
         };
 
-        // Calculate delivery percentage
+        // FIXED: Calculate delivery percentage with safe parsing
         const getDeliveryPercentage = () => {
             const total = getTotalOrderedQuantity();
             if (total === 0) return 0;
@@ -734,31 +760,46 @@ export default {
             return Math.round((delivered / total) * 100);
         };
 
-        // Calculate subtotal of all lines
+        // FIXED: Calculate subtotal of all lines with safe parsing and logging
         const calculateSubtotal = () => {
             if (!order.value || !order.value.salesOrderLines) return 0;
-            return order.value.salesOrderLines.reduce(
-                (sum, line) => sum + (line.subtotal || 0),
-                0
-            );
+
+            const subtotal = order.value.salesOrderLines.reduce((sum, line) => {
+                const lineSubtotal = safeParseFloat(line.subtotal);
+                console.log('Line subtotal:', line.item?.itemCode, lineSubtotal);
+                return sum + lineSubtotal;
+            }, 0);
+
+            console.log('Total calculated subtotal:', subtotal);
+            return subtotal;
         };
 
-        // Calculate total discount of all lines
+        // FIXED: Calculate total discount of all lines with safe parsing and logging
         const calculateTotalDiscount = () => {
             if (!order.value || !order.value.salesOrderLines) return 0;
-            return order.value.salesOrderLines.reduce(
-                (sum, line) => sum + (line.discount || 0),
-                0
-            );
+
+            const totalDiscount = order.value.salesOrderLines.reduce((sum, line) => {
+                const lineDiscount = safeParseFloat(line.discount);
+                console.log('Line discount:', line.item?.itemCode, lineDiscount);
+                return sum + lineDiscount;
+            }, 0);
+
+            console.log('Total calculated discount:', totalDiscount);
+            return totalDiscount;
         };
 
-        // Calculate total tax of all lines
+        // FIXED: Calculate total tax of all lines with safe parsing and logging
         const calculateTotalTax = () => {
             if (!order.value || !order.value.salesOrderLines) return 0;
-            return order.value.salesOrderLines.reduce(
-                (sum, line) => sum + (line.tax || 0),
-                0
-            );
+
+            const totalTax = order.value.salesOrderLines.reduce((sum, line) => {
+                const lineTax = safeParseFloat(line.tax);
+                console.log('Line tax:', line.item?.itemCode, lineTax);
+                return sum + lineTax;
+            }, 0);
+
+            console.log('Total calculated tax:', totalTax);
+            return totalTax;
         };
 
         // Navigation methods
@@ -771,8 +812,8 @@ export default {
         };
 
         const viewQuotation = () => {
-            if (order.value && order.value.quotation_id) {
-                router.push(`/sales/quotations/${order.value.quotation_id}`);
+            if (order.value && order.value.quotationId) {
+                router.push(`/sales/quotations/${order.value.quotationId}`);
             }
         };
 
@@ -785,7 +826,7 @@ export default {
         };
 
         const viewInvoice = (invoice) => {
-            router.push(`/sales/invoices/${invoice.invoice_id}`);
+            router.push(`/sales/invoices/${invoice.invoiceId}`);
         };
 
         // Print order
@@ -808,7 +849,7 @@ export default {
                 // Mapping data ke format backend (snake_case dan nama field sesuai)
                 const payload = {
                     so_number: order.value.soNumber,
-                    po_number_customer: order.value.poNumberCustomer || null, // Add this field
+                    po_number_customer: order.value.poNumberCustomer || null,
                     so_date: order.value.soDate,
                     customer_id: order.value.customer.customerId,
                     quotation_id: order.value.quotationId || null,
@@ -819,11 +860,11 @@ export default {
                     lines: order.value.salesOrderLines.map(line => ({
                         line_id: line.lineId || null,
                         item_id: line.item.itemId,
-                        unit_price: line.unitPrice,
-                        quantity: line.quantity,
+                        unit_price: safeParseFloat(line.unitPrice),
+                        quantity: safeParseFloat(line.quantity),
                         uom_id: line.uomId,
-                        discount: line.discount || 0,
-                        tax: line.tax || 0
+                        discount: safeParseFloat(line.discount),
+                        tax: safeParseFloat(line.tax)
                     }))
                 };
 
@@ -864,6 +905,7 @@ export default {
             hasInvoices,
             showConfirmModal,
             showFulfillmentSummary,
+            safeParseFloat,
             formatDate,
             formatCurrency,
             getUomSymbol,
@@ -1231,6 +1273,10 @@ export default {
     color: #059669;
 }
 
+.text-muted {
+    color: #64748b;
+}
+
 .delivery-status {
     display: inline-block;
     padding: 0.25rem 0.5rem;
@@ -1284,6 +1330,15 @@ export default {
 .delivery-actions {
     text-align: center;
     margin-top: 1.5rem;
+}
+
+.item-link {
+    color: #2563eb;
+    text-decoration: none;
+}
+
+.item-link:hover {
+    text-decoration: underline;
 }
 
 @media (max-width: 768px) {

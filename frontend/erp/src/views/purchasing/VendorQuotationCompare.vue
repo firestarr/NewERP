@@ -1,469 +1,642 @@
-<!-- src/views/purchasing/VendorQuotationCompare.vue -->
+<!-- Enhanced Vendor Quotation Compare with Multi-Currency Support -->
 <template>
-    <div class="quotation-compare-container">
-      <div class="page-header">
+  <div class="quotation-compare-container">
+    <div class="page-header">
+      <div class="header-left">
         <h1>Compare Vendor Quotations</h1>
+        <p class="page-description">Compare vendor quotations side by side to make informed decisions</p>
+      </div>
+      <div class="header-actions">
         <router-link to="/purchasing/quotations" class="btn btn-secondary">
           <i class="fas fa-arrow-left"></i> Back to List
         </router-link>
       </div>
-  
-      <div class="filter-section">
+    </div>
+
+    <!-- RFQ Selection -->
+    <div class="filter-section">
+      <div class="filter-card">
         <div class="filter-header">
-          <h2>Select RFQ to Compare Quotations</h2>
+          <h2><i class="fas fa-clipboard-list"></i> Select RFQ to Compare Quotations</h2>
         </div>
         <div class="filter-content">
-          <div class="filter-select-group">
-            <label for="rfq-select">Request for Quotation:</label>
-            <select 
-              id="rfq-select" 
-              v-model="selectedRFQ"
-              @change="loadQuotations"
-            >
-              <option value="">Select RFQ</option>
-              <option v-for="rfq in rfqOptions" :key="rfq.rfq_id" :value="rfq.rfq_id">
-                {{ rfq.rfq_number }} - {{ formatDate(rfq.rfq_date) }}
-              </option>
-            </select>
+          <div class="filter-row">
+            <div class="filter-select-group">
+              <label for="rfq-select">Request for Quotation:</label>
+              <select 
+                id="rfq-select" 
+                v-model="selectedRFQ"
+                @change="loadQuotations"
+                class="form-control"
+              >
+                <option value="">Select RFQ</option>
+                <option v-for="rfq in rfqOptions" :key="rfq.rfq_id" :value="rfq.rfq_id">
+                  {{ rfq.rfq_number }} - {{ formatDate(rfq.rfq_date) }}
+                </option>
+              </select>
+            </div>
+            
+            <div class="currency-controls" v-if="selectedRFQ">
+              <div class="currency-select-group">
+                <label for="display-currency">Display Currency:</label>
+                <select 
+                  id="display-currency"
+                  v-model="displayCurrency"
+                  @change="updateDisplayCurrency"
+                  class="form-control"
+                >
+                  <option value="">Original Currencies</option>
+                  <option v-for="currency in currencyOptions" :key="currency.code" :value="currency.code">
+                    {{ currency.code }} - {{ currency.name }}
+                  </option>
+                </select>
+              </div>
+              
+              <div class="comparison-mode">
+                <label>
+                  <input type="checkbox" v-model="showOnlyReceived" @change="filterQuotations" />
+                  Show only received quotations
+                </label>
+              </div>
+            </div>
           </div>
+          
           <div class="filter-help">
             <i class="fas fa-info-circle"></i>
             Select a Request for Quotation to view and compare all vendor responses.
           </div>
         </div>
       </div>
-  
-      <div v-if="loading" class="loading-container">
-        <i class="fas fa-spinner fa-spin"></i> Loading quotations...
+    </div>
+
+    <!-- Currency Display Notice -->
+    <div v-if="displayCurrency" class="currency-notice">
+      <i class="fas fa-coins"></i>
+      All amounts are displayed in <strong>{{ displayCurrency }}</strong> 
+      (converted from original currencies using rates from quotation dates)
+    </div>
+
+    <div v-if="loading" class="loading-container">
+      <i class="fas fa-spinner fa-spin"></i> Loading quotations...
+    </div>
+
+    <div v-else>
+      <div v-if="filteredQuotations.length === 0 && selectedRFQ" class="empty-state">
+        <i class="fas fa-file-invoice-dollar empty-icon"></i>
+        <h3>No quotations found</h3>
+        <p>No vendor quotations are available for the selected Request for Quotation.</p>
       </div>
-  
-      <div v-else>
-        <div v-if="quotations.length === 0 && selectedRFQ" class="empty-state">
-          <i class="fas fa-file-invoice-dollar empty-icon"></i>
-          <h3>No quotations found</h3>
-          <p>No vendor quotations are available for the selected Request for Quotation.</p>
-        </div>
-  
-        <div v-else-if="quotations.length > 0" class="comparison-section">
-          <!-- RFQ Information -->
-          <div class="rfq-info-section">
+
+      <div v-else-if="filteredQuotations.length > 0" class="comparison-section">
+        <!-- RFQ Information -->
+        <div class="rfq-info-section">
+          <div class="rfq-header">
             <div class="rfq-badge">
-              <span>RFQ: {{ rfqDetails.rfq_number }}</span>
-              <span 
-                class="status-badge" 
-                :class="rfqStatusClass"
-              >{{ capitalizeFirstLetter(rfqDetails.status) }}</span>
+              <span class="rfq-number">RFQ: {{ rfqDetails.rfq_number }}</span>
+              <span class="status-badge" :class="rfqStatusClass">
+                {{ capitalizeFirstLetter(rfqDetails.status) }}
+              </span>
             </div>
-            <div class="rfq-details">
-              <div class="rfq-detail-item">
-                <span class="detail-label">Date:</span>
-                <span class="detail-value">{{ formatDate(rfqDetails.rfq_date) }}</span>
+            <div class="rfq-stats">
+              <div class="stat-item">
+                <span class="stat-label">Total Quotations</span>
+                <span class="stat-value">{{ quotations.length }}</span>
               </div>
-              <div class="rfq-detail-item">
-                <span class="detail-label">Valid Until:</span>
-                <span class="detail-value">{{ formatDate(rfqDetails.validity_date) }}</span>
+              <div class="stat-item">
+                <span class="stat-label">Received</span>
+                <span class="stat-value">{{ receivedQuotations.length }}</span>
+              </div>
+              <div class="stat-item" v-if="bestPriceQuotation">
+                <span class="stat-label">Best Total Price</span>
+                <span class="stat-value">{{ formatDisplayAmount(bestPriceQuotation) }}</span>
               </div>
             </div>
           </div>
           
-          <!-- Quotation Summary Cards -->
-          <div class="summary-cards">
-            <div 
-              v-for="(quotation, index) in quotations" 
-              :key="quotation.quotation_id"
-              class="summary-card"
-              :class="getQuotationCardClass(quotation, index)"
-            >
-              <div class="summary-header">
+          <div class="rfq-details">
+            <div class="rfq-detail-item">
+              <span class="detail-label">RFQ Date:</span>
+              <span class="detail-value">{{ formatDate(rfqDetails.rfq_date) }}</span>
+            </div>
+            <div class="rfq-detail-item">
+              <span class="detail-label">Valid Until:</span>
+              <span class="detail-value">{{ formatDate(rfqDetails.validity_date) }}</span>
+            </div>
+            <div class="rfq-detail-item">
+              <span class="detail-label">Required Items:</span>
+              <span class="detail-value">{{ rfqDetails.lines ? rfqDetails.lines.length : 0 }} items</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Quotation Summary Cards -->
+        <div class="summary-cards">
+          <div 
+            v-for="(quotation, index) in filteredQuotations" 
+            :key="quotation.quotation_id"
+            class="summary-card"
+            :class="getQuotationCardClass(quotation, index)"
+          >
+            <div class="summary-header">
+              <div class="vendor-info">
                 <h3>{{ quotation.vendor ? quotation.vendor.name : 'Unknown Vendor' }}</h3>
-                <span 
-                  class="status-badge" 
-                  :class="getStatusClass(quotation.status)"
-                >{{ capitalizeFirstLetter(quotation.status) }}</span>
+                <small v-if="quotation.vendor">{{ quotation.vendor.vendor_code }}</small>
               </div>
-              <div class="summary-body">
-                <div class="summary-row">
-                  <span class="summary-label">Quotation Date:</span>
-                  <span class="summary-value">{{ formatDate(quotation.quotation_date) }}</span>
+              <div class="card-badges">
+                <span v-if="isBestTotalPrice(quotation.quotation_id)" class="best-badge">
+                  <i class="fas fa-crown"></i> Best Price
+                </span>
+                <span class="status-badge" :class="getStatusClass(quotation.status)">
+                  {{ capitalizeFirstLetter(quotation.status) }}
+                </span>
+              </div>
+            </div>
+            
+            <div class="summary-content">
+              <!-- Currency Information -->
+              <div class="currency-info">
+                <div class="currency-row">
+                  <span class="currency-label">Currency:</span>
+                  <span class="currency-value">{{ quotation.currency_code || 'USD' }}</span>
                 </div>
-                <div class="summary-row">
-                  <span class="summary-label">Valid Until:</span>
-                  <span class="summary-value">{{ formatDate(quotation.validity_date) }}</span>
-                </div>
-                <div class="summary-row">
-                  <span class="summary-label">Total Amount:</span>
-                  <span class="summary-value highlight">{{ formatCurrency(calculateTotal(quotation)) }}</span>
-                </div>
-                <div class="summary-row">
-                  <span class="summary-label">Earliest Delivery:</span>
-                  <span class="summary-value">{{ getEarliestDelivery(quotation) }}</span>
+                <div v-if="quotation.currency_code !== baseCurrency" class="currency-row">
+                  <span class="currency-label">Exchange Rate:</span>
+                  <span class="currency-value">1:{{ formatNumber(quotation.exchange_rate) }}</span>
                 </div>
               </div>
-              <div class="summary-footer">
-                <router-link :to="`/purchasing/quotations/${quotation.quotation_id}`" class="btn-link">
-                  <i class="fas fa-eye"></i> View Details
-                </router-link>
-                <router-link 
-                  v-if="quotation.status === 'accepted'" 
-                  :to="`/purchasing/quotations/${quotation.quotation_id}/create-po`" 
-                  class="btn-link success"
-                >
-                  <i class="fas fa-file-invoice"></i> Create PO
-                </router-link>
+
+              <!-- Price Information -->
+              <div class="price-summary">
+                <div class="price-row main-price">
+                  <span class="price-label">Total Amount:</span>
+                  <span class="price-value">{{ formatDisplayAmount(quotation) }}</span>
+                </div>
+                <div v-if="displayCurrency && quotation.currency_code !== displayCurrency" class="price-row original-price">
+                  <span class="price-label">Original ({{ quotation.currency_code }}):</span>
+                  <span class="price-value">{{ formatCurrency(quotation.total_amount, quotation.currency_code) }}</span>
+                </div>
+              </div>
+
+              <!-- Additional Details -->
+              <div class="summary-details">
+                <div class="detail-item">
+                  <i class="fas fa-calendar"></i>
+                  <span>{{ formatDate(quotation.quotation_date) }}</span>
+                </div>
+                <div class="detail-item">
+                  <i class="fas fa-clock"></i>
+                  <span>Valid until {{ formatDate(quotation.validity_date) }}</span>
+                </div>
+                <div class="detail-item">
+                  <i class="fas fa-truck"></i>
+                  <span>{{ getEarliestDelivery(quotation) }}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="summary-actions">
+              <router-link 
+                :to="`/purchasing/quotations/${quotation.quotation_id}`" 
+                class="btn btn-sm btn-info"
+              >
+                <i class="fas fa-eye"></i> View Details
+              </router-link>
+              <div class="action-dropdown">
                 <button 
                   v-if="quotation.status === 'received'" 
-                  @click="changeStatus(quotation.quotation_id, 'accepted')" 
-                  class="btn-link success"
+                  @click="changeStatus(quotation.quotation_id, 'accepted')"
+                  class="btn btn-sm btn-success"
+                  :disabled="processingAction"
                 >
                   <i class="fas fa-check"></i> Accept
+                </button>
+                <button 
+                  v-if="quotation.status === 'received'" 
+                  @click="changeStatus(quotation.quotation_id, 'rejected')"
+                  class="btn btn-sm btn-danger"
+                  :disabled="processingAction"
+                >
+                  <i class="fas fa-times"></i> Reject
                 </button>
               </div>
             </div>
           </div>
-          
-          <!-- Detailed Comparison Table -->
-          <div class="comparison-table-section">
-            <h2>Item Details Comparison</h2>
-            <div v-if="comparisonData.length > 0" class="table-responsive">
-              <table class="comparison-table">
-                <thead>
-                  <tr>
-                    <th>Item</th>
-                    <th>Description</th>
-                    <th>Requested Qty</th>
-                    <th v-for="quotation in quotations" :key="`head-${quotation.quotation_id}`">
-                      {{ quotation.vendor ? quotation.vendor.name : 'Unknown' }}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <template v-for="(item, itemIndex) in comparisonData" :key="itemIndex">
-                    <!-- Item row -->
-                    <tr class="item-row">
-                      <td>{{ item.item_code }}</td>
-                      <td>{{ item.item_name }}</td>
-                      <td>{{ formatNumber(item.requested_quantity) }} {{ item.uom_symbol }}</td>
-                      <td v-for="quotation in quotations" :key="`${itemIndex}-${quotation.quotation_id}`">
-                        <div class="vendor-price">
-                          {{ formatCurrency(getItemPrice(item.item_id, quotation)) }}
-                        </div>
-                      </td>
-                    </tr>
-                    <!-- Delivery row -->
-                    <tr class="delivery-row">
-                      <td colspan="3" class="delivery-label">Delivery Date</td>
-                      <td v-for="quotation in quotations" :key="`del-${itemIndex}-${quotation.quotation_id}`">
-                        {{ formatDate(getItemDeliveryDate(item.item_id, quotation)) }}
-                      </td>
-                    </tr>
-                    <!-- Highlight best price -->
-                    <tr class="highlight-row">
-                      <td colspan="3" class="highlight-label">
-                        <span v-if="getBestPriceVendor(item.item_id)">Best Price</span>
-                      </td>
-                      <td 
-                        v-for="quotation in quotations" 
-                        :key="`best-${itemIndex}-${quotation.quotation_id}`"
-                        :class="{ 'best-price': isBestPrice(item.item_id, quotation.quotation_id) }"
-                      >
-                        <i v-if="isBestPrice(item.item_id, quotation.quotation_id)" class="fas fa-check-circle"></i>
-                      </td>
-                    </tr>
-                  </template>
-                </tbody>
-                <tfoot>
-                  <tr>
-                    <td colspan="3" class="total-label"><strong>Total</strong></td>
-                    <td 
-                      v-for="quotation in quotations" 
-                      :key="`total-${quotation.quotation_id}`"
-                      class="total-value"
-                      :class="{ 'best-total': isBestTotalPrice(quotation.quotation_id) }"
-                    >
-                      <strong>{{ formatCurrency(calculateTotal(quotation)) }}</strong>
-                      <i v-if="isBestTotalPrice(quotation.quotation_id)" class="fas fa-trophy"></i>
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
+        </div>
+
+        <!-- Detailed Item Comparison -->
+        <div class="comparison-table-section">
+          <div class="section-header">
+            <h2><i class="fas fa-table"></i> Item-by-Item Comparison</h2>
+            <div class="table-controls">
+              <button @click="exportComparison" class="btn btn-outline">
+                <i class="fas fa-file-excel"></i> Export Comparison
+              </button>
             </div>
           </div>
           
-          <!-- Recommendation Section -->
-          <div class="recommendation-section">
-            <h2>Recommendation</h2>
-            <div class="recommendation-content">
-              <div class="recommendation-icon">
-                <i class="fas fa-chart-line"></i>
+          <div class="table-responsive">
+            <table class="comparison-table">
+              <thead>
+                <tr>
+                  <th rowspan="2" class="item-header">Item</th>
+                  <th rowspan="2" class="qty-header">Qty</th>
+                  <th rowspan="2" class="uom-header">UOM</th>
+                  <th 
+                    v-for="quotation in filteredQuotations" 
+                    :key="`vendor-${quotation.quotation_id}`"
+                    :class="['vendor-header', getQuotationHeaderClass(quotation)]"
+                  >
+                    {{ quotation.vendor ? quotation.vendor.name : 'Unknown' }}
+                    <small>{{ quotation.currency_code || 'USD' }}</small>
+                  </th>
+                </tr>
+                <tr>
+                  <th 
+                    v-for="quotation in filteredQuotations" 
+                    :key="`price-${quotation.quotation_id}`"
+                    class="price-header"
+                  >
+                    Unit Price ({{ displayCurrency || quotation.currency_code || 'USD' }})
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in comparisonData" :key="item.item_id" class="comparison-row">
+                  <td class="item-cell">
+                    <div class="item-info">
+                      <strong>{{ item.item_code }}</strong>
+                      <div class="item-name">{{ item.item_name }}</div>
+                    </div>
+                  </td>
+                  <td class="qty-cell">{{ formatNumber(item.quantity) }}</td>
+                  <td class="uom-cell">{{ item.uom_symbol }}</td>
+                  <td 
+                    v-for="quotation in filteredQuotations" 
+                    :key="`price-${quotation.quotation_id}-${item.item_id}`"
+                    :class="['price-cell', getPriceCellClass(quotation.quotation_id, item)]"
+                  >
+                    <div class="price-info">
+                      <span class="unit-price">{{ getItemPrice(quotation, item.item_id) }}</span>
+                      <span class="line-total">{{ getItemTotal(quotation, item.item_id) }}</span>
+                    </div>
+                  </td>
+                </tr>
+                <!-- Total Row -->
+                <tr class="total-row">
+                  <td colspan="3" class="total-label">
+                    <strong>Total Amount</strong>
+                  </td>
+                  <td 
+                    v-for="quotation in filteredQuotations" 
+                    :key="`total-${quotation.quotation_id}`"
+                    :class="['total-cell', getTotalCellClass(quotation)]"
+                  >
+                    <strong>{{ formatDisplayAmount(quotation) }}</strong>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Recommendation Section -->
+        <div class="recommendation-section">
+          <div class="section-header">
+            <h2><i class="fas fa-lightbulb"></i> Recommendations</h2>
+          </div>
+          
+          <div class="recommendations-grid">
+            <div class="recommendation-card best-price">
+              <div class="rec-header">
+                <i class="fas fa-dollar-sign"></i>
+                <h4>Best Overall Price</h4>
               </div>
-              <div class="recommendation-text">
-                <p>
-                  Based on price comparison, 
-                  <strong>{{ getBestOverallVendor() ? getBestOverallVendor().name : 'None' }}</strong> 
-                  offers the best overall value with the lowest total price.
-                </p>
-                <p>
-                  For individual items:
-                  <ul>
-                    <li v-for="(item, index) in getItemRecommendations()" :key="index">
-                      <strong>{{ item.item_name }}:</strong> 
-                      Best price from <strong>{{ item.vendor_name }}</strong> 
-                      at {{ formatCurrency(item.price) }}
-                    </li>
-                  </ul>
-                </p>
-                <div v-if="getBestOverallVendor()" class="recommendation-actions">
-                  <template v-for="quotation in quotations" :key="`action-${quotation.quotation_id}`">
-                    <template v-if="isBestTotalPrice(quotation.quotation_id)">
-                      <button 
-                        v-if="quotation.status === 'received'"
-                        @click="changeStatus(quotation.quotation_id, 'accepted')" 
-                        class="btn btn-success"
-                      >
-                        <i class="fas fa-check"></i> Accept Best Quotation
-                      </button>
-                      <router-link 
-                        v-if="quotation.status === 'accepted'"
-                        :to="`/purchasing/quotations/${quotation.quotation_id}/create-po`" 
-                        class="btn btn-success"
-                      >
-                        <i class="fas fa-file-invoice"></i> Create PO for Best Quotation
-                      </router-link>
-                    </template>
-                  </template>
+              <div class="rec-content" v-if="bestPriceQuotation">
+                <div class="vendor-name">{{ bestPriceQuotation.vendor.name }}</div>
+                <div class="price-amount">{{ formatDisplayAmount(bestPriceQuotation) }}</div>
+                <div class="savings" v-if="priceSavings > 0">
+                  Saves {{ formatCurrency(priceSavings, displayCurrency || baseCurrency) }} vs highest
                 </div>
+              </div>
+            </div>
+
+            <div class="recommendation-card best-delivery">
+              <div class="rec-header">
+                <i class="fas fa-shipping-fast"></i>
+                <h4>Fastest Delivery</h4>
+              </div>
+              <div class="rec-content" v-if="fastestDeliveryQuotation">
+                <div class="vendor-name">{{ fastestDeliveryQuotation.vendor.name }}</div>
+                <div class="delivery-date">{{ getEarliestDelivery(fastestDeliveryQuotation) }}</div>
+              </div>
+            </div>
+
+            <div class="recommendation-card balanced">
+              <div class="rec-header">
+                <i class="fas fa-balance-scale"></i>
+                <h4>Balanced Choice</h4>
+              </div>
+              <div class="rec-content" v-if="balancedChoiceQuotation">
+                <div class="vendor-name">{{ balancedChoiceQuotation.vendor.name }}</div>
+                <div class="balance-score">Good price + delivery combination</div>
               </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-  </template>
-  
-  <script>
-  import axios from 'axios';
-  
-  export default {
-    name: 'VendorQuotationCompare',
-    data() {
-      return {
-        loading: false,
-        selectedRFQ: '',
-        rfqOptions: [],
-        quotations: [],
-        rfqDetails: {},
-        comparisonData: [],
-        processingAction: false
-      };
-    },
-    computed: {
-      rfqStatusClass() {
-        if (!this.rfqDetails || !this.rfqDetails.status) return '';
-        
-        switch (this.rfqDetails.status) {
-          case 'draft': return 'status-warn';
-          case 'sent': return 'status-info';
-          case 'closed': return 'status-success';
-          case 'cancelled': return 'status-danger';
-          default: return '';
-        }
-      }
-    },
-    methods: {
-      // Initial data load
-      fetchRFQOptions() {
-        axios.get('/request-for-quotations')
-          .then(response => {
-            if (response.data.status === 'success') {
-              this.rfqOptions = response.data.data.data.filter(rfq => rfq.status !== 'draft');
-            }
-          })
-          .catch(error => {
-            console.error('Error fetching RFQ options:', error);
-            this.$toasted.error('Failed to load RFQ options');
-          });
-      },
-// Continuing the script section of VendorQuotationCompare.vue
+  </div>
+</template>
 
+<script>
+import axios from 'axios';
+
+export default {
+  name: 'VendorQuotationCompare',
+  data() {
+    return {
+      selectedRFQ: '',
+      displayCurrency: '',
+      showOnlyReceived: true,
+      loading: false,
+      processingAction: false,
+      baseCurrency: 'USD',
+      
+      rfqOptions: [],
+      quotations: [],
+      filteredQuotations: [],
+      rfqDetails: {},
+      comparisonData: [],
+      
+      currencyOptions: [
+        { code: 'USD', name: 'US Dollar' },
+        { code: 'IDR', name: 'Indonesian Rupiah' },
+        { code: 'EUR', name: 'Euro' },
+        { code: 'SGD', name: 'Singapore Dollar' },
+        { code: 'JPY', name: 'Japanese Yen' },
+        { code: 'CNY', name: 'Chinese Yuan' },
+        { code: 'GBP', name: 'British Pound' },
+        { code: 'AUD', name: 'Australian Dollar' },
+        { code: 'CAD', name: 'Canadian Dollar' },
+      ]
+    };
+  },
+  computed: {
+    rfqStatusClass() {
+      return this.getStatusClass(this.rfqDetails.status);
+    },
+    
+    receivedQuotations() {
+      return this.quotations.filter(q => q.status === 'received');
+    },
+
+    bestPriceQuotation() {
+      if (this.filteredQuotations.length === 0) return null;
+      
+      return this.filteredQuotations.reduce((best, current) => {
+        const bestAmount = this.getDisplayAmount(best);
+        const currentAmount = this.getDisplayAmount(current);
+        return currentAmount < bestAmount ? current : best;
+      });
+    },
+
+    fastestDeliveryQuotation() {
+      return this.filteredQuotations.reduce((fastest, current) => {
+        const fastestDate = this.getEarliestDeliveryDate(fastest);
+        const currentDate = this.getEarliestDeliveryDate(current);
+        return currentDate < fastestDate ? current : fastest;
+      }, this.filteredQuotations[0]);
+    },
+
+    balancedChoiceQuotation() {
+      // Simple balanced choice logic - can be enhanced
+      return this.bestPriceQuotation;
+    },
+
+    priceSavings() {
+      if (this.filteredQuotations.length < 2) return 0;
+      
+      const amounts = this.filteredQuotations.map(q => this.getDisplayAmount(q));
+      const highest = Math.max(...amounts);
+      const lowest = Math.min(...amounts);
+      
+      return highest - lowest;
+    }
+  },
+  methods: {
+    // Fetch RFQ options
+    fetchRFQOptions() {
+      axios.get('/request-for-quotations?status=sent')
+        .then(response => {
+          this.rfqOptions = response.data.data.data || response.data.data;
+        })
+        .catch(error => {
+          console.error('Error fetching RFQ options:', error);
+          this.$toasted.error('Failed to load RFQ options');
+        });
+    },
+    
     // Load quotations for selected RFQ
     loadQuotations() {
       if (!this.selectedRFQ) {
         this.quotations = [];
-        this.rfqDetails = {};
+        this.filteredQuotations = [];
         this.comparisonData = [];
         return;
       }
       
       this.loading = true;
       
-      // Load RFQ details
-      axios.get(`/request-for-quotations/${this.selectedRFQ}`)
-        .then(response => {
-          if (response.data.status === 'success') {
-            this.rfqDetails = response.data.data;
-            
-            // Now load all quotations for this RFQ
-            return axios.get('/vendor-quotations', {
-              params: { rfq_id: this.selectedRFQ }
-            });
-          }
-        })
-        .then(response => {
-          if (response && response.data.status === 'success') {
-            this.quotations = response.data.data.data;
-            this.prepareComparisonData();
-          }
-        })
-        .catch(error => {
-          console.error('Error fetching data:', error);
-          this.$toasted.error('Failed to load comparison data');
-        })
-        .finally(() => {
-          this.loading = false;
-        });
+      const params = {
+        rfq_id: this.selectedRFQ
+      };
+
+      if (this.displayCurrency) {
+        params.display_currency = this.displayCurrency;
+        params.exchange_date = new Date().toISOString().split('T')[0];
+      }
+      
+      Promise.all([
+        axios.get('/vendor-quotations', { params }),
+        axios.get(`/request-for-quotations/${this.selectedRFQ}`)
+      ])
+      .then(([quotationsResponse, rfqResponse]) => {
+        this.quotations = quotationsResponse.data.data.data || quotationsResponse.data.data;
+        this.rfqDetails = rfqResponse.data.data;
+        
+        this.filterQuotations();
+        this.buildComparisonData();
+      })
+      .catch(error => {
+        console.error('Error loading quotations:', error);
+        this.$toasted.error('Failed to load quotations');
+      })
+      .finally(() => {
+        this.loading = false;
+      });
     },
-    
-    // Prepare data for comparison table
-    prepareComparisonData() {
-      if (!this.rfqDetails.lines || this.rfqDetails.lines.length === 0) {
+
+    // Update display currency
+    updateDisplayCurrency() {
+      if (this.selectedRFQ) {
+        this.loadQuotations();
+      }
+    },
+
+    // Filter quotations based on settings
+    filterQuotations() {
+      this.filteredQuotations = this.quotations.filter(quotation => {
+        if (this.showOnlyReceived && quotation.status !== 'received') {
+          return false;
+        }
+        return true;
+      });
+    },
+
+    // Build comparison data
+    buildComparisonData() {
+      if (!this.rfqDetails.lines || this.quotations.length === 0) {
         this.comparisonData = [];
         return;
       }
-      
-      // Create a list of all items from RFQ
-      this.comparisonData = this.rfqDetails.lines.map(line => {
-        return {
-          item_id: line.item_id,
-          item_code: line.item ? line.item.item_code : 'Unknown',
-          item_name: line.item ? line.item.name : 'Unknown',
-          requested_quantity: line.quantity,
-          uom_symbol: line.unitOfMeasure ? line.unitOfMeasure.symbol : '',
-          prices: {},
-          delivery_dates: {},
-          best_price_vendor: null,
-          best_price: Infinity
-        };
-      });
-      
-      // For each quotation, extract item prices and delivery dates
-      this.quotations.forEach(quotation => {
-        if (!quotation.lines) return;
-        
-        quotation.lines.forEach(line => {
-          const itemIndex = this.comparisonData.findIndex(item => item.item_id === line.item_id);
-          
-          if (itemIndex !== -1) {
-            // Store price for this vendor
-            this.comparisonData[itemIndex].prices[quotation.quotation_id] = line.unit_price;
-            
-            // Store delivery date for this vendor
-            this.comparisonData[itemIndex].delivery_dates[quotation.quotation_id] = line.delivery_date;
-            
-            // Check if this is the best price so far
-            if (line.unit_price < this.comparisonData[itemIndex].best_price) {
-              this.comparisonData[itemIndex].best_price = line.unit_price;
-              this.comparisonData[itemIndex].best_price_vendor = quotation.quotation_id;
-            }
-          }
-        });
-      });
+
+      this.comparisonData = this.rfqDetails.lines.map(rfqLine => ({
+        item_id: rfqLine.item_id,
+        item_code: rfqLine.item ? rfqLine.item.item_code : 'N/A',
+        item_name: rfqLine.item ? rfqLine.item.name : 'N/A',
+        quantity: rfqLine.quantity,
+        uom_symbol: rfqLine.unitOfMeasure ? rfqLine.unitOfMeasure.symbol : 'N/A'
+      }));
     },
-    
-    // Get the unit price for an item from a quotation
-    getItemPrice(itemId, quotation) {
-      if (!quotation.lines) return 'N/A';
-      
-      const line = quotation.lines.find(line => line.item_id === itemId);
-      return line ? line.unit_price : 'N/A';
+
+    // Get display amount considering currency conversion
+    getDisplayAmount(quotation) {
+      if (this.displayCurrency && quotation.display_amounts) {
+        return quotation.display_amounts.total_amount;
+      }
+      return quotation.total_amount || 0;
     },
-    
-    // Get the delivery date for an item from a quotation
-    getItemDeliveryDate(itemId, quotation) {
-      if (!quotation.lines) return null;
-      
-      const line = quotation.lines.find(line => line.item_id === itemId);
-      return line ? line.delivery_date : null;
+
+    // Format display amount
+    formatDisplayAmount(quotation) {
+      const amount = this.getDisplayAmount(quotation);
+      const currency = this.displayCurrency || quotation.currency_code || 'USD';
+      return this.formatCurrency(amount, currency);
     },
-    
-    // Check if this vendor has the best price for an item
-    isBestPrice(itemId, quotationId) {
-      const item = this.comparisonData.find(item => item.item_id === itemId);
-      return item && item.best_price_vendor === quotationId;
+
+    // Get item price from quotation
+    getItemPrice(quotation, itemId) {
+      const line = quotation.lines ? quotation.lines.find(l => l.item_id === itemId) : null;
+      if (!line) return 'N/A';
+      
+      let unitPrice = line.unit_price;
+      let currency = quotation.currency_code || 'USD';
+
+      // Convert to display currency if needed
+      if (this.displayCurrency && quotation.currency_code !== this.displayCurrency) {
+        unitPrice = line.base_currency_unit_price / this.getExchangeRateToDisplay(quotation);
+        currency = this.displayCurrency;
+      }
+
+      return this.formatCurrency(unitPrice, currency);
     },
-    
-    // Calculate total for a quotation
-    calculateTotal(quotation) {
-      if (!quotation.lines || quotation.lines.length === 0) return 0;
+
+    // Get item total from quotation
+    getItemTotal(quotation, itemId) {
+      const line = quotation.lines ? quotation.lines.find(l => l.item_id === itemId) : null;
+      if (!line) return 'N/A';
       
-      return quotation.lines.reduce((total, line) => {
-        return total + (line.quantity * line.unit_price);
-      }, 0);
+      let subtotal = line.subtotal;
+      let currency = quotation.currency_code || 'USD';
+
+      // Convert to display currency if needed
+      if (this.displayCurrency && quotation.currency_code !== this.displayCurrency) {
+        subtotal = line.base_currency_subtotal / this.getExchangeRateToDisplay(quotation);
+        currency = this.displayCurrency;
+      }
+
+      return this.formatCurrency(subtotal, currency);
     },
-    
-    // Check if this quotation has the best total price
-    isBestTotalPrice(quotationId) {
-      if (this.quotations.length === 0) return false;
-      
-      const bestQuotation = this.quotations.reduce((best, current) => {
-        const bestTotal = this.calculateTotal(best);
-        const currentTotal = this.calculateTotal(current);
-        return currentTotal < bestTotal ? current : best;
-      }, this.quotations[0]);
-      
-      return bestQuotation.quotation_id === quotationId;
+
+    // Get exchange rate for display currency conversion
+    getExchangeRateToDisplay(quotation) {
+      if (quotation && typeof quotation.exchange_rate === 'number' && quotation.exchange_rate > 0) {
+        return quotation.exchange_rate;
+      }
+      return 1.0;
     },
-    
-    // Get the vendor with best overall price
-    getBestOverallVendor() {
-      if (this.quotations.length === 0) return null;
-      
-      const bestQuotation = this.quotations.reduce((best, current) => {
-        const bestTotal = this.calculateTotal(best);
-        const currentTotal = this.calculateTotal(current);
-        return currentTotal < bestTotal ? current : best;
-      }, this.quotations[0]);
-      
-      return bestQuotation.vendor;
-    },
-    
-    // Get the vendor with best price for an item
-    getBestPriceVendor(itemId) {
-      const item = this.comparisonData.find(item => item.item_id === itemId);
-      
-      if (!item || !item.best_price_vendor) return null;
-      
-      const quotation = this.quotations.find(q => q.quotation_id === item.best_price_vendor);
-      return quotation ? quotation.vendor : null;
-    },
-    
-    // Get list of item recommendations
-    getItemRecommendations() {
-      return this.comparisonData.map(item => {
-        const vendor = this.getBestPriceVendor(item.item_id);
-        
-        return {
-          item_id: item.item_id,
-          item_name: item.item_name,
-          vendor_name: vendor ? vendor.name : 'None',
-          price: item.best_price
-        };
-      });
-    },
-    
-    // Get earliest delivery date from a quotation
-    getEarliestDelivery(quotation) {
-      if (!quotation.lines || quotation.lines.length === 0) return 'N/A';
+
+    // Get earliest delivery date
+    getEarliestDeliveryDate(quotation) {
+      if (!quotation.lines || quotation.lines.length === 0) return new Date('2099-12-31');
       
       const dates = quotation.lines
         .map(line => line.delivery_date)
-        .filter(date => date); // Filter out nulls/undefined
+        .filter(date => date)
+        .map(date => new Date(date));
       
-      if (dates.length === 0) return 'N/A';
-      
-      const earliestDate = new Date(Math.min(...dates.map(date => new Date(date))));
-      return this.formatDate(earliestDate);
+      return dates.length > 0 ? new Date(Math.min(...dates)) : new Date('2099-12-31');
     },
-    
+
+    // Get earliest delivery formatted
+    getEarliestDelivery(quotation) {
+      const date = this.getEarliestDeliveryDate(quotation);
+      if (date.getFullYear() === 2099) return 'N/A';
+      return this.formatDate(date);
+    },
+
+    // Check if quotation has best total price
+    isBestTotalPrice(quotationId) {
+      return this.bestPriceQuotation && this.bestPriceQuotation.quotation_id === quotationId;
+    },
+
+    // Get quotation card class
+    getQuotationCardClass(quotation, index) {
+      const classes = ['vendor-' + (index % 5 + 1)];
+      
+      if (this.isBestTotalPrice(quotation.quotation_id)) {
+        classes.push('best-overall');
+      }
+      
+      return classes;
+    },
+
+    // Get quotation header class
+    getQuotationHeaderClass(quotation) {
+      if (this.isBestTotalPrice(quotation.quotation_id)) {
+        return 'best-price-header';
+      }
+      return '';
+    },
+
+    // Get price cell class
+    getPriceCellClass(quotationId, item) {
+      // Find best price for this item
+      const prices = this.filteredQuotations
+        .map(q => {
+          const line = q.lines ? q.lines.find(l => l.item_id === item.item_id) : null;
+          return line ? this.getDisplayAmount({ ...q, total_amount: line.subtotal }) : Infinity;
+        });
+      
+      const minPrice = Math.min(...prices);
+      const quotationIndex = this.filteredQuotations.findIndex(q => q.quotation_id === quotationId);
+      const currentPrice = prices[quotationIndex];
+      
+      if (currentPrice === minPrice && currentPrice !== Infinity) {
+        return 'best-item-price';
+      }
+      
+      return '';
+    },
+
+    // Get total cell class
+    getTotalCellClass(quotation) {
+      if (this.isBestTotalPrice(quotation.quotation_id)) {
+        return 'best-total-price';
+      }
+      return '';
+    },
+
     // Change quotation status
     changeStatus(id, newStatus) {
       this.processingAction = true;
@@ -471,13 +644,12 @@
       axios.patch(`/vendor-quotations/${id}/status`, { status: newStatus })
         .then(response => {
           if (response.data.status === 'success') {
-            // Update the local data to reflect the change
             const index = this.quotations.findIndex(q => q.quotation_id === id);
             if (index !== -1) {
               this.quotations[index].status = newStatus;
             }
             
-            // Show success notification
+            this.filterQuotations();
             this.$toasted.success(`Quotation ${newStatus} successfully.`);
           } else {
             this.$toasted.error(`Failed to update status: ${response.data.message}`);
@@ -491,25 +663,32 @@
           this.processingAction = false;
         });
     },
-    
-    // Get class for quotation card
-    getQuotationCardClass(quotation, index) {
-      const classes = ['vendor-' + (index % 5 + 1)]; // Cycle through 5 color variants
-      
-      if (this.isBestTotalPrice(quotation.quotation_id)) {
-        classes.push('best-overall');
+
+    // Export comparison to Excel
+    exportComparison() {
+      if (!this.selectedRFQ) {
+        this.$toasted.warning('Please select an RFQ first');
+        return;
       }
-      
-      return classes;
+
+      const params = {
+        rfq_id: this.selectedRFQ,
+        display_currency: this.displayCurrency,
+        format: 'comparison'
+      };
+
+      const queryString = new URLSearchParams(params).toString();
+      window.open(`/api/vendor-quotations/export?${queryString}`, '_blank');
     },
     
-    // Get class for status badge
+    // Get status class for badges
     getStatusClass(status) {
       switch (status) {
         case 'received': return 'status-info';
         case 'accepted': return 'status-success';
         case 'rejected': return 'status-danger';
-        default: return '';
+        case 'sent': return 'status-warning';
+        default: return 'status-secondary';
       }
     },
     
@@ -517,23 +696,27 @@
     formatDate(dateString) {
       if (!dateString) return 'N/A';
       const date = new Date(dateString);
-      return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+      return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+      });
     },
     
     // Format number for display
     formatNumber(value) {
       if (value === undefined || value === null) return 'N/A';
-      return new Intl.NumberFormat('id-ID').format(value);
+      return new Intl.NumberFormat('en-US').format(value);
     },
     
     // Format currency for display
-    formatCurrency(value) {
+    formatCurrency(value, currency) {
       if (value === undefined || value === null || value === 'N/A') return 'N/A';
-      return new Intl.NumberFormat('id-ID', {
+      return new Intl.NumberFormat('en-US', {
         style: 'currency',
-        currency: 'IDR',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
+        currency: currency || 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
       }).format(value);
     },
     
@@ -557,98 +740,205 @@
 
 <style scoped>
 .quotation-compare-container {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
+  padding: 1rem;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 3px solid #e5e7eb;
 }
 
-.page-header h1 {
+.header-left h1 {
+  margin: 0 0 0.5rem 0;
+  font-size: 2rem;
+  color: #1f2937;
+  font-weight: 700;
+}
+
+.page-description {
   margin: 0;
-  font-size: 1.5rem;
-  color: var(--gray-800);
+  color: #6b7280;
+  font-size: 1rem;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
 }
 
 .btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.5rem 1rem;
-  background-color: var(--gray-100);
-  color: var(--gray-700);
-  border: 1px solid var(--gray-200);
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  text-decoration: none;
-  transition: all 0.2s;
+  background-color: #f8fafc;
+  color: #64748b;
+  border: 2px solid #e2e8f0;
 }
 
 .btn-secondary:hover {
-  background-color: var(--gray-200);
+  background-color: #e2e8f0;
   text-decoration: none;
 }
 
-.btn-secondary i {
-  margin-right: 0.5rem;
+.btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+}
+
+.btn-info {
+  background-color: #06b6d4;
+  color: white;
+}
+
+.btn-info:hover {
+  background-color: #0891b2;
+}
+
+.btn-success {
+  background-color: #10b981;
+  color: white;
+}
+
+.btn-success:hover:not(:disabled) {
+  background-color: #059669;
+}
+
+.btn-danger {
+  background-color: #ef4444;
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: #dc2626;
+}
+
+.btn-outline {
+  background-color: white;
+  color: #6b7280;
+  border: 2px solid #e5e7eb;
+}
+
+.btn-outline:hover {
+  background-color: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .filter-section {
-  background-color: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  margin-bottom: 1.5rem;
-  overflow: hidden;
+  margin-bottom: 2rem;
+}
+
+.filter-card {
+  background: white;
+  border-radius: 1rem;
+  padding: 2rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
 }
 
 .filter-header {
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid var(--gray-200);
+  margin-bottom: 1.5rem;
 }
 
 .filter-header h2 {
   margin: 0;
-  font-size: 1.125rem;
-  color: var(--gray-800);
-}
-
-.filter-content {
-  padding: 1.5rem;
+  font-size: 1.25rem;
+  color: #1f2937;
+  font-weight: 600;
   display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.filter-select-group {
-  display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 0.5rem;
 }
 
-.filter-select-group label {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--gray-700);
+.filter-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 1rem;
 }
 
-.filter-select-group select {
-  padding: 0.625rem;
-  border: 1px solid var(--gray-200);
-  border-radius: 0.375rem;
+.filter-select-group,
+.currency-select-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.filter-select-group label,
+.currency-select-group label {
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.form-control {
+  padding: 0.75rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 0.5rem;
   font-size: 0.875rem;
-  color: var(--gray-800);
-  background-color: white;
-  width: 100%;
-  max-width: 500px;
+  transition: all 0.2s;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.comparison-mode {
+  display: flex;
+  align-items: center;
+  padding-top: 1.5rem;
+}
+
+.comparison-mode label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
 }
 
 .filter-help {
+  color: #6b7280;
   font-size: 0.875rem;
-  color: var(--gray-500);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 0.5rem;
+  border: 1px solid #e2e8f0;
+}
+
+.currency-notice {
+  background: #eff6ff;
+  border: 1px solid #3b82f6;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  color: #1e40af;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -658,105 +948,89 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 200px;
-  background-color: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  color: var(--gray-500);
-  margin-bottom: 1.5rem;
-}
-
-.loading-container i {
-  margin-right: 0.5rem;
-  animation: spin 1s linear infinite;
+  padding: 4rem;
+  font-size: 1.25rem;
+  color: #6b7280;
 }
 
 .empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem 0;
   text-align: center;
-  background-color: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 4rem;
+  color: #6b7280;
 }
 
 .empty-icon {
-  font-size: 3rem;
-  color: var(--gray-300);
+  font-size: 4rem;
   margin-bottom: 1rem;
+  color: #d1d5db;
 }
 
 .empty-state h3 {
-  font-size: 1.125rem;
-  color: var(--gray-700);
-  margin-bottom: 0.5rem;
+  margin: 0 0 0.5rem 0;
+  color: #374151;
+  font-size: 1.5rem;
 }
 
 .empty-state p {
-  color: var(--gray-500);
-  max-width: 24rem;
-}
-
-.comparison-section {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+  margin: 0;
+  color: #6b7280;
 }
 
 .rfq-info-section {
-  background-color: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  padding: 1.5rem;
+  background: white;
+  border-radius: 1rem;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+}
+
+.rfq-header {
   display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #f3f4f6;
 }
 
 .rfq-badge {
   display: flex;
   align-items: center;
   gap: 1rem;
-  font-size: 1.125rem;
+}
+
+.rfq-number {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.rfq-stats {
+  display: flex;
+  gap: 2rem;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 0.25rem;
+}
+
+.stat-value {
+  font-size: 1.25rem;
   font-weight: 600;
-  color: var(--gray-800);
-}
-
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-
-.status-info {
-  background-color: #e0f2fe;
-  color: #0369a1;
-}
-
-.status-success {
-  background-color: #dcfce7;
-  color: #166534;
-}
-
-.status-danger {
-  background-color: #fee2e2;
-  color: #b91c1c;
-}
-
-.status-warn {
-  background-color: #fff7ed;
-  color: #9a3412;
+  color: #1f2937;
 }
 
 .rfq-details {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 2rem;
 }
 
@@ -767,347 +1041,530 @@
 }
 
 .detail-label {
-  font-size: 0.75rem;
-  color: var(--gray-500);
+  font-size: 0.875rem;
+  color: #6b7280;
   font-weight: 500;
 }
 
 .detail-value {
-  font-size: 0.875rem;
-  color: var(--gray-800);
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.status-badge {
+  padding: 0.5rem 1rem;
+  border-radius: 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.status-info {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.status-success {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.status-warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-secondary {
+  background: #f3f4f6;
+  color: #374151;
 }
 
 .summary-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
 }
 
 .summary-card {
-  background-color: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  border-top: 3px solid var(--gray-300);
+  background: white;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  border: 2px solid #e5e7eb;
+  transition: all 0.2s;
+  position: relative;
 }
 
-.vendor-1 {
-  border-top-color: #3b82f6;
+.summary-card:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.15);
+  transform: translateY(-2px);
 }
 
-.vendor-2 {
-  border-top-color: #10b981;
-}
-
-.vendor-3 {
-  border-top-color: #f59e0b;
-}
-
-.vendor-4 {
-  border-top-color: #6366f1;
-}
-
-.vendor-5 {
-  border-top-color: #ec4899;
-}
-
-.best-overall {
-  box-shadow: 0 4px 6px rgba(37, 99, 235, 0.1), 0 0 0 2px rgba(37, 99, 235, 0.2);
+.summary-card.best-overall {
+  border-color: #f59e0b;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
 }
 
 .summary-header {
-  padding: 1rem 1.5rem;
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid var(--gray-200);
+  align-items: flex-start;
+  margin-bottom: 1rem;
 }
 
-.summary-header h3 {
-  margin: 0;
-  font-size: 1rem;
-  color: var(--gray-800);
+.vendor-info h3 {
+  margin: 0 0 0.25rem 0;
+  color: #1f2937;
+  font-size: 1.125rem;
+  font-weight: 600;
 }
 
-.summary-body {
-  padding: 1.5rem;
-  flex: 1;
+.vendor-info small {
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.card-badges {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
+  align-items: flex-end;
 }
 
-.summary-row {
-  display: flex;
-  justify-content: space-between;
-}
-
-.summary-label {
+.best-badge {
+  background: #f59e0b;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
   font-size: 0.75rem;
-  color: var(--gray-500);
-}
-
-.summary-value {
-  font-size: 0.875rem;
-  color: var(--gray-800);
-  font-weight: 500;
-}
-
-.highlight {
-  font-size: 1rem;
   font-weight: 600;
-  color: var(--primary-color);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
-.summary-footer {
-  padding: 1rem 1.5rem;
-  border-top: 1px solid var(--gray-200);
+.summary-content {
+  margin-bottom: 1.5rem;
+}
+
+.currency-info {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 0.5rem;
+}
+
+.currency-row {
   display: flex;
   justify-content: space-between;
-  background-color: var(--gray-50);
+  align-items: center;
+  margin-bottom: 0.5rem;
 }
 
-.btn-link {
-  display: inline-flex;
+.currency-row:last-child {
+  margin-bottom: 0;
+}
+
+.currency-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.currency-value {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.price-summary {
+  margin-bottom: 1rem;
+}
+
+.price-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.price-row:last-child {
+  margin-bottom: 0;
+}
+
+.price-row.main-price {
+  padding: 0.75rem;
+  background: #f0f9ff;
+  border-radius: 0.5rem;
+  border: 1px solid #0284c7;
+}
+
+.price-row.main-price .price-label {
+  font-weight: 600;
+  color: #0369a1;
+}
+
+.price-row.main-price .price-value {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #0369a1;
+}
+
+.price-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.price-value {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.original-price {
+  font-style: italic;
+  opacity: 0.8;
+}
+
+.summary-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.detail-item {
+  display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: var(--primary-color);
   font-size: 0.875rem;
-  font-weight: 500;
-  text-decoration: none;
-  transition: color 0.2s;
+  color: #6b7280;
 }
 
-.btn-link:hover {
-  color: var(--primary-dark);
-  text-decoration: none;
+.detail-item i {
+  color: #9ca3af;
+  width: 1rem;
 }
 
-.btn-link.success {
-  color: #059669;
-}
-
-.btn-link.success:hover {
-  color: #047857;
+.summary-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .comparison-table-section {
-  background-color: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  padding: 1.5rem;
+  background: white;
+  border-radius: 1rem;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
 }
 
-.comparison-table-section h2 {
-  margin-top: 0;
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 1.5rem;
-  font-size: 1.125rem;
-  color: var(--gray-800);
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #f3f4f6;
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #1f2937;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .table-responsive {
   overflow-x: auto;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
 }
 
 .comparison-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.875rem;
+  background: white;
+  min-width: 800px;
 }
 
 .comparison-table th {
+  background: #f8fafc;
+  padding: 1rem;
   text-align: left;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--gray-200);
-  background-color: var(--gray-50);
-  font-weight: 500;
-  color: var(--gray-600);
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 2px solid #e5e7eb;
+  white-space: nowrap;
+}
+
+.vendor-header {
+  text-align: center;
+  min-width: 150px;
+}
+
+.vendor-header.best-price-header {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.vendor-header small {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+
+.price-header {
+  text-align: center;
+  font-size: 0.875rem;
+  color: #6b7280;
 }
 
 .comparison-table td {
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--gray-100);
-  color: var(--gray-800);
-}
-
-.item-row td {
-  border-bottom: none;
-  padding-bottom: 0.25rem;
-}
-
-.delivery-row td {
-  padding-top: 0.25rem;
-  padding-bottom: 0.25rem;
-  color: var(--gray-500);
-  font-size: 0.75rem;
-}
-
-.delivery-label {
-  text-align: right;
-  font-weight: 500;
-}
-
-.highlight-row td {
-  padding-top: 0.25rem;
-  padding-bottom: 0.75rem;
-  color: var(--gray-500);
-  font-size: 0.75rem;
-}
-
-.highlight-label {
-  text-align: right;
-  font-weight: 500;
-}
-
-.best-price {
-  color: #059669;
-  font-weight: 600;
-}
-
-.best-price i {
-  margin-left: 0.5rem;
-}
-
-.vendor-price {
-  font-weight: 500;
-}
-
-.comparison-table tfoot td {
-  border-top: 2px solid var(--gray-200);
-  background-color: var(--gray-50);
   padding: 1rem;
-  font-size: 1rem;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: top;
+}
+
+.comparison-row:hover {
+  background-color: #f8fafc;
+}
+
+.item-cell {
+  min-width: 200px;
+}
+
+.item-info strong {
+  display: block;
+  color: #1f2937;
+  margin-bottom: 0.25rem;
+}
+
+.item-name {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.qty-cell,
+.uom-cell {
+  text-align: center;
+  font-weight: 500;
+  color: #374151;
+}
+
+.price-cell {
+  text-align: center;
+  min-width: 120px;
+}
+
+.price-cell.best-item-price {
+  background: #d1fae5;
+  border-left: 3px solid #10b981;
+  border-right: 3px solid #10b981;
+}
+
+.price-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.unit-price {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.line-total {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.total-row {
+  background: #f8fafc;
+  border-top: 2px solid #e5e7eb;
+}
+
+.total-row td {
+  border-bottom: none;
+  font-weight: 600;
+  padding: 1.5rem 1rem;
 }
 
 .total-label {
   text-align: right;
+  color: #374151;
 }
 
-.total-value {
+.total-cell {
   text-align: center;
+  font-size: 1.125rem;
+  color: #1f2937;
 }
 
-.best-total {
-  color: #059669;
-  font-weight: 600;
-}
-
-.best-total i {
-  margin-left: 0.5rem;
-  color: #f59e0b;
+.total-cell.best-total-price {
+  background: #d1fae5;
+  color: #065f46;
+  border-left: 3px solid #10b981;
+  border-right: 3px solid #10b981;
 }
 
 .recommendation-section {
-  background-color: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  padding: 1.5rem;
+  background: white;
+  border-radius: 1rem;
+  padding: 2rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
 }
 
-.recommendation-section h2 {
-  margin-top: 0;
-  margin-bottom: 1.5rem;
-  font-size: 1.125rem;
-  color: var(--gray-800);
-}
-
-.recommendation-content {
-  display: flex;
+.recommendations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1.5rem;
-  align-items: flex-start;
 }
 
-.recommendation-icon {
-  font-size: 2.5rem;
-  color: var(--primary-color);
-  padding: 1rem;
-  background-color: rgba(37, 99, 235, 0.1);
-  border-radius: 0.5rem;
+.recommendation-card {
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  border: 2px solid #e5e7eb;
+}
+
+.recommendation-card.best-price {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border-color: #10b981;
+}
+
+.recommendation-card.best-delivery {
+  background: linear-gradient(135deg, #dbeafe 0%, #93c5fd 100%);
+  border-color: #3b82f6;
+}
+
+.recommendation-card.balanced {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-color: #f59e0b;
+}
+
+.rec-header {
   display: flex;
   align-items: center;
-  justify-content: center;
-}
-
-.recommendation-text {
-  flex: 1;
-}
-
-.recommendation-text p {
-  margin-top: 0;
+  gap: 0.5rem;
   margin-bottom: 1rem;
-  line-height: 1.5;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
 }
 
-.recommendation-text ul {
-  margin-top: 0.5rem;
-  padding-left: 1.5rem;
+.rec-header i {
+  font-size: 1.25rem;
 }
 
-.recommendation-text li {
+.rec-header h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.rec-content {
+  text-align: center;
+}
+
+.vendor-name {
+  font-size: 1.125rem;
+  font-weight: 600;
   margin-bottom: 0.5rem;
+  color: #1f2937;
 }
 
-.recommendation-actions {
-  margin-top: 1.5rem;
-  display: flex;
-  justify-content: flex-end;
+.price-amount,
+.delivery-date {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #374151;
 }
 
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.625rem 1.25rem;
+.savings,
+.balance-score {
   font-size: 0.875rem;
-  font-weight: 500;
-  border-radius: 0.375rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-decoration: none;
-  border: none;
+  color: #6b7280;
 }
 
-.btn i {
-  margin-right: 0.5rem;
-}
-
-.btn-success {
-  background-color: #059669;
-  color: white;
-}
-
-.btn-success:hover:not(:disabled) {
-  background-color: #047857;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-@media (max-width: 768px) {
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
+/* Responsive */
+@media (max-width: 1024px) {
+  .filter-row {
+    grid-template-columns: 1fr 1fr;
     gap: 1rem;
   }
   
-  .recommendation-content {
-    flex-direction: column;
+  .currency-controls {
+    grid-column: 1 / -1;
   }
   
-  .recommendation-icon {
-    align-self: center;
+  .rfq-stats {
+    gap: 1rem;
+  }
+  
+  .rfq-details {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .summary-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .quotation-compare-container {
+    padding: 0.5rem;
+  }
+  
+  .page-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+  
+  .filter-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .rfq-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+  
+  .rfq-stats {
+    justify-content: space-around;
+  }
+  
+  .rfq-details {
+    grid-template-columns: 1fr;
+  }
+  
+  .summary-cards {
+    grid-template-columns: 1fr;
+  }
+  
+  .comparison-table {
+    font-size: 0.875rem;
   }
   
   .comparison-table th,
   .comparison-table td {
-    white-space: nowrap;
+    padding: 0.5rem;
+  }
+  
+  .recommendations-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

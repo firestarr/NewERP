@@ -407,8 +407,8 @@ export default {
         const formatCurrency = (value) => {
             return new Intl.NumberFormat("id-ID", {
                 style: "decimal",
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
+                minimumFractionDigits: 4,
+                maximumFractionDigits: 4,
             }).format(value ?? 0);
         };
 

@@ -176,11 +176,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('transactions/transfer', [StockTransactionController::class, 'transfer']);
     Route::resource('transactions', StockTransactionController::class);
 
-    // Stock Adjustment Routes
-    Route::post('adjustments/{id}/submit', [StockAdjustmentController::class, 'submit']);
-    Route::post('adjustments/{id}/approve', [StockAdjustmentController::class, 'approve']);
-    Route::post('adjustments/{id}/reject', [StockAdjustmentController::class, 'reject']);
-    Route::resource('adjustments', StockAdjustmentController::class);
 
     // Cycle Counting Routes
     Route::post('cycle-counts/generate', [CycleCountingController::class, 'generateTasks']);
@@ -206,6 +201,33 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('vendor-quotations', VendorQuotationController::class);
     Route::patch('vendor-quotations/{vendorQuotation}/status', [VendorQuotationController::class, 'updateStatus']);
     Route::post('vendor-quotations/create-from-rfq', [VendorQuotationController::class, 'createFromRFQ']);
+
+    //Vemdor Quotation tambahan
+    // Enhanced Vendor Quotations with Multi-Currency Support
+    Route::prefix('vendor-quotations')->group(function () {
+        // Basic CRUD operations
+        Route::get('/', [VendorQuotationController::class, 'index']);
+        Route::post('/', [VendorQuotationController::class, 'store']);
+        Route::get('/{vendorQuotation}', [VendorQuotationController::class, 'show']);
+        Route::put('/{vendorQuotation}', [VendorQuotationController::class, 'update']);
+        Route::delete('/{vendorQuotation}', [VendorQuotationController::class, 'destroy']);
+
+        // Status management
+        Route::patch('/{vendorQuotation}/status', [VendorQuotationController::class, 'updateStatus']);
+
+        // Multi-currency features
+        Route::post('/{vendorQuotation}/convert-currency', [VendorQuotationController::class, 'convertCurrency']);
+        Route::get('/compare/in-currency', [VendorQuotationController::class, 'compareInCurrency']);
+        Route::get('/available-currencies', [VendorQuotationController::class, 'getAvailableCurrencies']);
+
+        // Export functionality
+        Route::get('/export', [VendorQuotationController::class, 'exportToExcel']);
+        Route::get('/export/comparison', [VendorQuotationController::class, 'exportComparison']);
+
+        // Template and import
+        Route::get('/template/download', [VendorQuotationController::class, 'downloadTemplate']);
+        Route::post('/import', [VendorQuotationController::class, 'importFromExcel']);
+    });
 
     // Purchase Orders
     Route::apiResource('purchase-orders', PurchaseOrderController::class);
@@ -498,6 +520,21 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/{id}/approve', [StockAdjustmentController::class, 'approve']);
         Route::patch('/{id}/cancel', [StockAdjustmentController::class, 'cancel']);
     });
+
+    // Stock Adjustment Routes
+    Route::post('adjustments/{id}/submit', [StockAdjustmentController::class, 'submit']);
+    Route::post('adjustments/{id}/approve', [StockAdjustmentController::class, 'approve']);
+    Route::post('adjustments/{id}/reject', [StockAdjustmentController::class, 'reject']);
+    Route::resource('adjustments', StockAdjustmentController::class);
+
+
+    //tambahan
+    // Stock Adjustment Routes
+    Route::apiResource('stock-adjustments', StockAdjustmentController::class);
+    Route::post('stock-adjustments/{id}/submit', [StockAdjustmentController::class, 'submit']);
+    Route::post('stock-adjustments/{id}/approve', [StockAdjustmentController::class, 'approve']);
+    Route::post('stock-adjustments/{id}/reject', [StockAdjustmentController::class, 'reject']);
+    Route::post('stock-adjustments/{id}/process', [StockAdjustmentController::class, 'process']);
 
     // Manufacturing Module Routes
     // Products

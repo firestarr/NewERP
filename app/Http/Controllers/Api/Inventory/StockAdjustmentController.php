@@ -5,9 +5,9 @@ namespace App\Http\Controllers\Api\Inventory;
 use App\Http\Controllers\Controller;
 use App\Models\StockAdjustment;
 use App\Models\StockAdjustmentLine;
+use App\Models\ItemStock;
 use App\Models\Item;
-use App\Models\Warehouse;
-use App\Models\WarehouseLocation;
+use App\Models\StockTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -16,68 +16,60 @@ class StockAdjustmentController extends Controller
 {
     /**
      * Display a listing of the resource.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
      */
     public function index(Request $request)
     {
-        $query = StockAdjustment::with('adjustmentLines');
-        
+        $query = StockAdjustment::with(['adjustmentLines.item', 'adjustmentLines.warehouse']);
+
         // Filter by status
-        if ($request->has('status')) {
+        if ($request->has('status') && $request->status != '') {
             $query->where('status', $request->status);
         }
-        
-        // Filter by date range with validation
-        if ($request->has('start_date') && !empty($request->start_date) && strtotime($request->start_date) !== false) {
-            $query->where('adjustment_date', '>=', $request->start_date);
+
+        // Filter by date range
+        if ($request->has('date_from') && $request->date_from != '') {
+            $query->whereDate('adjustment_date', '>=', $request->date_from);
         }
-        
-        if ($request->has('end_date') && !empty($request->end_date) && strtotime($request->end_date) !== false) {
-            $query->where('adjustment_date', '<=', $request->end_date);
+
+        if ($request->has('date_to') && $request->date_to != '') {
+            $query->whereDate('adjustment_date', '<=', $request->date_to);
         }
-        
-        // Pagination
-        $perPage = $request->per_page ?? 15;
-        $adjustments = $query->orderBy('adjustment_date', 'desc')
-                          ->paginate($perPage);
-        
+
+        // Search by reference
+        if ($request->has('search') && $request->search != '') {
+            $query->where(function($q) use ($request) {
+                $q->where('adjustment_reason', 'like', '%' . $request->search . '%')
+                  ->orWhere('reference_document', 'like', '%' . $request->search . '%');
+            });
+        }
+
+        // Sorting
+        $sortField = $request->get('sort_field', 'adjustment_date');
+        $sortDirection = $request->get('sort_direction', 'desc');
+        $query->orderBy($sortField, $sortDirection);
+
+        $adjustments = $query->paginate($request->get('per_page', 15));
+
         return response()->json([
             'success' => true,
-            'data' => $adjustments->items(),
-            'meta' => [
-                'current_page' => $adjustments->currentPage(),
-                'from' => $adjustments->firstItem(),
-                'to' => $adjustments->lastItem(),
-                'total' => $adjustments->total(),
-                'last_page' => $adjustments->lastPage(),
-            ],
-            'links' => [
-                'prev' => $adjustments->previousPageUrl(),
-                'next' => $adjustments->nextPageUrl(),
-            ],
+            'data' => $adjustments
         ]);
     }
 
     /**
      * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
      */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'adjustment_date' => 'required|date',
-            'adjustment_reason' => 'nullable|string',
+            'adjustment_reason' => 'required|string|max:255',
             'reference_document' => 'nullable|string|max:100',
             'lines' => 'required|array|min:1',
             'lines.*.item_id' => 'required|exists:items,item_id',
             'lines.*.warehouse_id' => 'required|exists:warehouses,warehouse_id',
-            //'lines.*.location_id' => 'nullable|exists:warehouse_locations,location_id',
-            'lines.*.book_quantity' => 'required|numeric',
-            'lines.*.adjusted_quantity' => 'required|numeric',
+            'lines.*.book_quantity' => 'required|numeric|min:0',
+            'lines.*.adjusted_quantity' => 'required|numeric|min:0',
         ]);
 
         if ($validator->fails()) {
@@ -108,7 +100,6 @@ class StockAdjustmentController extends Controller
                     'adjustment_id' => $adjustment->adjustment_id,
                     'item_id' => $line['item_id'],
                     'warehouse_id' => $line['warehouse_id'],
-                    //'location_id' => $line['location_id'] ?? null,
                     'book_quantity' => $line['book_quantity'],
                     'adjusted_quantity' => $line['adjusted_quantity'],
                     'variance' => $variance
@@ -120,7 +111,7 @@ class StockAdjustmentController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Stock adjustment created successfully',
-                'data' => $adjustment->load('adjustmentLines')
+                'data' => $adjustment->load('adjustmentLines.item', 'adjustmentLines.warehouse')
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -135,27 +126,18 @@ class StockAdjustmentController extends Controller
 
     /**
      * Display the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
      */
     public function show($id)
     {
-        $adjustment = StockAdjustment::with([
-            'adjustmentLines.item', 
-            'adjustmentLines.warehouse', 
-            'adjustmentLines.location'
-        ])->find($id);
-        
+        $adjustment = StockAdjustment::with(['adjustmentLines.item', 'adjustmentLines.warehouse'])
+            ->find($id);
+
         if (!$adjustment) {
             return response()->json([
                 'success' => false,
                 'message' => 'Stock adjustment not found'
             ], 404);
         }
-
-        // Calculate total variance
-        $adjustment->total_variance = $adjustment->total_variance;
 
         return response()->json([
             'success' => true,
@@ -165,41 +147,35 @@ class StockAdjustmentController extends Controller
 
     /**
      * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
      */
     public function update(Request $request, $id)
     {
         $adjustment = StockAdjustment::find($id);
-        
+
         if (!$adjustment) {
             return response()->json([
                 'success' => false,
                 'message' => 'Stock adjustment not found'
             ], 404);
         }
-        
-        // Only allow updates for draft adjustments
+
         if ($adjustment->status != StockAdjustment::STATUS_DRAFT) {
             return response()->json([
                 'success' => false,
-                'message' => 'Only draft adjustments can be updated'
+                'message' => 'Only draft adjustments can be modified'
             ], 422);
         }
 
         $validator = Validator::make($request->all(), [
             'adjustment_date' => 'required|date',
-            'adjustment_reason' => 'nullable|string',
+            'adjustment_reason' => 'required|string|max:255',
             'reference_document' => 'nullable|string|max:100',
             'lines' => 'required|array|min:1',
             'lines.*.line_id' => 'nullable|exists:stock_adjustment_lines,line_id',
             'lines.*.item_id' => 'required|exists:items,item_id',
             'lines.*.warehouse_id' => 'required|exists:warehouses,warehouse_id',
-            //'lines.*.location_id' => 'nullable|exists:warehouse_locations,location_id',
-            'lines.*.book_quantity' => 'required|numeric',
-            'lines.*.adjusted_quantity' => 'required|numeric',
+            'lines.*.book_quantity' => 'required|numeric|min:0',
+            'lines.*.adjusted_quantity' => 'required|numeric|min:0',
         ]);
 
         if ($validator->fails()) {
@@ -234,7 +210,6 @@ class StockAdjustmentController extends Controller
                         $line->update([
                             'item_id' => $lineData['item_id'],
                             'warehouse_id' => $lineData['warehouse_id'],
-                            //'location_id' => $lineData['location_id'] ?? null,
                             'book_quantity' => $lineData['book_quantity'],
                             'adjusted_quantity' => $lineData['adjusted_quantity'],
                             'variance' => $variance
@@ -248,7 +223,6 @@ class StockAdjustmentController extends Controller
                         'adjustment_id' => $adjustment->adjustment_id,
                         'item_id' => $lineData['item_id'],
                         'warehouse_id' => $lineData['warehouse_id'],
-                        //'location_id' => $lineData['location_id'] ?? null,
                         'book_quantity' => $lineData['book_quantity'],
                         'adjusted_quantity' => $lineData['adjusted_quantity'],
                         'variance' => $variance
@@ -258,7 +232,7 @@ class StockAdjustmentController extends Controller
                 }
             }
             
-            // Delete lines that were not included in the update
+            // Delete removed lines
             $linesToDelete = array_diff($currentLineIds, $updatedLineIds);
             if (!empty($linesToDelete)) {
                 StockAdjustmentLine::whereIn('line_id', $linesToDelete)->delete();
@@ -269,7 +243,7 @@ class StockAdjustmentController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Stock adjustment updated successfully',
-                'data' => $adjustment->fresh()->load('adjustmentLines')
+                'data' => $adjustment->load('adjustmentLines.item', 'adjustmentLines.warehouse')
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -284,47 +258,33 @@ class StockAdjustmentController extends Controller
 
     /**
      * Remove the specified resource from storage.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
      */
     public function destroy($id)
     {
         $adjustment = StockAdjustment::find($id);
-        
+
         if (!$adjustment) {
             return response()->json([
                 'success' => false,
                 'message' => 'Stock adjustment not found'
             ], 404);
         }
-        
-        // Only allow deleting draft adjustments
-        if ($adjustment->status != StockAdjustment::STATUS_DRAFT) {
+
+        if ($adjustment->status == StockAdjustment::STATUS_COMPLETED) {
             return response()->json([
                 'success' => false,
-                'message' => 'Only draft adjustments can be deleted'
+                'message' => 'Cannot delete completed adjustments'
             ], 422);
         }
 
-        DB::beginTransaction();
-        
         try {
-            // Delete the adjustment lines first
-            $adjustment->adjustmentLines()->delete();
-            
-            // Delete the adjustment header
             $adjustment->delete();
-            
-            DB::commit();
             
             return response()->json([
                 'success' => true,
                 'message' => 'Stock adjustment deleted successfully'
             ]);
         } catch (\Exception $e) {
-            DB::rollBack();
-            
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete stock adjustment',
@@ -332,140 +292,155 @@ class StockAdjustmentController extends Controller
             ], 500);
         }
     }
-    
+
     /**
      * Submit adjustment for approval
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
      */
     public function submit($id)
     {
         $adjustment = StockAdjustment::find($id);
-        
+
         if (!$adjustment) {
             return response()->json([
                 'success' => false,
                 'message' => 'Stock adjustment not found'
             ], 404);
         }
-        
-        // Only allow submitting draft adjustments
+
         if ($adjustment->status != StockAdjustment::STATUS_DRAFT) {
             return response()->json([
                 'success' => false,
                 'message' => 'Only draft adjustments can be submitted'
             ], 422);
         }
-        
-        // Check if adjustment has lines
-        if ($adjustment->adjustmentLines()->count() == 0) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Cannot submit adjustment with no lines'
-            ], 422);
-        }
-        
+
         $adjustment->status = StockAdjustment::STATUS_PENDING;
         $adjustment->save();
-        
+
         return response()->json([
             'success' => true,
             'message' => 'Stock adjustment submitted for approval',
             'data' => $adjustment
         ]);
     }
-    
+
     /**
      * Approve adjustment
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
      */
     public function approve($id)
     {
         $adjustment = StockAdjustment::find($id);
-        
+
         if (!$adjustment) {
             return response()->json([
                 'success' => false,
                 'message' => 'Stock adjustment not found'
             ], 404);
         }
-        
-        // Only allow approving pending adjustments
+
         if ($adjustment->status != StockAdjustment::STATUS_PENDING) {
             return response()->json([
                 'success' => false,
                 'message' => 'Only pending adjustments can be approved'
             ], 422);
         }
-        
+
         $adjustment->status = StockAdjustment::STATUS_APPROVED;
         $adjustment->save();
-        
-        // Process the adjustment (create stock transactions)
-        $processed = $adjustment->process();
-        
-        if (!$processed) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to process stock adjustment'
-            ], 500);
-        }
-        
+
         return response()->json([
             'success' => true,
-            'message' => 'Stock adjustment approved and processed',
-            'data' => $adjustment->fresh()
+            'message' => 'Stock adjustment approved',
+            'data' => $adjustment
         ]);
     }
-    
+
     /**
-     * Reject adjustment
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * Process approved adjustment and update stock
      */
-    public function reject(Request $request, $id)
+    public function process($id)
     {
         $adjustment = StockAdjustment::find($id);
-        
+
         if (!$adjustment) {
             return response()->json([
                 'success' => false,
                 'message' => 'Stock adjustment not found'
             ], 404);
         }
-        
-        // Only allow rejecting pending adjustments
-        if ($adjustment->status != StockAdjustment::STATUS_PENDING) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Only pending adjustments can be rejected'
-            ], 422);
-        }
-        
-        $validator = Validator::make($request->all(), [
-            'rejection_reason' => 'required|string'
-        ]);
 
-        if ($validator->fails()) {
+        if ($adjustment->status != StockAdjustment::STATUS_APPROVED) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'message' => 'Only approved adjustments can be processed'
             ], 422);
         }
+
+        DB::beginTransaction();
         
-        $adjustment->status = StockAdjustment::STATUS_REJECTED;
-        $adjustment->adjustment_reason = $request->rejection_reason;
-        $adjustment->save();
-        
-        return response()->json([
-            'success' => true,
-            'message' => 'Stock adjustment rejected',
-            'data' => $adjustment
-        ]);
+        try {
+            foreach ($adjustment->adjustmentLines as $line) {
+                if ($line->variance != 0) {
+                    // Update ItemStock untuk warehouse tertentu
+                    $itemStock = ItemStock::firstOrNew([
+                        'item_id' => $line->item_id,
+                        'warehouse_id' => $line->warehouse_id
+                    ]);
+                    
+                    if (!$itemStock->exists) {
+                        $itemStock->quantity = 0;
+                        $itemStock->reserved_quantity = 0;
+                    }
+                    
+                    $itemStock->quantity = $line->adjusted_quantity;
+                    $itemStock->save();
+
+                    // ✅ SUDAH AUTO-UPDATE Item.current_stock
+                    $item = Item::find($line->item_id);
+                    $item->current_stock += $line->adjusted_quantity;
+                    $item->save();
+
+                    // Create stock transaction for tracking
+                    $moveType = $line->variance > 0 ? 
+                        StockTransaction::MOVE_TYPE_IN : 
+                        StockTransaction::MOVE_TYPE_OUT;
+                    
+                    StockTransaction::create([
+                        'item_id' => $line->item_id,
+                        'warehouse_id' => $line->warehouse_id,
+                        'dest_warehouse_id' => null,
+                        'transaction_type' => StockTransaction::TYPE_ADJUSTMENT,
+                        'move_type' => $moveType,
+                        'quantity' => abs($line->variance),
+                        'transaction_date' => $adjustment->adjustment_date,
+                        'reference_document' => 'stock_adjustment',
+                        'reference_number' => $adjustment->adjustment_id,
+                        'origin' => 'Stock Adjustment',
+                        'state' => StockTransaction::STATE_DONE,
+                        'notes' => $adjustment->adjustment_reason
+                    ]);
+                }
+            }
+
+            // Update adjustment status
+            $adjustment->status = StockAdjustment::STATUS_COMPLETED;
+            $adjustment->save();
+            
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Stock adjustment processed successfully',
+                'data' => $adjustment->load('adjustmentLines.item', 'adjustmentLines.warehouse')
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to process stock adjustment',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

@@ -2,7 +2,7 @@
 <template>
     <div class="convert-rfq-page">
       <div v-if="loading" class="loading-indicator">
-        <i class="fas fa-spinner fa-spin"></i> Memuat data...
+        <i class="fas fa-spinner fa-spin"></i> Loading data...
       </div>
 
       <div v-else-if="error" class="error-message">
@@ -11,7 +11,7 @@
 
       <div v-else>
         <div class="page-header">
-          <h2 class="title">Konversi PR ke RFQ</h2>
+          <h2 class="title">Convert PR to RFQ</h2>
           <div class="status-badge" :class="getStatusClass(purchaseRequisition.status)">
             {{ purchaseRequisition.status }}
           </div>
@@ -19,20 +19,20 @@
 
         <div class="info-card">
           <div class="card-header">
-            <h3>Informasi PR</h3>
+            <h3>PR Information</h3>
           </div>
           <div class="card-body">
             <div class="info-grid">
               <div class="info-item">
-                <div class="label">Nomor PR</div>
+                <div class="label">PR Number</div>
                 <div class="value">{{ purchaseRequisition.pr_number }}</div>
               </div>
               <div class="info-item">
-                <div class="label">Tanggal PR</div>
+                <div class="label">PR Date</div>
                 <div class="value">{{ formatDate(purchaseRequisition.pr_date) }}</div>
               </div>
               <div class="info-item">
-                <div class="label">Pemohon</div>
+                <div class="label">Requester</div>
                 <div class="value">{{ requesterName }}</div>
               </div>
               <div class="info-item">
@@ -45,12 +45,12 @@
 
         <div class="info-card">
           <div class="card-header">
-            <h3>Detail RFQ Baru</h3>
+            <h3>New RFQ Details</h3>
           </div>
           <div class="card-body">
             <div class="form-row">
               <div class="form-group">
-                <label for="rfq-date">Tanggal RFQ <span class="required">*</span></label>
+                <label for="rfq-date">RFQ Date <span class="required">*</span></label>
                 <input
                   type="date"
                   id="rfq-date"
@@ -63,7 +63,7 @@
               </div>
 
               <div class="form-group">
-                <label for="validity-date">Tanggal Berlaku</label>
+                <label for="validity-date">Valid Until</label>
                 <input
                   type="date"
                   id="validity-date"
@@ -77,25 +77,25 @@
             </div>
 
             <div class="form-group">
-              <label for="notes">Catatan</label>
+              <label for="notes">Notes</label>
               <textarea
                 id="notes"
                 v-model="rfqData.notes"
                 rows="3"
                 class="form-control"
-                placeholder="Tambahkan catatan untuk RFQ ini">
+                placeholder="Add notes for this RFQ">
               </textarea>
             </div>
 
             <div class="vendor-selection">
-              <h4>Pilihan Vendor</h4>
+              <h4>Vendor Selection</h4>
               <div class="form-group">
                 <div class="vendor-search">
                   <div class="search-input">
                     <i class="fas fa-search search-icon"></i>
                     <input
                       type="text"
-                      placeholder="Cari vendor..."
+                      placeholder="Search vendors..."
                       v-model="vendorSearchQuery"
                       @input="searchVendors"
                       class="form-control"
@@ -106,13 +106,13 @@
                     class="btn btn-outline-primary add-vendor-btn"
                     @click="showVendorsList = true"
                   >
-                    <i class="fas fa-plus"></i> Tambah Vendor
+                    <i class="fas fa-plus"></i> Add Vendor
                   </button>
                 </div>
               </div>
 
               <div v-if="selectedVendors.length === 0" class="empty-vendors">
-                <p>Belum ada vendor yang dipilih. Silakan tambahkan vendor untuk RFQ ini.</p>
+                <p>No vendors selected yet. Please add vendors for this RFQ.</p>
               </div>
 
               <div v-else class="selected-vendors">
@@ -149,7 +149,7 @@
         <div class="info-card">
           <div class="card-header">
             <div class="header-with-actions">
-              <h3>Item untuk RFQ</h3>
+              <h3>Items for RFQ</h3>
               <div class="header-actions">
                 <div class="toggle-switch">
                   <input
@@ -158,7 +158,7 @@
                     v-model="selectAll"
                     @change="toggleSelectAll"
                   >
-                  <label for="select-all">Pilih Semua Item</label>
+                  <label for="select-all">Select All Items</label>
                 </div>
               </div>
             </div>
@@ -168,13 +168,13 @@
               <table class="items-table">
                 <thead>
                   <tr>
-                    <th style="width: 50px">Pilih</th>
-                    <th>Kode Item</th>
-                    <th>Nama Item</th>
-                    <th>Jumlah</th>
-                    <th>Satuan</th>
-                    <th>Tanggal Dibutuhkan</th>
-                    <th>Catatan</th>
+                    <th style="width: 50px">Select</th>
+                    <th>Item Code</th>
+                    <th>Item Name</th>
+                    <th>Quantity</th>
+                    <th>Unit</th>
+                    <th>Required Date</th>
+                    <th>Notes</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -211,7 +211,7 @@
             @click="goBack"
             :disabled="isSubmitting"
           >
-            Kembali
+            Back
           </button>
           <button
             type="button"
@@ -220,7 +220,7 @@
             :disabled="isSubmitting || !isValidForm"
           >
             <i class="fas fa-spinner fa-spin" v-if="isSubmitting"></i>
-            Buat RFQ
+            Create RFQ
           </button>
         </div>
       </div>
@@ -230,7 +230,7 @@
         <div class="modal-backdrop" @click="showVendorsList = false"></div>
         <div class="modal-content">
           <div class="modal-header">
-            <h2>Pilih Vendor</h2>
+            <h2>Select Vendor</h2>
             <button class="close-btn" @click="showVendorsList = false">
               <i class="fas fa-times"></i>
             </button>
@@ -240,7 +240,7 @@
               <i class="fas fa-search search-icon"></i>
               <input
                 type="text"
-                placeholder="Cari vendor..."
+                placeholder="Search vendors..."
                 v-model="vendorSearchQuery"
                 @input="searchVendors"
                 class="form-control"
@@ -248,11 +248,11 @@
             </div>
 
             <div v-if="loadingVendors" class="loading-vendors">
-              <i class="fas fa-spinner fa-spin"></i> Memuat vendor...
+              <i class="fas fa-spinner fa-spin"></i> Loading vendors...
             </div>
 
             <div v-else-if="vendors.length === 0" class="no-vendors">
-              <p>Tidak ada vendor yang ditemukan.</p>
+              <p>No vendors found.</p>
             </div>
 
             <div v-else class="vendors-list">
@@ -285,14 +285,14 @@
               class="btn btn-secondary"
               @click="showVendorsList = false"
             >
-              Batal
+              Cancel
             </button>
             <button
               type="button"
               class="btn btn-primary"
               @click="confirmVendors"
             >
-              Pilih Vendor ({{ tempSelectedVendors.length }})
+              Select Vendors ({{ tempSelectedVendors.length }})
             </button>
           </div>
         </div>
@@ -303,18 +303,18 @@
         <div class="modal-backdrop" @click="showConfirmationModal = false"></div>
         <div class="modal-content modal-sm">
           <div class="modal-header">
-            <h2>Konfirmasi Konversi</h2>
+            <h2>Confirm Conversion</h2>
             <button class="close-btn" @click="showConfirmationModal = false">
               <i class="fas fa-times"></i>
             </button>
           </div>
           <div class="modal-body">
             <p>
-              Apakah Anda yakin ingin mengkonversi permintaan pembelian ini menjadi RFQ?
+              Are you sure you want to convert this purchase requisition to RFQ?
             </p>
             <p>
-              <strong>Vendor terpilih:</strong> {{ selectedVendors.length }} vendor<br>
-              <strong>Item terpilih:</strong> {{ getSelectedItemsCount() }} item
+              <strong>Selected vendors:</strong> {{ selectedVendors.length }} vendors<br>
+              <strong>Selected items:</strong> {{ getSelectedItemsCount() }} items
             </p>
 
             <div class="form-actions">
@@ -323,14 +323,14 @@
                 class="btn btn-secondary"
                 @click="showConfirmationModal = false"
               >
-                Batal
+                Cancel
               </button>
               <button
                 type="button"
                 class="btn btn-primary"
                 @click="confirmConversion"
               >
-                Konfirmasi
+                Confirm
               </button>
             </div>
           </div>
@@ -422,11 +422,11 @@
 
           // Check if PR is in a valid state for conversion
           if (this.purchaseRequisition.status !== 'approved') {
-            this.error = `PR ini tidak dalam status 'approved'. Status saat ini: ${this.purchaseRequisition.status}`;
+            this.error = `This PR is not in 'approved' status. Current status: ${this.purchaseRequisition.status}`;
           }
         } catch (error) {
           console.error('Error fetching purchase requisition:', error);
-          this.error = 'Gagal memuat data PR. Silakan coba lagi.';
+          this.error = 'Failed to load PR data. Please try again.';
         } finally {
           this.loading = false;
         }
@@ -437,7 +437,7 @@
 
         try {
           const response = await axios.get('/vendors?is_active=true');
-          this.vendors = response.data.data || [];
+          this.vendors = response.data.data.data || [];
         } catch (error) {
           console.error('Error fetching vendors:', error);
           this.vendors = [];
@@ -461,13 +461,13 @@
         if (!dateString) return '-';
 
         const options = { year: 'numeric', month: 'short', day: 'numeric' };
-        return new Date(dateString).toLocaleDateString('id-ID', options);
+        return new Date(dateString).toLocaleDateString('en-US', options);
       },
 
       formatNumber(value) {
         if (value === null || value === undefined) return '-';
 
-        return new Intl.NumberFormat('id-ID').format(value);
+        return new Intl.NumberFormat('en-US').format(value);
       },
 
       goBack() {
@@ -519,19 +519,19 @@
 
         // Validate form
         if (!this.rfqData.rfq_date) {
-          this.errors.rfq_date = 'Tanggal RFQ wajib diisi';
+          this.errors.rfq_date = 'RFQ date is required';
         }
 
         if (this.rfqData.validity_date && this.rfqData.validity_date < this.rfqData.rfq_date) {
-          this.errors.validity_date = 'Tanggal berlaku harus setelah atau sama dengan tanggal RFQ';
+          this.errors.validity_date = 'Valid until date must be after or equal to RFQ date';
         }
 
         if (this.selectedVendors.length === 0) {
-          this.errors.vendors = 'Pilih minimal satu vendor';
+          this.errors.vendors = 'Select at least one vendor';
         }
 
         if (!this.selectedLines.some(selected => selected)) {
-          this.errors.lines = 'Pilih minimal satu item untuk RFQ';
+          this.errors.lines = 'Select at least one item for RFQ';
         }
 
         if (Object.keys(this.errors).length > 0) {
@@ -575,7 +575,7 @@
             this.$router.push({
               path: '/purchasing/rfqs',
               query: {
-                message: 'RFQ berhasil dibuat dari PR',
+                message: 'RFQ successfully created from PR',
                 type: 'success'
               }
             });
@@ -585,7 +585,7 @@
             if (error.response && error.response.data && error.response.data.errors) {
               this.errors = error.response.data.errors;
             } else {
-              this.error = 'Gagal membuat RFQ. Silakan coba lagi.';
+              this.error = 'Failed to create RFQ. Please try again.';
             }
 
             this.isSubmitting = false;

@@ -16,7 +16,18 @@ class VendorQuotation extends Model
         'vendor_id',
         'quotation_date',
         'validity_date',
-        'status'
+        'status',
+        'currency_code',
+        'exchange_rate',
+        'total_amount',
+        'base_currency_total',
+        'notes',
+        'payment_terms',
+        'delivery_terms',
+        'tax_amount',
+        'base_currency_tax',
+        'rate_date',
+        'rate_source'
     ];
 
     protected $casts = [
