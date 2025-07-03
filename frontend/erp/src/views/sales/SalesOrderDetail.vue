@@ -2,7 +2,7 @@
 <template>
     <div class="order-detail">
         <div class="page-header">
-            <h1>Detail Order</h1>
+            <h1>Order Details</h1>
             <div class="page-actions">
                 <button class="btn btn-secondary" @click="goBack">
                     <i class="fas fa-arrow-left"></i> Back
@@ -21,7 +21,7 @@
                         class="btn btn-info"
                         @click="confirmOrder"
                     >
-                        <i class="fas fa-check-circle"></i> Konfirmasi
+                        <i class="fas fa-check-circle"></i> Confirm
                     </button>
 
                     <button
@@ -32,7 +32,7 @@
                         class="btn btn-info"
                         @click="createDelivery"
                     >
-                        <i class="fas fa-truck"></i> Buat Pengiriman
+                        <i class="fas fa-truck"></i> Create Delivery
                     </button>
 
                     <button
@@ -40,11 +40,11 @@
                         class="btn btn-success"
                         @click="createInvoice"
                     >
-                        <i class="fas fa-file-invoice-dollar"></i> Buat Faktur
+                        <i class="fas fa-file-invoice-dollar"></i> Create Invoice
                     </button>
 
                     <button class="btn btn-secondary" @click="printOrder">
-                        <i class="fas fa-print"></i> Priview Print
+                        <i class="fas fa-print"></i> Preview Print
                     </button>
                 </div>
             </div>
@@ -58,10 +58,10 @@
             <div class="empty-icon">
                 <i class="fas fa-exclamation-circle"></i>
             </div>
-            <h3>Order tidak ditemukan</h3>
-            <p>Order yang Anda cari mungkin telah dihapus atau tidak ada.</p>
+            <h3>Order not found</h3>
+            <p>The order you are looking for may have been deleted or does not exist.</p>
             <button class="btn btn-primary" @click="goBack">
-                Kembali ke daftar order
+                Back to order list
             </button>
         </div>
 
@@ -178,7 +178,7 @@
                         </div>
 
                         <div class="info-group">
-                            <label>NPWP</label>
+                            <label>Tax ID</label>
                             <div class="info-value">
                                 {{ order.customer.taxId || "-" }}
                             </div>
@@ -211,7 +211,7 @@
             <!-- Order Items with Outstanding Quantities -->
             <div class="detail-card">
                 <div class="card-header">
-                    <h2>Item Order dan Status Pengiriman</h2>
+                    <h2>Order Items and Delivery Status</h2>
                 </div>
                 <div class="card-body">
                     <div class="order-items">
@@ -290,7 +290,7 @@
                                 </tr>
                                 <tr>
                                     <td colspan="7" class="totals-label">
-                                        Total Diskon
+                                        Total Discount
                                     </td>
                                     <td colspan="2" class="totals-value">
                                         {{ formatCurrency(calculateTotalDiscount()) }}
@@ -298,7 +298,7 @@
                                 </tr>
                                 <tr>
                                     <td colspan="7" class="totals-label">
-                                        Total Pajak
+                                        Total Tax
                                     </td>
                                     <td colspan="2" class="totals-value">
                                         {{ formatCurrency(calculateTotalTax()) }}
@@ -413,18 +413,18 @@
             <!-- Related Invoices (if any) -->
             <div v-if="hasInvoices" class="detail-card">
                 <div class="card-header">
-                    <h2>Faktur Terkait</h2>
+                    <h2>Related Invoices</h2>
                 </div>
                 <div class="card-body">
                     <div class="related-items">
                         <table class="related-table">
                             <thead>
                                 <tr>
-                                    <th>No. Faktur</th>
-                                    <th>Tanggal</th>
+                                    <th>Invoice No.</th>
+                                    <th>Date</th>
                                     <th>Status</th>
-                                    <th>Nilai</th>
-                                    <th>Aksi</th>
+                                    <th>Amount</th>
+                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -455,7 +455,7 @@
                                             class="btn btn-sm btn-secondary"
                                             @click="viewInvoice(invoice)"
                                         >
-                                            <i class="fas fa-eye"></i> Lihat
+                                            <i class="fas fa-eye"></i> View
                                         </button>
                                     </td>
                                 </tr>
@@ -469,9 +469,9 @@
         <!-- Confirmation Modal -->
         <ConfirmationModal
             v-if="showConfirmModal"
-            title="Konfirmasi Order"
-            message="Apakah Anda yakin ingin mengkonfirmasi order ini? Status akan berubah menjadi 'Dikonfirmasi'."
-            confirm-button-text="Konfirmasi"
+            title="Confirm Order"
+            message="Are you sure you want to confirm this order? Status will change to 'Confirmed'."
+            confirm-button-text="Confirm"
             confirm-button-class="btn btn-primary"
             @confirm="confirmOrderAction"
             @close="closeConfirmModal"
@@ -589,7 +589,7 @@ export default {
         const formatDate = (dateString) => {
             if (!dateString) return "-";
             const date = new Date(dateString);
-            return date.toLocaleDateString("id-ID", {
+            return date.toLocaleDateString("en-US", {
                 day: "2-digit",
                 month: "long",
                 year: "numeric",
@@ -607,8 +607,8 @@ export default {
                 return new Intl.NumberFormat("en-US", {
                     style: "currency",
                     currency: currencyCode,
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
+                    minimumFractionDigits: 4,
+                    maximumFractionDigits: 4,
                 }).format(safeValue);
             } catch (error) {
                 console.error('Currency formatting error:', error);
@@ -628,17 +628,17 @@ export default {
                 case "Draft":
                     return "Draft";
                 case "Confirmed":
-                    return "Dikonfirmasi";
+                    return "Confirmed";
                 case "Processing":
-                    return "Diproses";
+                    return "Processing";
                 case "Shipped":
-                    return "Dikirim";
+                    return "Shipped";
                 case "Delivered":
-                    return "Terkirim";
+                    return "Delivered";
                 case "Invoiced":
-                    return "Difakturkan";
+                    return "Invoiced";
                 case "Closed":
-                    return "Selesai";
+                    return "Completed";
                 default:
                     return status;
             }
@@ -697,11 +697,11 @@ export default {
             const ordered = safeParseFloat(line.quantity);
 
             if (outstanding <= 0) {
-                return "Terkirim Penuh";
+                return "Fully Delivered";
             } else if (outstanding < ordered) {
-                return "Terkirim Sebagian";
+                return "Partially Delivered";
             } else {
-                return "Belum Terkirim";
+                return "Not Delivered";
             }
         };
 
@@ -710,11 +710,11 @@ export default {
             const status = getDeliveryStatusLabel(line);
 
             switch (status) {
-                case "Terkirim Penuh":
+                case "Fully Delivered":
                     return "status-delivered";
-                case "Terkirim Sebagian":
+                case "Partially Delivered":
                     return "status-partial";
-                case "Belum Terkirim":
+                case "Not Delivered":
                     return "status-pending";
                 default:
                     return "";
@@ -832,7 +832,7 @@ export default {
         // Print order
         const printOrder = () => {
             const printUrl = `/sales/orders/${order.value.soId}/print`;
-            window.open(printUrl, '_blank');
+            router.push(printUrl);
         };
 
         // Confirm order
@@ -874,10 +874,10 @@ export default {
                 loadData();
 
                 closeConfirmModal();
-                alert("Order berhasil dikonfirmasi");
+                alert("Order successfully confirmed");
             } catch (error) {
                 console.error("Error confirming order:", error);
-                alert("Terjadi kesalahan saat mengkonfirmasi order");
+                alert("An error occurred while confirming the order");
             }
         };
 

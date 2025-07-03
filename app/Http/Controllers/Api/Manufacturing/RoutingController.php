@@ -27,11 +27,11 @@ class RoutingController extends Controller
             $searchTerm = $request->search;
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('routing_code', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('revision', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('status', 'LIKE', "%{$searchTerm}%")
-                  ->orWhereHas('item', function ($itemQuery) use ($searchTerm) {
-                      $itemQuery->where('name', 'LIKE', "%{$searchTerm}%");
-                  });
+                    ->orWhere('revision', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('status', 'LIKE', "%{$searchTerm}%")
+                    ->orWhereHas('item', function ($itemQuery) use ($searchTerm) {
+                        $itemQuery->where('name', 'LIKE', "%{$searchTerm}%");
+                    });
             });
         }
 
@@ -48,21 +48,26 @@ class RoutingController extends Controller
         // Sorting
         $sortField = $request->get('sort_field', 'routing_code');
         $sortOrder = $request->get('sort_order', 'asc');
-        
+
         // Validate sort order
         $sortOrder = in_array(strtolower($sortOrder), ['asc', 'desc']) ? $sortOrder : 'asc';
-        
+
         // Handle sorting for related fields
         if ($sortField === 'item_name') {
             $query->join('items', 'routings.item_id', '=', 'items.item_id')
-                  ->orderBy('items.name', $sortOrder)
-                  ->select('routings.*');
+                ->orderBy('items.name', $sortOrder)
+                ->select('routings.*');
         } else {
             // Validate sort field to prevent SQL injection
             $allowedSortFields = [
-                'routing_code', 'revision', 'effective_date', 'status', 'created_at', 'updated_at'
+                'routing_code',
+                'revision',
+                'effective_date',
+                'status',
+                'created_at',
+                'updated_at'
             ];
-            
+
             if (in_array($sortField, $allowedSortFields)) {
                 $query->orderBy($sortField, $sortOrder);
             } else {
@@ -90,22 +95,45 @@ class RoutingController extends Controller
     }
 
     /**
+     * Display the specified resource.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function show($id)
+    {
+        $routing = Routing::with('item')->find($id);
+
+        if (!$routing) {
+            return response()->json(['message' => 'Routing not found'], 404);
+        }
+
+        return response()->json(['data' => $routing]);
+    }
+
+    /**
      * Store a newly created resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
+    //    <?php
+
+    // Update untuk method store() di RoutingController.php
+
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'item_id' => 'required|integer|exists:items,item_id',
-            'routing_code' => 'required|string|max:50',
+            'routing_code' => 'required|string|max:20|unique:routings,routing_code',
             'revision' => 'required|string|max:10',
             'effective_date' => 'required|date',
-            'status' => 'required|string|max:50',
-            'operations' => 'sometimes|array',
+            'status' => 'required|in:Active,Inactive',
+            'operations' => 'array',
             'operations.*.workcenter_id' => 'required|integer|exists:work_centers,workcenter_id',
             'operations.*.operation_name' => 'required|string|max:100',
+            'operations.*.work_flow' => 'nullable|string|max:100',
+            'operations.*.models' => 'nullable|string|max:100',
             'operations.*.sequence' => 'required|integer',
             'operations.*.setup_time' => 'required|numeric',
             'operations.*.run_time' => 'required|numeric',
@@ -134,6 +162,8 @@ class RoutingController extends Controller
                         'routing_id' => $routing->routing_id,
                         'workcenter_id' => $operation['workcenter_id'],
                         'operation_name' => $operation['operation_name'],
+                        'work_flow' => $operation['work_flow'] ?? null,
+                        'models' => $operation['models'] ?? null,
                         'sequence' => $operation['sequence'],
                         'setup_time' => $operation['setup_time'],
                         'run_time' => $operation['run_time'],
@@ -145,9 +175,9 @@ class RoutingController extends Controller
             }
 
             DB::commit();
-            
+
             return response()->json([
-                'data' => $routing->load('routingOperations'), 
+                'data' => $routing->load('routingOperations'),
                 'message' => 'Routing created successfully'
             ], 201);
         } catch (\Exception $e) {
@@ -156,52 +186,80 @@ class RoutingController extends Controller
         }
     }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function show($id)
-    {
-        $routing = Routing::with(['item', 'routingOperations.workCenter', 'routingOperations.unitOfMeasure'])->find($id);
-        
-        if (!$routing) {
-            return response()->json(['message' => 'Routing not found'], 404);
-        }
-        
-        return response()->json(['data' => $routing]);
-    }
+    // Update untuk method update() di RoutingController.php
 
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
     public function update(Request $request, $id)
     {
         $routing = Routing::find($id);
-        
+
         if (!$routing) {
             return response()->json(['message' => 'Routing not found'], 404);
         }
 
         $validator = Validator::make($request->all(), [
-            'item_id' => 'sometimes|required|integer|exists:items,item_id',
-            'routing_code' => 'sometimes|required|string|max:50',
-            'revision' => 'sometimes|required|string|max:10',
-            'effective_date' => 'sometimes|required|date',
-            'status' => 'sometimes|required|string|max:50',
+            'item_id' => 'required|integer|exists:items,item_id',
+            'routing_code' => 'required|string|max:20|unique:routings,routing_code,' . $id . ',routing_id',
+            'revision' => 'required|string|max:10',
+            'effective_date' => 'required|date',
+            'status' => 'required|in:Active,Inactive',
+            'operations' => 'array',
+            'operations.*.workcenter_id' => 'required|integer|exists:work_centers,workcenter_id',
+            'operations.*.operation_name' => 'required|string|max:100',
+            'operations.*.work_flow' => 'nullable|string|max:100',
+            'operations.*.models' => 'nullable|string|max:100',
+            'operations.*.sequence' => 'required|integer',
+            'operations.*.setup_time' => 'required|numeric',
+            'operations.*.run_time' => 'required|numeric',
+            'operations.*.uom_id' => 'required|integer|exists:UnitOfMeasure,uom_id',
+            'operations.*.labor_cost' => 'required|numeric',
+            'operations.*.overhead_cost' => 'required|numeric',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $routing->update($request->all());
-        return response()->json(['data' => $routing, 'message' => 'Routing updated successfully']);
+        DB::beginTransaction();
+        try {
+            $routing->update([
+                'item_id' => $request->item_id,
+                'routing_code' => $request->routing_code,
+                'revision' => $request->revision,
+                'effective_date' => $request->effective_date,
+                'status' => $request->status,
+            ]);
+
+            // Delete existing operations and recreate
+            if ($request->has('operations')) {
+                $routing->routingOperations()->delete();
+
+                foreach ($request->operations as $operation) {
+                    RoutingOperation::create([
+                        'routing_id' => $routing->routing_id,
+                        'workcenter_id' => $operation['workcenter_id'],
+                        'operation_name' => $operation['operation_name'],
+                        'work_flow' => $operation['work_flow'] ?? null,
+                        'models' => $operation['models'] ?? null,
+                        'sequence' => $operation['sequence'],
+                        'setup_time' => $operation['setup_time'],
+                        'run_time' => $operation['run_time'],
+                        'uom_id' => $operation['uom_id'],
+                        'labor_cost' => $operation['labor_cost'],
+                        'overhead_cost' => $operation['overhead_cost'],
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'data' => $routing->load('routingOperations'),
+                'message' => 'Routing updated successfully'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Failed to update routing', 'error' => $e->getMessage()], 500);
+        }
     }
 
     /**
@@ -213,7 +271,7 @@ class RoutingController extends Controller
     public function destroy($id)
     {
         $routing = Routing::find($id);
-        
+
         if (!$routing) {
             return response()->json(['message' => 'Routing not found'], 404);
         }
@@ -227,10 +285,10 @@ class RoutingController extends Controller
         try {
             // Delete routing operations first
             $routing->routingOperations()->delete();
-            
+
             // Then delete the routing
             $routing->delete();
-            
+
             DB::commit();
             return response()->json(['message' => 'Routing deleted successfully']);
         } catch (\Exception $e) {

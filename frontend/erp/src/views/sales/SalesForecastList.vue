@@ -25,38 +25,109 @@
 
     <!-- Filters -->
     <div class="filters-section">
-      <SearchFilter
-        v-model="search"
-        placeholder="Search forecasts..."
-        @search="handleSearch"
-      >
-        <template #filters>
+      <div class="filters-card">
+        <!-- Main Search -->
+        <div class="main-search">
+          <div class="search-input-wrapper">
+            <i class="fas fa-search search-icon"></i>
+            <input
+              type="text"
+              v-model="search"
+              class="form-control search-input"
+              placeholder="Search forecasts..."
+              @input="handleSearch"
+            />
+          </div>
+        </div>
+
+        <!-- Filter Grid -->
+        <div class="filters-grid">
           <div class="filter-group">
             <label>Customer</label>
-            <select v-model="filters.customer_id" @change="loadForecasts" class="form-control">
-              <option value="">All Customers</option>
-              <option
-                v-for="customer in customers"
-                :key="customer.customer_id"
-                :value="customer.customer_id"
-              >
-                {{ customer.name }}
-              </option>
-            </select>
+            <div class="dropdown">
+              <input
+                type="text"
+                v-model="customerSearch"
+                class="form-control"
+                placeholder="Search customers..."
+                @focus="showCustomerDropdown = true"
+                @blur="hideCustomerDropdown"
+                @input="clearCustomerSelection"
+                autocomplete="off"
+              />
+              <div v-if="showCustomerDropdown" class="dropdown-menu">
+                <div
+                  class="dropdown-item"
+                  @mousedown="selectCustomer(null)"
+                  :class="{ 'selected': filters.customer_id === '' }"
+                >
+                  <div class="customer-info">
+                    <strong>All Customers</strong>
+                  </div>
+                </div>
+                <div
+                  v-for="customer in filteredCustomers"
+                  :key="customer.customer_id"
+                  @mousedown="selectCustomer(customer)"
+                  class="dropdown-item"
+                  :class="{ 'selected': filters.customer_id === customer.customer_id }"
+                >
+                  <div class="customer-info">
+                    <strong>{{ customer.name }}</strong>
+                    <span class="customer-code" v-if="customer.customer_code">({{ customer.customer_code }})</span>
+                  </div>
+                </div>
+                <div v-if="filteredCustomers.length === 0 && customerSearch" class="dropdown-item text-muted">
+                  No customers found
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="filter-group">
             <label>Item</label>
-            <select v-model="filters.item_id" @change="loadForecasts" class="form-control">
-              <option value="">All Items</option>
-              <option
-                v-for="item in items"
-                :key="item.item_id"
-                :value="item.item_id"
-              >
-                {{ item.name }}
-              </option>
-            </select>
+            <div class="dropdown">
+              <input
+                type="text"
+                v-model="itemSearch"
+                class="form-control"
+                placeholder="Search items..."
+                @focus="showItemDropdown = true"
+                @blur="hideItemDropdown"
+                @input="clearItemSelection"
+                autocomplete="off"
+              />
+              <div v-if="showItemDropdown" class="dropdown-menu">
+                <div
+                  class="dropdown-item"
+                  @mousedown="selectItem(null)"
+                  :class="{ 'selected': filters.item_id === '' }"
+                >
+                  <div class="item-info">
+                    <strong>All Items</strong>
+                  </div>
+                </div>
+                <div
+                  v-for="item in filteredItems"
+                  :key="item.item_id"
+                  @mousedown="selectItem(item)"
+                  class="dropdown-item"
+                  :class="{ 'selected': filters.item_id === item.item_id }"
+                >
+                  <div class="item-info">
+                    <strong>{{ item.name }}</strong>
+                    <span class="item-code">({{ item.item_code }})</span>
+                  </div>
+                  <div class="item-details">
+                    <span class="category">{{ item.category ? item.category.name : 'No Category' }}</span>
+                    <span class="stock">Stock: {{ item.current_stock || 0 }}</span>
+                  </div>
+                </div>
+                <div v-if="filteredItems.length === 0 && itemSearch" class="dropdown-item text-muted">
+                  No items found
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="filter-group">
@@ -88,9 +159,10 @@
               <option value="true">All Versions</option>
             </select>
           </div>
-        </template>
+        </div>
 
-        <template #actions>
+        <!-- Actions -->
+        <div class="filters-actions">
           <button @click="clearFilters" class="btn btn-secondary">
             <i class="fas fa-times"></i>
             Clear Filters
@@ -102,8 +174,8 @@
             <i class="fas fa-chart-line"></i>
             Analytics
           </router-link>
-        </template>
-      </SearchFilter>
+        </div>
+      </div>
     </div>
 
     <!-- Forecasts Table -->
@@ -264,6 +336,11 @@ export default {
       showDeleteModal: false,
       deleteTarget: null,
       search: '',
+      // Search states for dropdowns
+      customerSearch: '',
+      itemSearch: '',
+      showCustomerDropdown: false,
+      showItemDropdown: false,
       filters: {
         customer_id: '',
         item_id: '',
@@ -294,9 +371,30 @@ export default {
       ]
     };
   },
+  computed: {
+    filteredCustomers() {
+      if (!this.customerSearch) {
+        return this.customers.slice(0, 10);
+      }
+      return this.customers.filter(customer =>
+        customer.name.toLowerCase().includes(this.customerSearch.toLowerCase()) ||
+        (customer.customer_code && customer.customer_code.toLowerCase().includes(this.customerSearch.toLowerCase()))
+      ).slice(0, 10);
+    },
+    filteredItems() {
+      if (!this.itemSearch) {
+        return this.items.slice(0, 10);
+      }
+      return this.items.filter(item =>
+        item.name.toLowerCase().includes(this.itemSearch.toLowerCase()) ||
+        item.item_code.toLowerCase().includes(this.itemSearch.toLowerCase())
+      ).slice(0, 10);
+    }
+  },
   async mounted() {
     await this.loadDropdownData();
     await this.loadForecasts();
+    this.initializeSearchValues();
   },
   methods: {
     async loadDropdownData() {
@@ -311,6 +409,23 @@ export default {
       } catch (error) {
         console.error('Error loading dropdown data:', error);
         this.$toast?.error('Failed to load filter data');
+      }
+    },
+
+    initializeSearchValues() {
+      // Set initial search values based on current filters
+      if (this.filters.customer_id) {
+        const customer = this.customers.find(c => c.customer_id === this.filters.customer_id);
+        if (customer) {
+          this.customerSearch = `${customer.name}${customer.customer_code ? ' (' + customer.customer_code + ')' : ''}`;
+        }
+      }
+
+      if (this.filters.item_id) {
+        const item = this.items.find(i => i.item_id === this.filters.item_id);
+        if (item) {
+          this.itemSearch = `${item.name} (${item.item_code})`;
+        }
       }
     },
 
@@ -361,6 +476,62 @@ export default {
       }
     },
 
+    // Customer dropdown methods
+    selectCustomer(customer) {
+      if (customer) {
+        this.filters.customer_id = customer.customer_id;
+        this.customerSearch = `${customer.name}${customer.customer_code ? ' (' + customer.customer_code + ')' : ''}`;
+      } else {
+        this.filters.customer_id = '';
+        this.customerSearch = '';
+      }
+      this.showCustomerDropdown = false;
+      this.pagination.current_page = 1;
+      this.loadForecasts();
+    },
+
+    hideCustomerDropdown() {
+      setTimeout(() => {
+        this.showCustomerDropdown = false;
+      }, 200);
+    },
+
+    clearCustomerSelection() {
+      if (this.customerSearch === '') {
+        this.filters.customer_id = '';
+        this.pagination.current_page = 1;
+        this.loadForecasts();
+      }
+    },
+
+    // Item dropdown methods
+    selectItem(item) {
+      if (item) {
+        this.filters.item_id = item.item_id;
+        this.itemSearch = `${item.name} (${item.item_code})`;
+      } else {
+        this.filters.item_id = '';
+        this.itemSearch = '';
+      }
+      this.showItemDropdown = false;
+      this.pagination.current_page = 1;
+      this.loadForecasts();
+    },
+
+    hideItemDropdown() {
+      setTimeout(() => {
+        this.showItemDropdown = false;
+      }, 200);
+    },
+
+    clearItemSelection() {
+      if (this.itemSearch === '') {
+        this.filters.item_id = '';
+        this.pagination.current_page = 1;
+        this.loadForecasts();
+      }
+    },
+
     handleSearch(searchTerm) {
       this.search = searchTerm;
       this.pagination.current_page = 1;
@@ -380,6 +551,8 @@ export default {
 
     clearFilters() {
       this.search = '';
+      this.customerSearch = '';
+      this.itemSearch = '';
       this.filters = {
         customer_id: '',
         item_id: '',
@@ -475,26 +648,140 @@ export default {
   margin-bottom: 1.5rem;
 }
 
+.filters-card {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  border: 1px solid var(--gray-200);
+}
+
+.main-search {
+  margin-bottom: 1.5rem;
+}
+
+.search-input-wrapper {
+  position: relative;
+  max-width: 400px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--gray-400);
+  font-size: 0.875rem;
+  z-index: 1;
+}
+
+.search-input {
+  padding-left: 2.5rem !important;
+}
+
+.filters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
 .filter-group {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  min-width: 150px;
+  gap: 0.5rem;
 }
 
 .filter-group label {
-  font-size: 0.75rem;
-  color: var(--gray-500);
-  font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--gray-700);
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  white-space: nowrap;
 }
 
 .filter-group select,
-.filter-group input {
-  padding: 0.5rem;
-  border: 1px solid var(--gray-200);
+.filter-group input,
+.form-control {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--gray-300);
   border-radius: 0.375rem;
   font-size: 0.875rem;
   background-color: white;
+  transition: all 0.2s ease;
+  height: 42px;
+  min-height: 42px;
+  width: 100%;
+}
+
+.filter-group select:focus,
+.filter-group input:focus,
+.form-control:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  outline: none;
+}
+
+.filter-group select:hover,
+.filter-group input:hover,
+.form-control:hover {
+  border-color: var(--gray-400);
+}
+
+.filters-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding-top: 1rem;
+  border-top: 1px solid var(--gray-200);
+  justify-content: flex-end;
+}
+
+@media (max-width: 1200px) {
+  .filters-grid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.75rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .filters-card {
+    padding: 1rem;
+  }
+
+  .filters-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+
+  .search-input-wrapper {
+    max-width: 100%;
+  }
+
+  .filters-actions {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .filters-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .filters-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .main-search {
+    margin-bottom: 1rem;
+  }
+
+  .filters-card {
+    padding: 0.75rem;
+  }
 }
 
 .card {
@@ -675,6 +962,109 @@ export default {
   color: var(--gray-500);
 }
 
+/* Dropdown Styles */
+.dropdown {
+  position: relative;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid var(--gray-300);
+  border-top: none;
+  border-radius: 0 0 0.375rem 0.375rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  max-height: 250px;
+  overflow-y: auto;
+  z-index: 100;
+}
+
+.dropdown-item {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--gray-100);
+  transition: background-color 0.2s;
+}
+
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dropdown-item:hover {
+  background-color: var(--gray-50);
+}
+
+.dropdown-item.selected {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.dropdown-item.text-muted {
+  color: var(--gray-500);
+  cursor: default;
+}
+
+.dropdown-item.text-muted:hover {
+  background-color: transparent;
+}
+
+.dropdown-item .customer-info,
+.dropdown-item .item-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.dropdown-item .customer-info strong,
+.dropdown-item .item-info strong {
+  font-weight: 600;
+  color: var(--gray-800);
+}
+
+.dropdown-item.selected .customer-info strong,
+.dropdown-item.selected .item-info strong {
+  color: #1e40af;
+}
+
+.dropdown-item .customer-code,
+.dropdown-item .item-code {
+  color: var(--gray-500);
+  font-size: 0.8rem;
+  margin-left: 0.5rem;
+}
+
+.dropdown-item.selected .customer-code,
+.dropdown-item.selected .item-code {
+  color: #1e40af;
+}
+
+.item-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+.category {
+  color: var(--primary-color);
+  font-weight: 500;
+}
+
+.stock {
+  color: var(--gray-500);
+}
+
+.dropdown-item.selected .category {
+  color: #1e40af;
+}
+
+.dropdown-item.selected .stock {
+  color: #1e40af;
+}
+
 @media (max-width: 768px) {
   .forecast-list-container {
     padding: 1rem;
@@ -688,6 +1078,26 @@ export default {
 
   .page-actions {
     justify-content: flex-end;
+  }
+
+  .dropdown-menu {
+    max-height: 200px;
+  }
+
+  .filter-group {
+    min-width: 120px;
+  }
+}
+
+@media (max-width: 480px) {
+  .dropdown-item {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .dropdown-item .item-details {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
   }
 }
 </style>

@@ -18,7 +18,7 @@
       </div>
 
       <div class="page-header">
-        <h1>Job Process Details</h1>
+        <h1>Job Order Process Details</h1>
         <div class="actions">
           <router-link to="/manufacturing/production-orders" class="btn btn-secondary">
             <i class="fas fa-arrow-left"></i> Back to List
@@ -130,22 +130,22 @@
 
       <div v-if="loading" class="loading-container">
         <i class="fas fa-spinner fa-spin"></i>
-        <span>Loading Job Process details...</span>
+        <span>Loading Job Order Process details...</span>
       </div>
 
       <div v-else-if="!productionOrder" class="error-container">
         <i class="fas fa-exclamation-triangle"></i>
-        <h3>Job Process Not Found</h3>
-        <p>The requestedJob Process could not be found.</p>
+        <h3>Job Order Process Not Found</h3>
+        <p>The requested Job Order Process could not be found.</p>
         <router-link to="/manufacturing/production-orders" class="btn btn-primary">
-          Back to Job Process
+          Back to Job Order Process
         </router-link>
       </div>
 
       <div v-else class="detail-content">
         <div class="card detail-card">
           <div class="card-header">
-            <h2>Job Process Information</h2>
+            <h2>Job Order Process Information</h2>
             <div class="status-badge" :class="getStatusClass(productionOrder.status)">
               {{ productionOrder.status }}
             </div>
@@ -153,15 +153,15 @@
           <div class="card-body">
             <div class="detail-grid">
               <div class="detail-item">
-                <div class="detail-label">Job Process #</div>
+                <div class="detail-label">Job Order Process #</div>
                 <div class="detail-value">{{ productionOrder.production_number }}</div>
               </div>
               <div class="detail-item">
-                <div class="detail-label">Job Process Date</div>
+                <div class="detail-label">Job Order Process Date</div>
                 <div class="detail-value">{{ formatDate(productionOrder.production_date) }}</div>
               </div>
               <div class="detail-item">
-                <div class="detail-label">Work Order</div>
+                <div class="detail-label">Job Order</div>
                 <div class="detail-value">
                   <router-link :to="`/manufacturing/work-orders/${productionOrder.wo_id}`">
                     {{ workOrder?.wo_number || 'N/A' }}
@@ -343,7 +343,7 @@
 
         <div v-if="productionOrder.status === 'Completed'" class="card detail-card">
           <div class="card-header">
-            <h2>Job Process Summary</h2>
+            <h2>Job Order Process Summary</h2>
           </div>
           <div class="card-body">
             <div class="summary-stats">
@@ -368,7 +368,7 @@
       <ConfirmationModal
         v-if="showIssueMaterialsModal"
         title="Issue Materials"
-        :message="`Are you sure you want to issue materials for Job Process <strong>${productionOrder?.production_number}</strong>?<br><br>This will move materials from Raw Materials warehouse to WIP warehouse and change status to 'Materials Issued'.`"
+        :message="`Are you sure you want to issue materials for Job Order Process <strong>${productionOrder?.production_number}</strong>?<br><br>This will move materials from Raw Materials warehouse to WIP warehouse and change status to 'Materials Issued'.`"
         confirm-button-text="Issue Materials"
         confirm-button-class="btn btn-warning"
         @confirm="issueMaterials"
@@ -378,9 +378,9 @@
       <!-- Start Production Confirmation Modal -->
       <ConfirmationModal
         v-if="showStartModal"
-        title="Start Job Process"
+        title="Start Job Order Process"
         :message="`Are you sure you want to start production for <strong>${productionOrder?.production_number}</strong>?<br><br>This will change the status to 'In Progress' and production activities can begin.`"
-        confirm-button-text="Start Job Process"
+        confirm-button-text="Start Job Order Process"
         confirm-button-class="btn btn-success"
         @confirm="startProduction"
         @close="cancelStart"
@@ -390,7 +390,7 @@
       <div v-if="showCompleteModal" class="modal-overlay" @click="closeCompleteModal">
         <div class="modal" @click.stop>
           <div class="modal-header">
-            <h3>Complete Job Process</h3>
+            <h3>Complete Job Order Process</h3>
             <button @click="closeCompleteModal" class="btn-close">&times;</button>
           </div>
           <div class="modal-body">
@@ -423,7 +423,7 @@
               class="btn btn-success"
               :disabled="!completionForm.actual_quantity || completionForm.actual_quantity <= 0"
             >
-              Complete Job Process
+              Complete Job Order Process
             </button>
           </div>
         </div>
@@ -432,9 +432,9 @@
       <!-- Cancel Production Confirmation Modal -->
       <ConfirmationModal
         v-if="showCancelModal"
-        title="Cancel Job Process"
-        :message="`Are you sure you want to cancel Job Process for <strong>${productionOrder?.production_number}</strong>?<br><br>This will change the status to 'Cancelled'.`"
-        confirm-button-text="Cancel Job Process"
+        title="Cancel Job Order Process"
+        :message="`Are you sure you want to cancel Job Order Process for <strong>${productionOrder?.production_number}</strong>?<br><br>This will change the status to 'Cancelled'.`"
+        confirm-button-text="Cancel Job Order Process"
         confirm-button-class="btn btn-warning"
         @confirm="cancelProduction"
         @close="cancelCancelAction"
@@ -443,8 +443,8 @@
       <!-- Delete Confirmation Modal -->
       <ConfirmationModal
         v-if="showDeleteModal"
-        title="Delete Job Process"
-        :message="`Are you sure you want to delete Job Process order <strong>${productionOrder?.production_number}</strong>? This action cannot be undone.`"
+        title="Delete Job Order Process"
+        :message="`Are you sure you want to delete Job Order Process order <strong>${productionOrder?.production_number}</strong>? This action cannot be undone.`"
         confirm-button-text="Delete"
         confirm-button-class="btn btn-danger"
         @confirm="deleteProductionOrder"
@@ -454,8 +454,8 @@
       <!-- Reactivate Confirmation Modal -->
       <ConfirmationModal
         v-if="showReactivateModal"
-        title="Reactivate Job Process"
-        :message="`Are you sure you want to reactivate Job Process <strong>${productionOrder?.production_number}</strong>?<br><br>This will change the status back to 'Draft'.`"
+        title="Reactivate Job Order Process"
+        :message="`Are you sure you want to reactivate Job Order Process <strong>${productionOrder?.production_number}</strong>?<br><br>This will change the status back to 'Draft'.`"
         confirm-button-text="Reactivate"
         confirm-button-class="btn btn-primary"
         @confirm="reactivateProduction"
@@ -595,8 +595,8 @@
           // Fetch material status
           await this.fetchMaterialStatus();
         } catch (error) {
-          console.error('Error fetching Job Process:', error);
-          this.showError('Failed to load Job Process');
+          console.error('Error fetching Job Order Process:', error);
+          this.showError('Failed to load Job Order Process');
         } finally {
           this.loading = false;
         }
@@ -783,11 +783,11 @@
         try {
           await axios.post(`/production-orders/${this.productionId}/complete`, this.completionForm);
 
-          this.showSuccess('Job Process completed successfully');
+          this.showSuccess('Job Order Process completed successfully');
           this.fetchProductionOrder();
         } catch (error) {
-          console.error('Error completing Job Process:', error);
-          this.showError(error.response?.data?.message || 'Failed to complete Job Process');
+          console.error('Error completing Job Order Process:', error);
+          this.showError(error.response?.data?.message || 'Failed to complete Job Order Process');
         } finally {
           this.showCompleteModal = false;
         }
@@ -807,11 +807,11 @@
             status: 'Cancelled'
           });
 
-          this.showSuccess('Job Process cancelled successfully');
+          this.showSuccess('Job Order Process cancelled successfully');
           this.fetchProductionOrder();
         } catch (error) {
-          console.error('Error cancelling Job Process:', error);
-          this.showError(error.response?.data?.message || 'Failed to cancel Job Process');
+          console.error('Error cancelling Job Order Process:', error);
+          this.showError(error.response?.data?.message || 'Failed to cancel Job Order Process');
         } finally {
           this.showCancelModal = false;
         }
@@ -831,11 +831,11 @@
             status: 'Draft'
           });
 
-          this.showSuccess('Job Process reactivated successfully');
+          this.showSuccess('Job Order Process reactivated successfully');
           this.fetchProductionOrder();
         } catch (error) {
-          console.error('Error reactivating Job Process:', error);
-          this.showError(error.response?.data?.message || 'Failed to reactivate Job Process');
+          console.error('Error reactivating Job Order Process:', error);
+          this.showError(error.response?.data?.message || 'Failed to reactivate Job Order Process');
         } finally {
           this.showReactivateModal = false;
         }
@@ -961,10 +961,10 @@
         try {
           const response = await axios.get(`/production-orders/${this.productionId}/production-summary`);
           // Could navigate to a detailed summary page or show in modal
-          console.log('Job Process Summary:', response.data);
-          this.showInfo('Job Process summary loaded - check console for details');
+          console.log('Job Order Process Summary:', response.data);
+          this.showInfo('Job Order Process summary loaded - check console for details');
         } catch (error) {
-          this.showError('Failed to load Job Process summary');
+          this.showError('Failed to load Job Order Process summary');
         }
       },
 

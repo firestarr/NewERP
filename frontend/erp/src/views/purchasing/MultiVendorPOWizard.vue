@@ -266,6 +266,7 @@ export default {
       if (index >= 0) {
         // Remove vendor
         selections.splice(index, 1)
+        // eslint-disable-next-line no-unused-vars
         const { [vendor.vendor_id]: _, ...rest } = this.quantitySplits[prLineId]
         this.quantitySplits = {
           ...this.quantitySplits,
@@ -337,7 +338,8 @@ export default {
 
       if (index >= 0) {
         selections.splice(index, 1)
-        const { [vendorId]: _, ...rest } = this.quantitySplits[prLineId]
+      // eslint-disable-next-line no-unused-vars
+      const { [vendorId]: _, ...rest } = this.quantitySplits[prLineId]
         this.quantitySplits = {
           ...this.quantitySplits,
           [prLineId]: rest
@@ -435,7 +437,7 @@ export default {
           });
         });
 
-        const response = await axios.post('/purchase-orders/create-split-from-pr', {
+        await axios.post('/purchase-orders/create-split-from-pr', {
           pr_id: parseInt(this.id),
           vendor_selections: vendorSelections
         });

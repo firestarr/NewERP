@@ -25,7 +25,7 @@
           >
             <i class="fas fa-play-circle mr-1"></i> Release
           </button>
-          <button
+          <!-- <button
             v-if="workOrder.status === 'Released'"
             @click="confirmStart"
             class="btn btn-success mr-2"
@@ -38,7 +38,7 @@
             class="btn btn-success mr-2"
           >
             <i class="fas fa-check-circle mr-1"></i> Complete
-          </button>
+          </button> -->
           <button
             v-if="['Draft', 'Planned', 'Released'].includes(workOrder.status)"
             @click="confirmCancel"
@@ -1101,7 +1101,7 @@ requiredQty = Math.ceil(requiredQty);
     //   window.print();
      // Legacy function - now redirects to print page
   const printUrl = `/manufacturing/work-orders/${workOrder.value.wo_id}/print`;
-  window.open(printUrl, '_blank');
+  router.push(printUrl);
     };
 
     // Watch for tab changes to load appropriate data

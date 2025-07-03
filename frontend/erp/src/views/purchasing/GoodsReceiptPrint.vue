@@ -24,70 +24,46 @@
            class="receipt-document"
            :class="{'page-break': pageIndex > 0}">
         <div class="document-content">
-          <!-- Company Name -->
-          <div class="company-name">PT. ARMSTRONG INDUSTRI INDONESIA</div>
+          <!-- Company Name and Document Title on same line -->
+          <div class="header-top">
+            <div class="company-name">ARMSTRONG MIRATECH INDIA PRIVATE LIMITED</div>
+            <div class="document-title">GRN No. {{ receipt.receipt_number }}</div>
+          </div>
 
-          <!-- Document Title and Page Info -->
-          <div class="document-header">
-            <div class="header-left">
-              <div class="document-title">GOODS RECEIVED NOTE No. {{ receipt.receipt_number }}</div>
-            </div>
-            <div class="header-right">
-              <div class="page-info">Page : {{ pageIndex + 1 }} of {{ totalPages }}</div>
-            </div>
+          <!-- Double horizontal lines -->
+          <div class="header-lines">
+            <div class="line-1"></div>
+            <div class="line-2"></div>
           </div>
 
           <!-- Supplier Info Section - Only show on first page -->
           <div v-if="pageIndex === 0" class="info-container">
             <div class="supplier-section">
-              <div class="supplier-label">Supplier :</div>
+              <div class="supplier-label">Supplier No. / Name :</div>
               <div class="supplier-info">
                 <div class="supplier-name">{{ receipt.vendor?.name || 'PT BESQ SARANA ABADI' }}</div>
-                <div class="supplier-address">{{ receipt.vendor?.address_line1 || 'RAWA BOGO RT 002 RW 007,' }}</div>
+                <!-- <div class="supplier-address">{{ receipt.vendor?.address_line1 || 'RAWA BOGO RT 002 RW 007,' }}</div>
                 <div class="supplier-address">{{ receipt.vendor?.address_line2 || 'PADURENAN, MUSTIKA JAYA' }}</div>
-                <div class="supplier-city">{{ receipt.vendor?.city || 'KOTA BEKASI' }}</div>
+                <div class="supplier-city">{{ receipt.vendor?.city || 'KOTA BEKASI' }}</div> -->
               </div>
+            </div>
+
+            <!-- Supplier DO No Section -->
+            <div class="supplier-do-section">
+              <div class="detail-label">Supplier DO No. :</div>
+              <div class="detail-value">{{ receipt.supplier_do_no || '' }}</div>
+            </div>
+
+            <!-- Ref Section -->
+            <div class="ref-section">
+              <div class="detail-label">Ref :</div>
+              <div class="detail-value">{{ receipt.ref || '' }}</div>
             </div>
 
             <!-- PO and Delivery Info -->
             <div class="details-section">
-              <table class="details-table">
-                <tr>
-                  <td>Our PO No</td>
-                  <td>:</td>
-                  <td>{{ poNumbers || 'LC3-25-0348' }}</td>
-                </tr>
-                <tr>
-                  <td>Our PO Date</td>
-                  <td>:</td>
-                  <td>{{ formatDate(poDate) || '06/05/2025' }}</td>
-                </tr>
-                <tr>
-                  <td>Attn</td>
-                  <td>:</td>
-                  <td>{{ receipt.vendor?.contact_person || 'RUDINAL HABIBI' }}</td>
-                </tr>
-                <tr>
-                  <td>TEL</td>
-                  <td>:</td>
-                  <td>{{ receipt.vendor?.phone || '021-29456442' }}</td>
-                </tr>
-                <tr>
-                  <td>FAX</td>
-                  <td>:</td>
-                  <td>{{ receipt.vendor?.fax || '' }}</td>
-                </tr>
-                <tr>
-                  <td>Date</td>
-                  <td>:</td>
-                  <td>{{ formatDate(receipt.receipt_date) || '19/05/2025' }}</td>
-                </tr>
-                <tr>
-                  <td>Terms</td>
-                  <td>:</td>
-                  <td>{{ poTerms || 'Net 30 days' }}</td>
-                </tr>
-              </table>
+              <div class="detail-label">Ref Date :</div>
+              <div class="detail-value">{{ formatDate(poDate) || '06/05/2025' }}</div>
             </div>
           </div>
 
@@ -96,16 +72,16 @@
             <div class="continuation-text">Continued from previous page</div>
           </div>
 
-          <!-- Items Table -->
+          <!-- Items Table - Only shows rows with actual data -->
           <table class="items-table">
             <thead>
               <tr class="header-row">
-                <th class="column-no">No.</th>
-                <th class="column-item-code">Item Code</th>
+                <th class="column-no">S/No.</th>
+                <th class="column-item-code">Part No.</th>
                 <th class="column-description">Description</th>
-                <th class="column-size">Size</th>
+                <th class="column-po-no">PO No.</th>
+                <th class="column-qty">Qty Completed</th>
                 <th class="column-uom">UOM</th>
-                <th class="column-qty">Qty</th>
               </tr>
             </thead>
             <tbody>
@@ -113,39 +89,30 @@
                 <td>{{ getItemNumber(pageIndex, index) }}</td>
                 <td>{{ line.item_code }}</td>
                 <td>{{ line.item_name }}</td>
-                <td>{{ line.size || '' }}</td>
+                <td>{{ poNumbers || 'LC3-25-0348' }}</td>
+                <td class="text-center">{{ formatQty(line.received_quantity) }}</td>
                 <td>{{ line.uom_name || '' }}</td>
-                <td class="text-right">{{ formatQty(line.received_quantity) }}</td>
-              </tr>
-              <!-- Add empty rows to fill the page if needed -->
-              <tr v-for="i in getEmptyRows(pageItems.length, pageIndex)"
-                  :key="`empty-${i}`"
-                  class="empty-row">
-                <td>&nbsp;</td>
-                <td>&nbsp;</td>
-                <td>&nbsp;</td>
-                <td>&nbsp;</td>
-                <td>&nbsp;</td>
-                <td>&nbsp;</td>
               </tr>
             </tbody>
           </table>
 
-          <!-- Signatures - only show on last page -->
-          <div v-if="pageIndex === paginatedItems.length - 1" class="signature-row">
-            <div class="signature-column">
-              <div class="signer">Vediantoro</div>
-              <div class="signature-role">Approved</div>
+          <!-- Signature Section -->
+          <div class="signature-section">
+            <div class="signature-item">
+              <div class="signature-label">
+                Issued by <span class="signature-line"></span>
+              </div>
+              <div class="sign-text">Sign</div>
             </div>
-            <div class="signature-column">
-              <div class="signer">Indra Zakaria</div>
-              <div class="signature-role">Checked</div>
-            </div>
-            <div class="signature-column">
-              <div class="signer">Ayu Retno</div>
-              <div class="signature-role">Created</div>
+
+            <div class="signature-item">
+              <div class="signature-label">
+                Received by <span class="signature-line"></span>
+              </div>
+              <div class="sign-text">Sign</div>
             </div>
           </div>
+
         </div>
       </div>
     </div>
@@ -183,7 +150,7 @@ export default {
       poSummary: [],
       loading: true,
       error: null,
-      itemsPerPage: 15, // Default items per page (can be adjusted based on content size)
+      itemsPerPage: 25, // Increased since no empty rows needed
     };
   },
   computed: {
@@ -218,8 +185,10 @@ export default {
       let remainingItems = [...this.receiptLines];
 
       // First page
-      result.push(remainingItems.slice(0, firstPageItems));
-      remainingItems = remainingItems.slice(firstPageItems);
+      if (remainingItems.length > 0) {
+        result.push(remainingItems.slice(0, firstPageItems));
+        remainingItems = remainingItems.slice(firstPageItems);
+      }
 
       // Other pages
       while (remainingItems.length > 0) {
@@ -252,7 +221,6 @@ export default {
             this.receiptLines = [{
               item_code: '610475400',
               item_name: 'CAP BRTH/059',
-              size: 'DIA15MMX16.5MM',
               uom_name: 'PCS',
               received_quantity: 50000
             }];
@@ -290,59 +258,48 @@ export default {
       }).format(number);
     },
     print() {
-      // Print only the receipt content
-      const printContents = this.$refs.reportContent.innerHTML;
-
-      const printWindow = window.open('', '', 'height=600,width=800');
-      printWindow.document.write('<html><head><title>Print Receipt</title>');
-
-      // Include styles for print
-      const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-        .map(style => style.outerHTML)
-        .join('');
-      printWindow.document.write(styles);
-
-      printWindow.document.write('</head><body>');
-      printWindow.document.write(printContents);
-      printWindow.document.write('</body></html>');
-
-      printWindow.document.close();
-      printWindow.focus();
-
-      printWindow.print();
-      printWindow.close();
+      // Langsung print halaman saat ini tanpa membuka tab baru
+      // CSS @media print sudah mengatur agar hanya receipt content yang tercetak
+      window.print();
     },
     printPDF() {
-      // Clone only the report content excluding print controls
-      const originalElement = this.$refs.reportContent;
-      const clone = originalElement.cloneNode(true);
+      // Pastikan hanya mengambil bagian reportContent untuk PDF
+      const element = this.$refs.reportContent;
 
-      // Remove print controls from the clone if any (should not be present)
-      const printControls = clone.querySelector('.print-controls');
-      if (printControls) {
-        printControls.remove();
+      if (!element) {
+        console.error('Report content not found');
+        return;
       }
 
-      // Create a temporary container for the cloned content
-      const container = document.createElement('div');
-      container.style.position = 'fixed';
-      container.style.top = '-9999px';
-      container.style.left = '-9999px';
-      container.appendChild(clone);
-      document.body.appendChild(container);
-
       const opt = {
-        margin:       0.5,
-        filename:     `GoodsReceipt_${this.receipt ? this.receipt.receipt_number : 'unknown'}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2 },
-        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+        margin: 0.5,
+        filename: `GoodsReceipt_${this.receipt ? this.receipt.receipt_number : 'unknown'}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          scrollX: 0,
+          scrollY: 0
+        },
+        jsPDF: {
+          unit: 'in',
+          format: 'a4',
+          orientation: 'portrait'
+        },
+        pagebreak: {
+          mode: ['avoid-all', 'css', 'legacy']
+        }
       };
 
-      html2pdf().set(opt).from(clone).save().then(() => {
-        // Remove the temporary container after saving the PDF
-        document.body.removeChild(container);
-      });
+      // Generate PDF langsung dari elemen reportContent
+      html2pdf()
+        .set(opt)
+        .from(element)
+        .save()
+        .catch(error => {
+          console.error('Error generating PDF:', error);
+        });
     },
     goBack() {
       this.$router.push(`/purchasing/goods-receipts/${this.id}`);
@@ -356,69 +313,334 @@ export default {
         const firstPageItems = this.itemsPerPage - 5;
         return firstPageItems + ((pageIndex - 1) * this.itemsPerPage) + indexOnPage + 1;
       }
-    },
-    getEmptyRows(itemCount, pageIndex) {
-      // For the first page (has header information)
-      if (pageIndex === 0) {
-        const firstPageRows = this.itemsPerPage - 5;
-        return itemCount < firstPageRows ? firstPageRows - itemCount : 0;
-      }
-
-      // For other pages (only table content)
-      return itemCount < this.itemsPerPage ? this.itemsPerPage - itemCount : 0;
     }
   }
 };
 </script>
 
 <style>
-/* Print-specific styles */
+/* Print-specific styles - ULTRA COMPACT untuk hasil seperti Image 2 */
 @media print {
-  @page {
-    size: A4; /* Set A4 page size */
-    margin: 1cm; /* Set 1cm margins */
+  /* Reset total semua elemen */
+  * {
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
   }
 
-  .no-print {
+  /* Sembunyikan semua elemen kecuali receipt content */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* Tampilkan hanya receipt content dan child elements */
+  .print-page,
+  .print-page *,
+  .receipt-document,
+  .receipt-document * {
+    visibility: visible !important;
+  }
+
+  /* Pastikan print-controls dan loading/error tidak muncul */
+  .print-controls,
+  .no-print,
+  .loading-state,
+  .error-state {
     display: none !important;
+    visibility: hidden !important;
   }
 
+  /* Reset body untuk print optimal */
   body {
-    margin: 0;
-    padding: 0;
-    font-size: 12pt;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-family: Arial, sans-serif !important;
+    font-size: 11pt !important;
+    line-height: 1.1 !important;
+    background: white !important;
+    height: auto !important;
   }
 
+  /* Reset print-page container */
   .print-page {
-    width: 100%;
-    margin: 0;
-    padding: 0;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    height: auto !important;
   }
 
+  /* Optimize receipt document untuk ultra compact */
   .receipt-document {
-    padding: 0;
-    box-shadow: none;
-    border: none;
-    page-break-after: always;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 10px 15px !important; /* Minimal padding */
+    box-shadow: none !important;
+    border: none !important;
+    background: white !important;
+    min-height: auto !important;
+    height: auto !important;
+    page-break-after: always !important;
   }
 
   .receipt-document:last-child {
-    page-break-after: avoid;
+    page-break-after: avoid !important;
   }
 
-  /* Ensure page breaks don't happen in the middle of items */
-  tr {
-    page-break-inside: avoid;
+  /* Document content - ultra compact */
+  .document-content {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
   }
 
-  /* Force background colors to print */
+  /* Header optimization - compact */
+  .header-top {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    margin-bottom: 5px !important; /* Reduced dari 8px */
+    width: 100% !important;
+  }
+
+  .company-name {
+    font-size: 13pt !important; /* Slightly smaller */
+    font-weight: bold !important;
+    margin: 0 !important;
+    line-height: 1.1 !important;
+  }
+
+  .document-title {
+    font-size: 11pt !important; /* Smaller */
+    font-weight: bold !important;
+    margin: 0 !important;
+    line-height: 1.1 !important;
+  }
+
+  /* Header lines - tighter */
+  .header-lines {
+    margin: 3px 0 !important; /* Reduced dari 8px */
+    width: 100% !important;
+  }
+
+  .line-1, .line-2 {
+    width: 100% !important;
+    height: 1px !important;
+    border-top: 1px dashed #000 !important;
+    margin-bottom: 1px !important; /* Reduced */
+  }
+
+  .line-2 {
+    margin-bottom: 0 !important;
+  }
+
+  /* Info container - ultra compact */
+  .info-container {
+    display: flex !important;
+    justify-content: space-between !important;
+    margin: 6px 0 !important; /* Reduced dari 12px */
+    gap: 15px !important; /* Reduced gap */
+    width: 100% !important;
+  }
+
+  .supplier-section {
+    flex: 2 !important;
+  }
+
+  .supplier-do-section,
+  .ref-section,
+  .details-section {
+    flex: 1 !important;
+    margin-bottom: 4px !important; /* Reduced */
+  }
+
+  .supplier-label,
+  .detail-label {
+    font-size: 10pt !important; /* Smaller */
+    font-weight: bold !important;
+    margin-bottom: 2px !important; /* Reduced */
+    color: #000 !important;
+    line-height: 1.1 !important;
+  }
+
+  .supplier-name,
+  .detail-value {
+    font-size: 10pt !important; /* Smaller */
+    font-weight: normal !important;
+    color: #000 !important;
+    margin: 0 !important;
+    padding-left: 2px !important; /* Reduced */
+    line-height: 1.1 !important;
+  }
+
+  /* Table optimization - ultra compact */
+  .items-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin: 6px 0 !important; /* Reduced dari 12px */
+    table-layout: auto !important;
+  }
+
+  .items-table th,
+  .items-table td {
+    border: none !important;
+    padding: 3px 4px !important; /* Reduced padding */
+    font-size: 9pt !important; /* Smaller font */
+    text-align: left !important;
+    vertical-align: top !important;
+    line-height: 1.1 !important;
+  }
+
+  /* Table header - compact */
+  .items-table .header-row {
+    border-top: 1px dashed #000 !important;
+    border-bottom: none !important;
+  }
+
+  .items-table .header-row th {
+    font-weight: bold !important;
+    background: white !important;
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    font-size: 9pt !important; /* Smaller header */
+  }
+
+  /* Table body */
+  .items-table tbody tr:last-child {
+    border-bottom: 1px dashed #000 !important;
+  }
+
+  /* Remove alternating colors and hover effects */
+  .data-row:nth-child(even),
+  .data-row:hover {
+    background-color: transparent !important;
+  }
+
+  /* Column alignments - compact */
+  .items-table td:nth-child(1) { /* S/No */
+    text-align: center !important;
+    white-space: nowrap !important;
+    font-size: 9pt !important;
+  }
+
+  .items-table td:nth-child(2) { /* Part No */
+    text-align: left !important;
+    white-space: nowrap !important;
+    font-weight: 500 !important;
+    font-size: 9pt !important;
+  }
+
+  .items-table td:nth-child(3) { /* Description */
+    text-align: left !important;
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    font-size: 9pt !important;
+  }
+
+  .items-table td:nth-child(4) { /* PO No */
+    text-align: left !important;
+    white-space: nowrap !important;
+    font-size: 9pt !important;
+  }
+
+  .items-table td:nth-child(5) { /* Qty */
+    text-align: center !important;
+    white-space: nowrap !important;
+    font-weight: 500 !important;
+    font-size: 9pt !important;
+  }
+
+  .items-table td:nth-child(6) { /* UOM */
+    text-align: center !important;
+    white-space: nowrap !important;
+    font-size: 9pt !important;
+  }
+
+  /* Signature section - ultra compact */
+  .signature-section {
+    display: flex !important;
+    justify-content: space-between !important;
+    margin: 15px 0 5px 0 !important; /* Reduced margins */
+    width: 100% !important;
+    page-break-inside: avoid !important;
+  }
+
+  .signature-item {
+    flex: 1 !important;
+    max-width: 45% !important;
+  }
+
+  .signature-label {
+    display: flex !important;
+    align-items: center !important;
+    margin-bottom: 5px !important; /* Reduced */
+    font-size: 10pt !important; /* Smaller */
+  }
+
+  .signature-line {
+    flex: 1 !important;
+    border-bottom: 1px solid #000 !important;
+    margin-left: 6px !important; /* Reduced */
+    height: 1px !important;
+    min-width: 120px !important; /* Reduced */
+  }
+
+  .sign-text {
+    font-size: 9pt !important; /* Smaller */
+    margin-top: 2px !important; /* Reduced */
+    color: #000 !important;
+  }
+
+  /* Page settings - optimal */
+  @page {
+    size: A4 !important;
+    margin: 0.3cm !important; /* Even smaller margin */
+  }
+
+  /* Page breaks */
+  .page-break {
+    page-break-before: always !important;
+  }
+
+  /* Prevent breaking inside important elements */
+  .items-table tr,
+  .signature-section {
+    page-break-inside: avoid !important;
+  }
+
+  /* Continuation header for multi-page */
+  .continuation-header {
+    margin-bottom: 6px !important; /* Reduced */
+    font-style: italic !important;
+    color: #666 !important;
+    font-size: 9pt !important; /* Smaller */
+  }
+
+  /* Force black color for all text */
   * {
+    color: #000 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  .page-break {
-    page-break-before: always;
+  /* Remove any bottom margins that create whitespace */
+  .receipt-document:last-child .signature-section {
+    margin-bottom: 0 !important;
+  }
+
+  .receipt-document:last-child .document-content {
+    padding-bottom: 0 !important;
+  }
+
+  /* Ensure no extra height */
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
   }
 }
 
@@ -487,6 +709,15 @@ body {
   background-color: #cbd5e1;
 }
 
+.btn-success {
+  background-color: #16a34a;
+  color: white;
+}
+
+.btn-success:hover {
+  background-color: #15803d;
+}
+
 .receipt-document {
   width: 100%;
   min-height: 277mm; /* A4 height - margins */
@@ -502,25 +733,17 @@ body {
   position: relative;
 }
 
-/* Company Name */
+/* Header Top - Company Name and Document Title on same line */
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
 .company-name {
   font-size: 16px;
   font-weight: bold;
-  text-align: left;
-  margin-bottom: 15px;
-}
-
-/* Document Header with Title and Page Info */
-.document-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 15px;
-  position: relative;
-}
-
-.header-title {
-  flex: 1;
-  text-align: center;
 }
 
 .document-title {
@@ -528,18 +751,20 @@ body {
   font-weight: bold;
 }
 
-.header-right {
-  text-align: right;
+/* Double horizontal lines below header */
+.header-lines {
+  margin-bottom: 15px;
 }
 
-.gr-number {
-  font-size: 14px;
-  font-weight: bold;
-  margin-bottom: 5px;
+.line-1, .line-2 {
+  width: 100%;
+  height: 1px;
+  border-top: 1px dashed #000; /* Ubah ke border dashed */
+  margin-bottom: 3px;
 }
 
-.page-info {
-  font-size: 12px;
+.line-2 {
+  margin-bottom: 0;
 }
 
 /* Continuation header for pages after first */
@@ -550,157 +775,293 @@ body {
   font-size: 12px;
 }
 
-/* Info Container with Supplier and Details */
+/* Info Container with Supplier and Details - UPDATED */
 .info-container {
   display: flex;
-  margin-bottom: 15px;
+  margin-bottom: 20px;
+  gap: 20px; /* Add consistent gap between sections */
+  align-items: flex-start;
 }
 
 .supplier-section {
-  flex: 1;
+  flex: 2; /* Give more space to supplier section */
+  min-width: 250px;
 }
 
 .supplier-label {
   font-weight: bold;
-  margin-bottom: 3px;
+  font-size: 13px;
+  margin-bottom: 5px;
+  color: #333;
 }
 
 .supplier-info {
-  margin-bottom: 15px;
+  margin-bottom: 0;
+  padding-left: 5px;
 }
 
 .supplier-name {
   font-weight: bold;
-  margin-bottom: 2px;
+  font-size: 13px;
+  margin-bottom: 3px;
+  color: #000;
+  line-height: 1.3;
 }
 
 .supplier-address, .supplier-city {
   font-size: 12px;
   margin-bottom: 2px;
+  color: #333;
+  line-height: 1.2;
 }
 
+/* Right side details sections */
+.supplier-do-section,
+.ref-section,
 .details-section {
   flex: 1;
+  min-width: 150px;
+  margin-bottom: 15px; /* Add consistent margin between sections */
 }
 
+/* New vertical format styles */
+.detail-label {
+  font-weight: bold;
+  font-size: 13px;
+  margin-bottom: 5px;
+  color: #333;
+}
+
+.detail-value {
+  font-size: 13px;
+  font-weight: normal;
+  color: #000;
+  line-height: 1.3;
+  padding-left: 5px; /* Consistent with supplier info padding */
+  min-height: 18px; /* Ensure consistent height even when empty */
+}
+
+/* Keep details-table styles for any remaining table usage */
 .details-table {
   width: 100%;
   border-collapse: collapse;
+  margin-bottom: 8px;
 }
 
 .details-table td {
-  padding: 2px 5px;
-  font-size: 12px;
+  padding: 3px 5px;
+  font-size: 13px;
   vertical-align: top;
+  line-height: 1.3;
 }
 
 .details-table td:first-child {
-  width: 90px;
-  font-weight: normal;
+  width: auto;
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: fit-content;
+  padding-right: 8px;
+  color: #333;
 }
 
 .details-table td:nth-child(2) {
-  width: 10px;
+  width: 15px;
   text-align: center;
+  padding: 3px 5px;
+  font-weight: 600;
+  color: #333;
 }
 
-/* Items Table */
+.details-table td:nth-child(3) {
+  padding-left: 8px;
+  font-weight: normal;
+  color: #000;
+}
+
+/* Items Table - Auto-sizing berdasarkan konten */
 .items-table {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 50px;
-  table-layout: auto; /* Allow table to adjust to content */
+  margin-bottom: 30px; /* Reduced margin untuk signature section */
+  table-layout: auto; /* Ubah dari fixed ke auto agar menyesuaikan konten */
+  border-bottom: 1px dashed #000; /* Ubah ke dashed */
 }
 
 .items-table th, .items-table td {
-  border: none; /* Remove all borders */
-  padding: 5px;
+  border: none;
+  padding: 6px 8px;
   font-size: 12px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible; /* Ubah dari hidden agar konten tidak terpotong */
+  text-overflow: clip; /* Ubah dari ellipsis */
 }
 
-/* Only add horizontal lines at the top and bottom of the table */
+/* Header tetap bisa wrap */
+.items-table th {
+  white-space: normal;
+  word-wrap: break-word;
+}
+
+/* Data cells dengan kontrol yang lebih fleksibel */
+.items-table td {
+  white-space: nowrap; /* Tetap nowrap untuk sebagian besar kolom */
+}
+
+/* Only add horizontal line at the top of the table header */
 .items-table .header-row {
-  border-top: 1px solid #000;
-  border-bottom: 1px solid #000;
+  border-top: 1px dashed #000; /* Ubah ke dashed */
+  border-bottom: none; /* Hilangkan garis di bawah header */
 }
 
-/* Remove borders between items */
 .items-table tr:not(.header-row) {
   border: none;
 }
 
-/* Add a bottom border only to the last non-empty row */
-.items-table tr:last-child {
-  border-bottom: 1px solid #000;
+/* Add bottom border after the table body */
+.items-table tbody tr:last-child {
+  border-bottom: 1px dashed #000; /* Ubah ke dashed */
 }
 
 .header-row th {
   background-color: #fff;
   font-weight: bold;
   text-align: left;
-  padding-top: 8px;
-  padding-bottom: 8px;
+  padding: 8px 8px; /* Consistent padding with data cells */
+  white-space: normal; /* Allow header text to wrap if needed */
+  word-wrap: break-word;
+  line-height: 1.2;
 }
 
+/* Optimized column constraints - menggunakan min/max width */
 .column-no {
-  width: 40px;
+  min-width: 40px; /* Minimum untuk S/No */
+  max-width: 60px;
+  text-align: center;
+  width: auto; /* Biarkan menyesuaikan konten */
 }
 
 .column-item-code {
-  width: 100px;
+  min-width: 80px; /* Minimum untuk Part No. */
+  max-width: 120px;
+  text-align: left;
+  width: auto;
 }
 
 .column-description {
-  width: auto; /* Allow description to take available space */
+  min-width: 150px; /* Minimum untuk Description */
+  max-width: 300px; /* Maksimum agar tidak terlalu lebar */
+  text-align: left;
+  white-space: normal; /* Tetap allow wrapping untuk deskripsi panjang */
+  word-wrap: break-word;
+  width: auto;
 }
 
-.column-size {
-  width: 120px;
-}
-
-.column-uom {
-  width: 50px;
+.column-po-no {
+  min-width: 80px; /* Minimum untuk PO No. */
+  max-width: 120px;
+  text-align: left;
+  width: auto;
 }
 
 .column-qty {
-  width: 80px;
-  text-align: right;
+  min-width: 80px; /* Minimum untuk Qty */
+  max-width: 120px;
+  text-align: center; /* Ubah dari right ke center */
+  white-space: nowrap; /* Tetap nowrap untuk angka */
+  width: auto;
+}
+
+.column-uom {
+  min-width: 50px; /* Minimum untuk UOM */
+  max-width: 80px;
+  text-align: center;
+  width: auto;
+}
+
+/* Specific data cell adjustments */
+.items-table td:nth-child(1) { /* S/No */
+  text-align: center;
+  white-space: nowrap;
+}
+
+.items-table td:nth-child(2) { /* Part No */
+  text-align: left;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.items-table td:nth-child(3) { /* Description */
+  text-align: left;
+  white-space: normal;
+  word-wrap: break-word;
+  line-height: 1.3;
+  /* Biarkan kolom ini yang paling fleksibel */
+}
+
+.items-table td:nth-child(4) { /* PO No */
+  text-align: left;
+  white-space: nowrap;
+}
+
+.items-table td:nth-child(5) { /* Qty */
+  text-align: center; /* Ubah dari right ke center */
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.items-table td:nth-child(6) { /* UOM */
+  text-align: center;
+  white-space: nowrap;
 }
 
 .text-right {
   text-align: right;
 }
 
-.empty-row td {
-  height: 25px;
-  border: none;
+.text-center {
+  text-align: center;
 }
 
-/* Signature Row */
-.signature-row {
+/* Signature Section */
+.signature-section {
   display: flex;
   justify-content: space-between;
-  margin-top: 50px;
-  padding: 0 20px;
-}
-
-.signature-column {
-  text-align: center;
-  width: 120px;
-}
-
-.signer {
   margin-top: 40px;
-  font-weight: bold;
-  border-top: 1px solid #000;
-  padding-top: 5px;
+  margin-bottom: 20px;
 }
 
-.signature-role {
+.signature-item {
+  flex: 1;
+  max-width: 45%;
+}
+
+.signature-label {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.signature-line {
+  flex: 1;
+  border-bottom: 1px solid #000;
+  margin-left: 10px;
+  height: 1px;
+  min-width: 200px;
+}
+
+.sign-text {
   font-size: 12px;
-  margin-top: 3px;
+  margin-top: 5px;
+  color: #666;
+}
+
+/* Additional styling for better readability */
+.data-row:nth-child(even) {
+  background-color: #fafafa; /* Light gray for alternate rows */
+}
+
+.data-row:hover {
+  background-color: #f0f9ff; /* Light blue on hover (won't show in print) */
 }
 
 /* Loading and Error States */
@@ -725,25 +1086,78 @@ body {
   color: #ef4444;
 }
 
-/* Responsive styles for smaller screens (when viewing in browser) */
+/* Responsive styles untuk layar kecil - UPDATED */
 @media screen and (max-width: 768px) {
   .print-page {
     width: 100%;
   }
 
+  .header-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+
   .info-container {
     flex-direction: column;
+    gap: 15px;
   }
 
   .supplier-section,
+  .supplier-do-section,
+  .ref-section,
   .details-section {
     width: 100%;
+    min-width: unset;
+    margin-bottom: 12px; /* Consistent mobile spacing */
   }
 
-  .signature-row {
+  .supplier-label,
+  .supplier-name,
+  .detail-label,
+  .detail-value,
+  .details-table td {
+    font-size: 12px; /* Slightly smaller on mobile */
+  }
+
+  .detail-value {
+    padding-left: 3px; /* Tighter padding on mobile */
+  }
+
+  .details-table td:first-child {
+    width: 120px;
+    padding-right: 8px;
+  }
+
+  .details-table td:nth-child(3) {
+    padding-left: 8px;
+  }
+
+  .items-table {
+    font-size: 11px;
+  }
+
+  .items-table th, .items-table td {
+    padding: 4px;
+  }
+
+  /* Adjust kolom untuk mobile */
+  .column-description {
+    max-width: 200px;
+  }
+
+  /* Signature section untuk mobile */
+  .signature-section {
     flex-direction: column;
-    align-items: center;
-    gap: 30px;
+    gap: 20px;
+  }
+
+  .signature-item {
+    max-width: 100%;
+  }
+
+  .signature-line {
+    min-width: 150px;
   }
 }
 </style>

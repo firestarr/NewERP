@@ -10,7 +10,19 @@
           <router-link :to="`/sales/invoices/${invoice.invoice_id}/print`" class="btn btn-secondary">
             <i class="fas fa-print"></i> Print
           </router-link>
-          <router-link v-if="canEdit" :to="`/sales/invoices/${invoice.invoice_id}/edit`" class="btn btn-warning">
+
+          <!-- Status Action Buttons -->
+          <button v-if="canSend" @click="openSendModal" class="btn btn-primary">
+            <i class="fas fa-paper-plane"></i> Send Invoice
+          </button>
+          <button v-if="canMarkPaid" @click="openMarkPaidModal" class="btn btn-success">
+            <i class="fas fa-check-circle"></i> Mark as Paid
+          </button>
+          <button v-if="canCancel" @click="openCancelModal" class="btn btn-warning">
+            <i class="fas fa-ban"></i> Cancel Invoice
+          </button>
+
+          <router-link v-if="canEdit" :to="`/sales/invoices/${invoice.invoice_id}/edit`" class="btn btn-info">
             <i class="fas fa-edit"></i> Edit
           </router-link>
           <button v-if="canDelete" @click="openDeleteModal" class="btn btn-danger">
@@ -252,6 +264,102 @@
         </div>
       </div>
 
+      <!-- Send Invoice Modal -->
+      <div class="modal" v-if="showSendModal">
+        <div class="modal-backdrop" @click="showSendModal = false"></div>
+        <div class="modal-content modal-sm">
+          <div class="modal-header">
+            <h2>Send Invoice</h2>
+            <button class="close-btn" @click="showSendModal = false">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="modal-body">
+            <p>Are you sure you want to send invoice <strong>{{ invoice.invoice_number }}</strong> to the customer?</p>
+            <p>This will change the status from "Draft" to "Sent".</p>
+
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary" @click="showSendModal = false">
+                Cancel
+              </button>
+              <button
+                type="button"
+                class="btn btn-primary"
+                @click="sendInvoice"
+                :disabled="updating"
+              >
+                <i class="fas fa-spinner fa-spin" v-if="updating"></i>
+                Send Invoice
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mark as Paid Modal -->
+      <div class="modal" v-if="showMarkPaidModal">
+        <div class="modal-backdrop" @click="showMarkPaidModal = false"></div>
+        <div class="modal-content modal-sm">
+          <div class="modal-header">
+            <h2>Mark as Paid</h2>
+            <button class="close-btn" @click="showMarkPaidModal = false">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="modal-body">
+            <p>Are you sure you want to mark invoice <strong>{{ invoice.invoice_number }}</strong> as paid?</p>
+            <p>This will update the status to "Paid" and mark the full amount as received.</p>
+
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary" @click="showMarkPaidModal = false">
+                Cancel
+              </button>
+              <button
+                type="button"
+                class="btn btn-success"
+                @click="markAsPaid"
+                :disabled="updating"
+              >
+                <i class="fas fa-spinner fa-spin" v-if="updating"></i>
+                Mark as Paid
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cancel Invoice Modal -->
+      <div class="modal" v-if="showCancelModal">
+        <div class="modal-backdrop" @click="showCancelModal = false"></div>
+        <div class="modal-content modal-sm">
+          <div class="modal-header">
+            <h2>Cancel Invoice</h2>
+            <button class="close-btn" @click="showCancelModal = false">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="modal-body">
+            <p>Are you sure you want to cancel invoice <strong>{{ invoice.invoice_number }}</strong>?</p>
+            <p>This action will set the status to "Cancelled" and cannot be undone.</p>
+
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary" @click="showCancelModal = false">
+                Cancel
+              </button>
+              <button
+                type="button"
+                class="btn btn-warning"
+                @click="cancelInvoice"
+                :disabled="updating"
+              >
+                <i class="fas fa-spinner fa-spin" v-if="updating"></i>
+                Cancel Invoice
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Delete Confirmation Modal -->
       <div class="modal" v-if="showDeleteModal">
         <div class="modal-backdrop" @click="showDeleteModal = false"></div>
@@ -399,6 +507,7 @@
       </div>
     </div>
   </template>
+
 <script>
 import axios from 'axios';
 
@@ -415,10 +524,15 @@ export default {
       invoice: {},
       receivable: null,
       loading: true,
+      updating: false,
       showDeleteModal: false,
       deleting: false,
       showPaymentModal: false,
       recording: false,
+      // Status action modals
+      showSendModal: false,
+      showMarkPaidModal: false,
+      showCancelModal: false,
       paymentData: {
         amount: 0,
         payment_date: new Date().toISOString().split('T')[0],
@@ -439,11 +553,29 @@ export default {
     isCancelled() {
       return this.invoice.status === 'Cancelled';
     },
+    isDraft() {
+      return this.invoice.status === 'Draft';
+    },
+    isSent() {
+      return this.invoice.status === 'Sent';
+    },
+    isPartiallyPaid() {
+      return this.invoice.status === 'Partially Paid';
+    },
     canEdit() {
       return !this.isPaid && !this.isCancelled;
     },
     canDelete() {
       return !this.isPaid && !(this.invoice.sales_returns && this.invoice.sales_returns.length > 0);
+    },
+    canSend() {
+      return this.isDraft;
+    },
+    canMarkPaid() {
+      return (this.isSent || this.isPartiallyPaid) && this.receivable && this.receivable.balance > 0;
+    },
+    canCancel() {
+      return this.isDraft || this.isSent;
     }
   },
   mounted() {
@@ -471,6 +603,121 @@ export default {
         this.loading = false;
       }
     },
+
+    // Status Update Methods
+    openSendModal() {
+      this.showSendModal = true;
+    },
+
+    async sendInvoice() {
+      this.updating = true;
+      try {
+        await axios.put(`/invoices/${this.id}`, {
+          invoice_number: this.invoice.invoice_number,
+          invoice_date: this.invoice.invoice_date,
+          due_date: this.invoice.due_date,
+          customer_id: this.invoice.customer_id,
+          status: 'Sent',
+          currency_code: this.invoice.currency_code,
+          reference_number: this.invoice.reference_number,
+          payment_terms: this.invoice.payment_terms
+        });
+
+        try {
+          this.$toast.success('Invoice sent successfully');
+        } catch (toastError) {
+          console.error('Toast success error:', toastError);
+        }
+        this.showSendModal = false;
+        this.fetchInvoice(); // Refresh data
+      } catch (error) {
+        console.error('Error sending invoice:', error);
+        try {
+          if (error && error.response && error.response.data && error.response.data.error) {
+            this.$toast.error(error.response.data.error);
+          } else if (error && error.message) {
+            this.$toast.error(error.message);
+          } else {
+            this.$toast.error('Failed to send invoice');
+          }
+        } catch (toastError) {
+          console.error('Toast error error:', toastError);
+        }
+      } finally {
+        this.updating = false;
+      }
+    },
+
+    openMarkPaidModal() {
+      this.showMarkPaidModal = true;
+    },
+
+    async markAsPaid() {
+      this.updating = true;
+      try {
+        await axios.put(`/invoices/${this.id}`, {
+          invoice_number: this.invoice.invoice_number,
+          invoice_date: this.invoice.invoice_date,
+          due_date: this.invoice.due_date,
+          customer_id: this.invoice.customer_id,
+          status: 'Paid',
+          currency_code: this.invoice.currency_code,
+          reference_number: this.invoice.reference_number,
+          payment_terms: this.invoice.payment_terms
+        });
+
+        this.$toast.success('Invoice marked as paid successfully');
+        this.showMarkPaidModal = false;
+        this.fetchInvoice(); // Refresh data
+      } catch (error) {
+        console.error('Error marking invoice as paid:', error);
+        if (error && error.response && error.response.data && error.response.data.error) {
+          this.$toast.error(error.response.data.error);
+        } else if (error && error.message) {
+          this.$toast.error(error.message);
+        } else {
+          this.$toast.error('Failed to mark invoice as paid');
+        }
+      } finally {
+        this.updating = false;
+      }
+    },
+
+    openCancelModal() {
+      this.showCancelModal = true;
+    },
+
+    async cancelInvoice() {
+      this.updating = true;
+      try {
+        await axios.put(`/invoices/${this.id}`, {
+          invoice_number: this.invoice.invoice_number,
+          invoice_date: this.invoice.invoice_date,
+          due_date: this.invoice.due_date,
+          customer_id: this.invoice.customer_id,
+          status: 'Cancelled',
+          currency_code: this.invoice.currency_code,
+          reference_number: this.invoice.reference_number,
+          payment_terms: this.invoice.payment_terms
+        });
+
+        this.$toast.success('Invoice cancelled successfully');
+        this.showCancelModal = false;
+        this.fetchInvoice(); // Refresh data
+      } catch (error) {
+        console.error('Error cancelling invoice:', error);
+        if (error && error.response && error.response.data && error.response.data.error) {
+          this.$toast.error(error.response.data.error);
+        } else if (error && error.message) {
+          this.$toast.error(error.message);
+        } else {
+          this.$toast.error('Failed to cancel invoice');
+        }
+      } finally {
+        this.updating = false;
+      }
+    },
+
     getPaymentTerms() {
       // Check multiple possible sources for payment terms
       if (this.invoice.payment_terms) {
@@ -559,8 +806,10 @@ export default {
         this.$router.push('/sales/invoices');
       } catch (error) {
         console.error('Error deleting invoice:', error);
-        if (error.response && error.response.data.message) {
+        if (error && error.response && error.response.data && error.response.data.message) {
           this.$toast.error(error.response.data.message);
+        } else if (error && error.message) {
+          this.$toast.error(error.message);
         } else {
           this.$toast.error('Failed to delete invoice. Please try again.');
         }
@@ -609,7 +858,7 @@ export default {
         this.fetchInvoice();
       } catch (error) {
         console.error('Error recording payment:', error);
-        if (error.response && error.response.data.errors) {
+        if (error && error.response && error.response.data && error.response.data.errors) {
           const errors = error.response.data.errors;
 
           // Map API validation errors to form fields
@@ -618,8 +867,10 @@ export default {
           }
 
           this.$toast.error('Please correct the errors in the form');
-        } else if (error.response && error.response.data.message) {
+        } else if (error && error.response && error.response.data && error.response.data.message) {
           this.$toast.error(error.response.data.message);
+        } else if (error && error.message) {
+          this.$toast.error(error.message);
         } else {
           this.$toast.error('Failed to record payment. Please try again.');
         }
@@ -630,6 +881,7 @@ export default {
   }
 };
 </script>
+
  <style scoped>
   .page-container {
     padding: 1.5rem;
@@ -649,6 +901,7 @@ export default {
   .header-actions {
     display: flex;
     gap: 0.5rem;
+    flex-wrap: wrap;
   }
 
   .invoice-container {
@@ -950,6 +1203,28 @@ export default {
     border-color: var(--gray-400);
   }
 
+  .btn-success {
+    color: white;
+    background-color: #10b981;
+    border-color: #10b981;
+  }
+
+  .btn-success:hover {
+    background-color: #059669;
+    border-color: #059669;
+  }
+
+  .btn-info {
+    color: white;
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+  }
+
+  .btn-info:hover {
+    background-color: #2563eb;
+    border-color: #2563eb;
+  }
+
   .btn-warning {
     color: #92400e;
     background-color: #fef3c7;
@@ -1144,6 +1419,16 @@ export default {
   }
 
   @media (max-width: 768px) {
+    .header-actions {
+      flex-wrap: wrap;
+      gap: 0.25rem;
+    }
+
+    .btn {
+      font-size: 0.75rem;
+      padding: 0.375rem 0.75rem;
+    }
+
     .info-section,
     .info-row,
     .related-item,

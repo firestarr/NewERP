@@ -89,14 +89,14 @@
                             </div>
                             <div class="submenu-section">
                                 <h4>Pricing</h4>
-                                <router-link to="/item-prices" class="submenu-link">
+                                <!-- <router-link to="/item-prices" class="submenu-link">
                                     <i class="fas fa-tags"></i>
                                     <span>Item Prices</span>
                                 </router-link>
                                 <router-link to="/price-comparison" class="submenu-link">
                                     <i class="fas fa-balance-scale"></i>
                                     <span>Price Comparison</span>
-                                </router-link>
+                                </router-link> -->
                                 <router-link to="/item-prices-management" class="submenu-link">
                                     <i class="fas fa-tags"></i>
                                     <span>Item Prices Management</span>
@@ -130,14 +130,14 @@
                             </div>
                             <div class="submenu-section">
                                 <h4>Stock Operations</h4>
-                                <router-link to="/item-stocks/transfer" class="submenu-link">
+                                <!-- <router-link to="/item-stocks/transfer" class="submenu-link">
                                     <i class="fas fa-exchange-alt"></i>
                                     <span>Stock Transfer</span>
                                 </router-link>
                                 <router-link to="/item-stocks/adjust" class="submenu-link">
                                     <i class="fas fa-sliders-h"></i>
                                     <span>Stock Adjustment</span>
-                                </router-link>
+                                </router-link> -->
                                 <router-link to="/item-stocks/reserve" class="submenu-link">
                                     <i class="fas fa-lock"></i>
                                     <span>Stock Reservation</span>
@@ -179,7 +179,7 @@
                                     <i class="fas fa-users"></i>
                                     <span>Vendor Management</span>
                                 </router-link>
-                                <router-link to="/purchasing/vendor-performance" class="submenu-link">
+                                <!-- <router-link to="/purchasing/vendor-performance" class="submenu-link">
                                     <i class="fas fa-star"></i>
                                     <span>Performance</span>
                                 </router-link>
@@ -190,7 +190,7 @@
                                 <router-link to="/purchasing/evaluation-dashboard" class="submenu-link">
                                     <i class="fa-solid fa-gauge-high"></i>
                                     <span>Evaluation Dashboard</span>
-                                </router-link>
+                                </router-link> -->
                             </div>
                             <div class="submenu-section">
                                 <h4>Requisitions & RFQ</h4>
@@ -236,26 +236,26 @@
                                     <i class="fas fa-truck-loading"></i>
                                     <span>Goods Receipts</span>
                                 </router-link>
-                                <router-link to="/purchasing/goods-receipts/dashboard" class="submenu-link">
+                                <!-- <router-link to="/purchasing/goods-receipts/dashboard" class="submenu-link">
                                     <i class="fas fa-tachometer-alt"></i>
                                     <span>Receipts Dashboard</span>
-                                </router-link>
+                                </router-link> -->
                                 <router-link to="/purchasing/vendor-invoices" class="submenu-link">
                                     <i class="fas fa-file-invoice"></i>
                                     <span>Vendor Invoices</span>
                                 </router-link>
-                                <router-link to="/purchasing/contracts" class="submenu-link">
+                                <!-- <router-link to="/purchasing/contracts" class="submenu-link">
                                     <i class="fas fa-file-contract"></i>
                                     <span>Vendor Contracts</span>
                                 </router-link>
                                 <router-link to="/purchasing/contracts/expiry-dashboard" class="submenu-link">
                                     <i class="fas fa-chart-line"></i>
                                     <span>Contract Expiry Dashboard</span>
-                                </router-link>
+                                </router-link> -->
                             </div>
                             <div class="submenu-section">
                                 <h4>Analytics</h4>
-                                <router-link to="/purchasing/dashboard" class="submenu-link">
+                                <!-- <router-link to="/purchasing/dashboard" class="submenu-link">
                                     <i class="fas fa-tachometer-alt"></i>
                                     <span>Dashboard</span>
                                 </router-link>
@@ -266,7 +266,7 @@
                                 <router-link to="/purchasing/price-trend" class="submenu-link">
                                     <i class="fas fa-chart-line"></i>
                                     <span>Price Trends</span>
-                                </router-link>
+                                </router-link> -->
                             </div>
                         </div>
                     </div>
@@ -385,7 +385,7 @@
                                 </router-link>
                                 <router-link to="/manufacturing/production-orders" class="submenu-link">
                                     <i class="fas fa-cogs"></i>
-                                    <span>Job Process</span>
+                                    <span>Job Order Process</span>
                                 </router-link>
                             </div>
                         </div>
@@ -944,17 +944,17 @@ export default {
                 { label: 'BOM Details', icon: 'fas fa-eye' }
             ],
 
-            // Work Orders
+            // Job Orders
             'WorkOrders': [
-                { label: 'Work Orders', route: '/manufacturing/work-orders', icon: 'fas fa-clipboard-list' }
+                { label: 'Job Orders', route: '/manufacturing/work-orders', icon: 'fas fa-clipboard-list' }
             ],
             'CreateWorkOrder': [
-                { label: 'Work Orders', route: '/manufacturing/work-orders', icon: 'fas fa-clipboard-list' },
-                { label: 'Create Work Order', icon: 'fas fa-plus' }
+                { label: 'Job Orders', route: '/manufacturing/work-orders', icon: 'fas fa-clipboard-list' },
+                { label: 'Create Job Order', icon: 'fas fa-plus' }
             ],
             'WorkOrderDetail': [
-                { label: 'Work Orders', route: '/manufacturing/work-orders', icon: 'fas fa-clipboard-list' },
-                { label: 'Work Order Details', icon: 'fas fa-eye' }
+                { label: 'Job Orders', route: '/manufacturing/work-orders', icon: 'fas fa-clipboard-list' },
+                { label: 'Job Order Details', icon: 'fas fa-eye' }
             ],
 
             // Accounting
@@ -1241,22 +1241,22 @@ export default {
                 "EditWorkCenter": "Edit Work Center",
                 "WorkCenterSchedule": "Work Center Schedule",
 
-                // Manufacturing - Work Orders
-                "WorkOrders": "Work Orders",
-                "CreateWorkOrder": "Create Work Order",
-                "WorkOrderDetail": "Work Order Details",
-                "EditWorkOrder": "Edit Work Order",
-                "WorkOrderOperation": "Work Order Operation",
+                // Manufacturing - Job Orders
+                "WorkOrders": "Job Orders",
+                "CreateWorkOrder": "Create Job Order",
+                "WorkOrderDetail": "Job Order Details",
+                "EditWorkOrder": "Edit Job Order",
+                "WorkOrderOperation": "Job Order Operation",
                 "ManufacturingDashboard": "Manufacturing Dashboard",
 
-                // Manufacturing - Production Orders
-                "ProductionOrders": "Production Orders",
-                "CreateProductionOrder": "Create Production Order",
-                "ProductionOrderDetail": "Production Order Details",
-                "EditProductionOrder": "Edit Production Order",
-                "AddProductionConsumption": "Add Production Consumption",
-                "EditProductionConsumption": "Edit Production Consumption",
-                "CompleteProductionOrder": "Complete Production Order",
+                // Manufacturing - Job Orders Process
+                "ProductionOrders": "Job Orders Process",
+                "CreateProductionOrder": "Create Job Orders Process",
+                "ProductionOrderDetail": "Job Orders Process Details",
+                "EditProductionOrder": "Edit Job Orders Process",
+                "AddProductionConsumption": "Add Job Orders Process Consumption",
+                "EditProductionConsumption": "Edit Job Orders Process Consumption",
+                "CompleteProductionOrder": "Complete Job Orders Process",
 
                 // Purchasing - Vendors
                 "VendorList": "Vendor Management",

@@ -318,7 +318,7 @@
                                     step="0.01"
                                     required
                                     @input="calculateLineTotals(index)"
-                                    placeholder="1"
+                                    placeholder="0"
                                 />
                             </div>
 
@@ -781,7 +781,7 @@ export default {
                 itemSearch: "",
                 showDropdown: false,
                 unit_price: 0,
-                quantity: 1,
+                quantity: 0,
                 uom_id: "",
                 delivery_date: defaultDeliveryDate,
                 discount: 0,

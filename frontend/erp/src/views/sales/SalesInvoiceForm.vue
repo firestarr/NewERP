@@ -308,14 +308,13 @@
                       <td>
                         <div class="input-group">
                           <div class="input-group-prepend">
-                            <span class="input-group-text">{{ invoice.currency_code }}</span>
+                            <!-- <span class="input-group-text">{{ invoice.currency_code }}</span> -->
                           </div>
                           <input
-                            type="number"
-                            v-model.number="line.unit_price"
+                            type="text"
+                            :value="formatPrice(line.unit_price)"
                             class="form-control"
-                            min="0"
-                            step="0.00001"
+                            @input="onUnitPriceInput($event, index)"
                             @change="calculateLineTotals(index)"
                           >
                         </div>
@@ -323,7 +322,7 @@
                       <td>
                         <div class="input-group">
                           <div class="input-group-prepend">
-                            <span class="input-group-text">{{ invoice.currency_code }}</span>
+                            <!-- <span class="input-group-text">{{ invoice.currency_code }}</span> -->
                           </div>
                           <input
                             type="number"
@@ -338,7 +337,7 @@
                       <td>
                         <div class="input-group">
                           <div class="input-group-prepend">
-                            <span class="input-group-text">{{ invoice.currency_code }}</span>
+                            <!-- <span class="input-group-text">{{ invoice.currency_code }}</span> -->
                           </div>
                           <input
                             type="number"
@@ -353,7 +352,7 @@
                       <td>
                         <div class="input-group">
                           <div class="input-group-prepend">
-                            <span class="input-group-text">{{ invoice.currency_code }}</span>
+                            <!-- <span class="input-group-text">{{ invoice.currency_code }}</span> -->
                           </div>
                           <input
                             type="number"
@@ -366,7 +365,7 @@
                       <td>
                         <div class="input-group">
                           <div class="input-group-prepend">
-                            <span class="input-group-text">{{ invoice.currency_code }}</span>
+                            <!-- <span class="input-group-text">{{ invoice.currency_code }}</span> -->
                           </div>
                           <input
                             type="number"
@@ -394,7 +393,7 @@
                       <td colspan="3">
                         <div class="input-group">
                           <div class="input-group-prepend">
-                            <span class="input-group-text">{{ invoice.currency_code }}</span>
+                            <!-- <span class="input-group-text">{{ invoice.currency_code }}</span> -->
                           </div>
                           <input type="number" v-model.number="subtotal" class="form-control" readonly>
                         </div>
@@ -405,7 +404,7 @@
                       <td colspan="3">
                         <div class="input-group">
                           <div class="input-group-prepend">
-                            <span class="input-group-text">{{ invoice.currency_code }}</span>
+                            <!-- <span class="input-group-text">{{ invoice.currency_code }}</span> -->
                           </div>
                           <input type="number" v-model.number="totalDiscount" class="form-control" readonly>
                         </div>
@@ -416,7 +415,7 @@
                       <td colspan="3">
                         <div class="input-group">
                           <div class="input-group-prepend">
-                            <span class="input-group-text">{{ invoice.currency_code }}</span>
+                            <!-- <span class="input-group-text">{{ invoice.currency_code }}</span> -->
                           </div>
                           <input type="number" v-model.number="invoice.tax_amount" class="form-control" readonly>
                         </div>
@@ -427,7 +426,7 @@
                       <td colspan="3">
                         <div class="input-group">
                           <div class="input-group-prepend">
-                            <span class="input-group-text">{{ invoice.currency_code }}</span>
+                            <!-- <span class="input-group-text">{{ invoice.currency_code }}</span> -->
                           </div>
                           <input type="number" v-model.number="invoice.total_amount" class="form-control" readonly>
                         </div>
@@ -563,6 +562,29 @@ export default {
   },
 
   methods: {
+    formatPrice(value) {
+      if (value === null || value === undefined) return '';
+      return Number(value).toFixed(5);
+    },
+
+    onUnitPriceInput(event, index) {
+      const input = event.target.value;
+      // Allow only numbers and decimal point
+      const validInput = input.replace(/[^0-9.]/g, '');
+
+      // Parse to float and fix to 5 decimals
+      let parsed = parseFloat(validInput);
+      if (isNaN(parsed)) {
+        parsed = 0;
+      }
+
+      // Update the line unit_price with parsed value
+      this.invoice.lines[index].unit_price = parsed;
+
+      // Update the input value to formatted string
+      event.target.value = this.formatPrice(parsed);
+    },
+
     // Customer dropdown methods
     selectCustomer(customer) {
       this.invoice.customer_id = customer.customer_id;

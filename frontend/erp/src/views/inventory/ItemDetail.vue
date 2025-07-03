@@ -1,4 +1,4 @@
-<!-- src/views/inventory/ItemDetail.vue - Modal Style -->
+<!-- src/views/inventory/ItemDetail.vue - Complete Implementation -->
 <template>
   <div class="modal-backdrop" @click="$router.back()">
     <div class="modal-dialog" @click.stop>
@@ -11,29 +11,56 @@
           </button>
         </div>
 
-        <!-- Modal Body -->
+        <!-- Modal Body - Loading State -->
         <div class="modal-body" v-if="isLoading">
           <div class="text-center py-4">
             <i class="fas fa-spinner fa-spin"></i> Loading item details...
           </div>
         </div>
 
-        <div class="modal-body" v-else-if="!item">
+        <!-- Modal Body - Error State -->
+        <div class="modal-body" v-else-if="!item || errorMessage">
           <div class="text-center py-4">
-            <p>Item not found</p>
-            <button class="btn btn-primary" @click="retryFetch">Retry</button>
+            <div class="alert alert-danger" v-if="errorMessage">
+              <i class="fas fa-exclamation-triangle me-2"></i>
+              {{ errorMessage }}
+            </div>
+            <p v-else>Item not found</p>
+            <button class="btn btn-primary" @click="retryFetch" v-if="retryCount < maxRetries">
+              <i class="fas fa-redo"></i> Retry ({{ retryCount }}/{{ maxRetries }})
+            </button>
+            <button class="btn btn-secondary" @click="$router.back()">
+              <i class="fas fa-arrow-left"></i> Go Back
+            </button>
           </div>
         </div>
 
+        <!-- Modal Body - Content -->
         <div class="modal-body" v-else>
           <!-- Action Buttons -->
           <div class="mb-3">
             <button class="btn btn-secondary btn-sm me-2" @click="openEditModal">
               <i class="fas fa-edit"></i> Edit
             </button>
-            <button class="btn btn-danger btn-sm" @click="confirmDelete" v-if="canDelete">
+            <button class="btn btn-danger btn-sm me-2" @click="confirmDelete" v-if="canDelete">
               <i class="fas fa-trash"></i> Delete
             </button>
+            <button class="btn btn-info btn-sm me-2" @click="fetchPricesInCurrencies" :disabled="isLoadingCurrencies">
+              <i class="fas fa-dollar-sign"></i>
+              <span v-if="isLoadingCurrencies">Loading...</span>
+              <span v-else>Multi-Currency Prices</span>
+            </button>
+            <button class="btn btn-outline-primary btn-sm" @click="openDocument" v-if="item.document_path">
+              <i class="fas fa-file-download"></i> Download Document
+            </button>
+          </div>
+
+          <!-- Debug Mode Toggle -->
+          <div class="mb-3" v-if="debugMode">
+            <div class="alert alert-warning">
+              <strong>Debug Mode:</strong>
+              <pre>{{ JSON.stringify(item, null, 2) }}</pre>
+            </div>
           </div>
 
           <!-- Basic Information -->
@@ -68,6 +95,16 @@
                 <div class="form-group">
                   <label class="form-label">HS Code</label>
                   <div class="form-value">{{ item.hs_code || '-' }}</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="form-group">
+                  <label class="form-label">Type</label>
+                  <div class="form-value">
+                    <span class="badge badge-secondary me-1" v-if="item.is_purchasable">Purchasable</span>
+                    <span class="badge badge-secondary" v-if="item.is_sellable">Sellable</span>
+                    <span v-if="!item.is_purchasable && !item.is_sellable">-</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -107,16 +144,6 @@
                   <div class="form-value">{{ item.weight || '-' }}</div>
                 </div>
               </div>
-              <div class="col-12" v-if="item.document_path">
-                <div class="form-group">
-                  <label class="form-label">Technical Document</label>
-                  <div class="form-value">
-                    <button class="btn btn-primary btn-sm" @click="openDocument">
-                      <i class="fas fa-eye"></i> View Document
-                    </button>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -127,29 +154,30 @@
               <div class="col-6">
                 <div class="form-group">
                   <label class="form-label">Current Stock</label>
-                  <div class="form-value">{{ item.current_stock }}</div>
+                  <div class="form-value">
+                    {{ item.current_stock || 0 }}
+                    <span class="badge ms-2" :class="getStockStatusClass(item)">
+                      {{ getStockStatus(item) }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="form-group">
+                  <label class="form-label">Available Stock</label>
+                  <div class="form-value">{{ item.available_stock || 0 }}</div>
                 </div>
               </div>
               <div class="col-6">
                 <div class="form-group">
                   <label class="form-label">Minimum Stock</label>
-                  <div class="form-value">{{ item.minimum_stock }}</div>
+                  <div class="form-value">{{ item.minimum_stock || 0 }}</div>
                 </div>
               </div>
               <div class="col-6">
                 <div class="form-group">
                   <label class="form-label">Maximum Stock</label>
-                  <div class="form-value">{{ item.maximum_stock }}</div>
-                </div>
-              </div>
-              <div class="col-6">
-                <div class="form-group">
-                  <label class="form-label">Stock Status</label>
-                  <div class="form-value">
-                    <span class="badge" :class="'badge-' + getStockStatusClass(item)">
-                      {{ getStockStatus(item) }}
-                    </span>
-                  </div>
+                  <div class="form-value">{{ item.maximum_stock || 0 }}</div>
                 </div>
               </div>
             </div>
@@ -157,44 +185,21 @@
 
           <!-- Pricing Information -->
           <div class="section-group">
-            <h6 class="section-title">
-              Pricing Information
-              <button
-                v-if="!showMultiCurrencyPrices && (item.cost_price > 0 || item.sale_price > 0)"
-                class="btn btn-outline-primary btn-sm float-end"
-                @click="fetchPricesInCurrencies"
-              >
-                <i class="fas fa-money-bill-wave"></i> Show in Currencies
-              </button>
-            </h6>
+            <h6 class="section-title">Pricing Information</h6>
             <div class="row g-3">
               <div class="col-6">
                 <div class="form-group">
                   <label class="form-label">Cost Price</label>
-                  <div class="form-value">{{ item.cost_price || '-' }} {{ item.cost_price_currency || 'IDR' }}</div>
-                </div>
-              </div>
-              <div class="col-6">
-                <div class="form-group">
-                  <label class="form-label">Sale Price</label>
-                  <div class="form-value">{{ item.sale_price || '-' }} {{ item.sale_price_currency || 'IDR' }}</div>
-                </div>
-              </div>
-              <div class="col-6">
-                <div class="form-group">
-                  <label class="form-label">Purchasable</label>
                   <div class="form-value">
-                    <span class="text-success" v-if="item.is_purchasable">Yes</span>
-                    <span class="text-muted" v-else>No</span>
+                    {{ item.cost_price_currency || 'USD' }} {{ item.cost_price || '0.00' }}
                   </div>
                 </div>
               </div>
               <div class="col-6">
                 <div class="form-group">
-                  <label class="form-label">Sellable</label>
+                  <label class="form-label">Sale Price</label>
                   <div class="form-value">
-                    <span class="text-success" v-if="item.is_sellable">Yes</span>
-                    <span class="text-muted" v-else>No</span>
+                    {{ item.sale_price_currency || 'USD' }} {{ item.sale_price || '0.00' }}
                   </div>
                 </div>
               </div>
@@ -202,6 +207,7 @@
 
             <!-- Multi-Currency Prices -->
             <div v-if="showMultiCurrencyPrices" class="mt-3">
+              <h6 class="section-title">Multi-Currency Prices</h6>
               <div v-if="isLoadingCurrencies" class="text-center">
                 <i class="fas fa-spinner fa-spin"></i> Loading prices...
               </div>
@@ -247,52 +253,242 @@
                       </span>
                     </td>
                     <td>{{ component.yield_based !== undefined ? component.yield_based : '-' }}</td>
-                    <td>{{ component.yield_ratio !== undefined ? component.yield_ratio : '-' }}</td>
+                    <td>{{ component.yield_ratio !== undefined ? `Ratio: ${component.yield_ratio}` : '-' }}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
           </div>
 
+          <!-- Where Used - Finished Goods yang menggunakan material ini -->
+          <div class="section-group" v-if="usedInFinishedGoods && usedInFinishedGoods.length > 0">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h6 class="section-title mb-0">
+                <i class="fas fa-arrow-up me-2"></i>
+                Used in Finished Goods ({{ usedInFinishedGoods.length }})
+              </h6>
+              <div class="d-flex gap-2">
+                <!-- Search -->
+                <input
+                  type="text"
+                  class="form-control form-control-sm"
+                  placeholder="Search finished goods..."
+                  v-model="searchUsedIn"
+                  style="width: 200px;"
+                >
+                <!-- Export Button -->
+                <button
+                  class="btn btn-sm btn-outline-primary"
+                  @click="exportUsedInData()"
+                  title="Export to Excel"
+                >
+                  <i class="fas fa-download"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Statistics Cards -->
+            <div class="row mb-3">
+              <div class="col-3">
+                <div class="card border-primary">
+                  <div class="card-body text-center py-2">
+                    <small class="text-muted">Total Usage</small>
+                    <div class="h6 mb-0">{{ usedInFinishedGoods.length }}</div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-3">
+                <div class="card border-warning">
+                  <div class="card-body text-center py-2">
+                    <small class="text-muted">Critical Usage</small>
+                    <div class="h6 mb-0">{{ usedInFinishedGoods.filter(u => u.usage_details.is_critical).length }}</div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-3">
+                <div class="card border-info">
+                  <div class="card-body text-center py-2">
+                    <small class="text-muted">Yield Based</small>
+                    <div class="h6 mb-0">{{ usedInFinishedGoods.filter(u => u.usage_details.is_yield_based).length }}</div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-3">
+                <div class="card border-success">
+                  <div class="card-body text-center py-2">
+                    <small class="text-muted">Active BOMs</small>
+                    <div class="h6 mb-0">{{ usedInFinishedGoods.filter(u => u.bom_details.status === 'active').length }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="isLoadingUsedIn" class="text-center">
+              <i class="fas fa-spinner fa-spin"></i> Loading usage information...
+            </div>
+            <div v-else class="table-responsive">
+              <table class="table table-sm table-hover">
+                <thead>
+                  <tr>
+                    <th @click="sortUsedIn('item_code')" style="cursor: pointer;">
+                      Finished Good Code <i class="fas fa-sort"></i>
+                    </th>
+                    <th>Finished Good Name</th>
+                    <th @click="sortUsedIn('bom_code')" style="cursor: pointer;">
+                      BOM Code <i class="fas fa-sort"></i>
+                    </th>
+                    <th @click="sortUsedIn('quantity')" style="cursor: pointer;">
+                      Usage Qty <i class="fas fa-sort"></i>
+                    </th>
+                    <th>UOM</th>
+                    <th>Per Unit</th>
+                    <th>Critical</th>
+                    <th>Yield Details</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="usage in filteredUsedIn" :key="`${usage.bom_id}-${usage.finished_good.item_id}`">
+                    <td>
+                      <strong>{{ usage.finished_good.item_code }}</strong>
+                    </td>
+                    <td>
+                      {{ usage.finished_good.item_name }}
+                      <br>
+                      <small class="text-muted" v-if="usage.finished_good.category">
+                        {{ usage.finished_good.category }}
+                      </small>
+                    </td>
+                    <td>
+                      {{ usage.bom_code }}
+                      <br>
+                      <small class="text-muted">Rev: {{ usage.bom_revision }}</small>
+                    </td>
+                    <td>
+                      <strong>{{ usage.usage_details.quantity }}</strong>
+                    </td>
+                    <td>{{ usage.usage_details.uom || '-' }}</td>
+                    <td>
+                      <span v-if="usage.usage_details.quantity_per_unit" class="badge badge-info">
+                        {{ formatQuantity(usage.usage_details.quantity_per_unit) }}
+                      </span>
+                      <span v-else>-</span>
+                    </td>
+                    <td>
+                      <span class="badge" :class="usage.usage_details.is_critical ? 'badge-warning' : 'badge-secondary'">
+                        {{ usage.usage_details.is_critical ? 'Yes' : 'No' }}
+                      </span>
+                    </td>
+                    <td>
+                      <div v-if="usage.usage_details.is_yield_based">
+                        <small>
+                          <strong>Yield:</strong> {{ usage.usage_details.yield_ratio || '-' }}<br>
+                          <strong>Shrinkage:</strong> {{ usage.usage_details.shrinkage_factor || '-' }}
+                        </small>
+                      </div>
+                      <span v-else class="text-muted">Standard</span>
+                    </td>
+                    <td>
+                      <div class="btn-group btn-group-sm">
+                        <button
+                          class="btn btn-outline-primary btn-sm"
+                          @click="viewFinishedGood(usage.finished_good)"
+                          title="View Finished Good"
+                        >
+                          <i class="fas fa-eye"></i>
+                        </button>
+                        <button
+                          class="btn btn-outline-secondary btn-sm"
+                          @click="viewBOM(usage.bom_id)"
+                          title="View BOM"
+                        >
+                          <i class="fas fa-list"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Summary Info -->
+            <div class="row mt-3">
+              <div class="col-12">
+                <div class="alert alert-info">
+                  <small>
+                    <i class="fas fa-info-circle me-1"></i>
+                    This material is used in <strong>{{ usedInFinishedGoods.length }}</strong> finished good(s).
+                    <span v-if="usedInFinishedGoods.some(u => u.usage_details.is_critical)">
+                      Some usages are marked as <span class="badge badge-warning">Critical</span>.
+                    </span>
+                  </small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty state untuk Where Used -->
+          <div class="section-group" v-else-if="!isLoadingUsedIn && usedInFinishedGoods && usedInFinishedGoods.length === 0">
+            <h6 class="section-title">
+              <i class="fas fa-arrow-up me-2"></i>
+              Used in Finished Goods
+            </h6>
+            <div class="alert alert-secondary">
+              <i class="fas fa-info-circle me-2"></i>
+              This material is not used in any finished goods BOM.
+            </div>
+          </div>
+
           <!-- Recent Transactions -->
           <div class="section-group">
-            <h6 class="section-title">Recent Transactions</h6>
+            <h6 class="section-title">
+              Recent Transactions
+              <span class="float-end">
+                <button class="btn btn-outline-primary btn-sm" @click="fetchTransactions">
+                  <i class="fas fa-sync-alt"></i>
+                </button>
+              </span>
+            </h6>
             <div v-if="isLoadingTransactions" class="text-center py-3">
               <i class="fas fa-spinner fa-spin"></i> Loading transactions...
             </div>
-            <div v-else-if="transactions.length === 0" class="text-center py-3 text-muted">
-              No transactions found
-            </div>
-            <div v-else class="table-responsive">
+            <div v-else-if="transactions && transactions.length > 0" class="table-responsive">
               <table class="table table-sm">
                 <thead>
                   <tr>
                     <th>Date</th>
                     <th>Type</th>
                     <th>Quantity</th>
+                    <th>Reference</th>
                     <th>Warehouse</th>
                   </tr>
                 </thead>
                 <tbody>
-          <tr v-for="transaction in transactions.slice(0, 5)" :key="transaction.transactionId">
-            <td>{{ formatDate(transaction.transactionDate) }}</td>
-            <td>
-              <span class="badge" :class="'badge-' + getTransactionTypeClass(transaction.transactionType)">
-                {{ transaction.transactionType }}
-              </span>
-            </td>
-            <td>{{ transaction.quantity }} {{ item.unitOfMeasure?.symbol || '' }}</td>
-            <td>{{ transaction.warehouse?.name || '-' }}</td>
-          </tr>
+                  <tr v-for="transaction in transactions.slice(0, 10)" :key="transaction.transaction_id || transaction.id">
+                    <td>{{ formatDate(transaction.transaction_date || transaction.created_at) }}</td>
+                    <td>
+                      <span class="badge" :class="getTransactionTypeClass(transaction.transaction_type)">
+                        {{ transaction.transaction_type }}
+                      </span>
+                    </td>
+                    <td :class="getQuantityClass(transaction.quantity)">
+                      {{ transaction.quantity > 0 ? '+' : '' }}{{ transaction.quantity }}
+                    </td>
+                    <td>{{ transaction.reference_number || transaction.reference || '-' }}</td>
+                    <td>{{ transaction.warehouse?.name || transaction.warehouse_name || '-' }}</td>
+                  </tr>
                 </tbody>
               </table>
+            </div>
+            <div v-else class="text-center py-3 text-muted">
+              <i class="fas fa-inbox"></i> No recent transactions
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Edit Modal -->
+    <!-- Edit Item Modal -->
     <ItemFormModal
       v-if="showEditModal"
       :is-edit-mode="true"
@@ -319,6 +515,7 @@
 <script>
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import axios from 'axios';
 import ItemService from '@/services/ItemService.js';
 import ItemFormModal from '@/components/inventory/ItemFormModal.vue';
 import ConfirmationModal from '@/components/common/ConfirmationModal.vue';
@@ -337,39 +534,37 @@ export default {
   },
   setup(props) {
     const router = useRouter();
+
+    // Core data
     const item = ref(null);
     const transactions = ref([]);
     const categories = ref([]);
     const unitOfMeasures = ref([]);
+    const bomComponents = ref([]);
+
+    // Where Used feature
+    const usedInFinishedGoods = ref([]);
+    const isLoadingUsedIn = ref(false);
+    const searchUsedIn = ref('');
+
+    // Loading states
     const isLoading = ref(true);
     const isLoadingTransactions = ref(true);
     const isLoadingCurrencies = ref(false);
+
+    // Modal states
     const showEditModal = ref(false);
     const showDeleteModal = ref(false);
     const showMultiCurrencyPrices = ref(false);
+
+    // Misc
     const multiCurrencyPrices = ref(null);
-    const bomComponents = ref([]);
     const debugMode = ref(false);
-
-    // Helper function to convert snake_case keys to camelCase
-    const toCamelCase = (obj) => {
-      if (Array.isArray(obj)) {
-        return obj.map(v => toCamelCase(v));
-      } else if (obj !== null && obj.constructor === Object) {
-        return Object.keys(obj).reduce((result, key) => {
-          const camelKey = key.replace(/_([a-z])/g, g => g[1].toUpperCase());
-          result[camelKey] = toCamelCase(obj[key]);
-          return result;
-        }, {});
-      }
-      return obj;
-    };
-
-    // Enhanced error handling
     const errorMessage = ref('');
     const retryCount = ref(0);
     const maxRetries = ref(3);
 
+    // Form data
     const itemForm = ref({
       item_id: null,
       item_code: '',
@@ -392,7 +587,21 @@ export default {
       hs_code: ''
     });
 
+    // Helper function to convert snake_case keys to camelCase
+    const toCamelCase = (obj) => {
+      if (Array.isArray(obj)) {
+        return obj.map(v => toCamelCase(v));
+      } else if (obj !== null && obj.constructor === Object) {
+        return Object.keys(obj).reduce((result, key) => {
+          const camelKey = key.replace(/_([a-z])/g, g => g[1].toUpperCase());
+          result[camelKey] = toCamelCase(obj[key]);
+          return result;
+        }, {});
+      }
+      return obj;
+    };
 
+    // Computed properties
     const canDelete = computed(() => {
       if (!item.value) return false;
       const hasTransactions = transactions.value.length > 0;
@@ -400,7 +609,82 @@ export default {
       return !hasTransactions && !hasBatches;
     });
 
-    // Enhanced fetch with robust response handling
+    const filteredUsedIn = computed(() => {
+      if (!searchUsedIn.value) return usedInFinishedGoods.value;
+
+      return usedInFinishedGoods.value.filter(usage =>
+        usage.finished_good.item_code.toLowerCase().includes(searchUsedIn.value.toLowerCase()) ||
+        usage.finished_good.item_name.toLowerCase().includes(searchUsedIn.value.toLowerCase()) ||
+        usage.bom_code.toLowerCase().includes(searchUsedIn.value.toLowerCase())
+      );
+    });
+
+    // Utility methods
+    const formatDate = (dateString) => {
+      if (!dateString) return '-';
+      return new Date(dateString).toLocaleDateString();
+    };
+
+    const formatQuantity = (quantity) => {
+      if (quantity === null || quantity === undefined) return '-';
+      return parseFloat(quantity).toFixed(4);
+    };
+
+    const getStockStatus = (item) => {
+      if (!item) return 'Unknown';
+      const current = item.current_stock || 0;
+      const min = item.minimum_stock || 0;
+      const max = item.maximum_stock || 0;
+
+      if (current <= min) return 'Low';
+      if (max > 0 && current >= max) return 'Over';
+      return 'Normal';
+    };
+
+    const getStockStatusClass = (item) => {
+      const status = getStockStatus(item);
+      return {
+        'badge-danger': status === 'Low',
+        'badge-warning': status === 'Over',
+        'badge-success': status === 'Normal'
+      };
+    };
+
+    const getTransactionTypeClass = (type) => {
+      const typeMap = {
+        'IN': 'badge-success',
+        'OUT': 'badge-danger',
+        'TRANSFER': 'badge-info',
+        'ADJUSTMENT': 'badge-warning'
+      };
+      return typeMap[type] || 'badge-secondary';
+    };
+
+    const getQuantityClass = (quantity) => {
+      if (quantity > 0) return 'text-success';
+      if (quantity < 0) return 'text-danger';
+      return '';
+    };
+
+    // Validation
+    const validateRouteParams = () => {
+      if (!props.id) {
+        item.value = null;
+        errorMessage.value = 'No item ID provided';
+        return false;
+      }
+
+      const itemId = parseInt(props.id);
+      if (isNaN(itemId) || itemId <= 0) {
+        item.value = null;
+        errorMessage.value = 'Invalid item ID provided';
+        return false;
+      }
+
+      return true;
+    };
+
+    // Core fetch methods
     const fetchItem = async () => {
       isLoading.value = true;
       try {
@@ -487,6 +771,9 @@ export default {
         await fetchItem();
         errorMessage.value = '';
         retryCount.value = 0;
+
+        // After successful item fetch, load used in data
+        await fetchUsedInFinishedGoods(props.id);
       } catch (error) {
         if (attempt < maxRetries.value) {
           retryCount.value = attempt;
@@ -501,29 +788,6 @@ export default {
       }
     };
 
-    const retryFetch = () => {
-      errorMessage.value = '';
-      retryCount.value = 0;
-      fetchItemWithRetry();
-    };
-
-    const validateRouteParams = () => {
-      if (!props.id) {
-        item.value = null;
-        errorMessage.value = 'No item ID provided';
-        return false;
-      }
-
-      const itemId = parseInt(props.id);
-      if (isNaN(itemId) || itemId <= 0) {
-        item.value = null;
-        errorMessage.value = 'Invalid item ID provided';
-        return false;
-      }
-
-      return true;
-    };
-
 const fetchTransactions = async () => {
       if (!props.id) return;
 
@@ -531,8 +795,8 @@ const fetchTransactions = async () => {
       try {
         const response = await ItemService.getItemTransactions(props.id, { limit: 10 });
         let rawTransactions = [];
-        if (response && response.data && Array.isArray(response.data.data)) {
-          rawTransactions = response.data.data;
+        if (response && response.data && response.data.transactions && Array.isArray(response.data.transactions.data)) {
+          rawTransactions = response.data.transactions.data;
         } else if (response && response.data && Array.isArray(response.data)) {
           rawTransactions = response.data;
         } else if (response && Array.isArray(response)) {
@@ -551,95 +815,107 @@ const fetchTransactions = async () => {
       }
     };
 
-    const fetchPricesInCurrencies = async () => {
-      if (isLoadingCurrencies.value || !item.value?.item_id) return;
-
-      showMultiCurrencyPrices.value = true;
-      isLoadingCurrencies.value = true;
-
-      try {
-        const response = await ItemService.getPricesInCurrencies(
-          item.value.item_id,
-          ['USD', 'IDR', 'EUR', 'SGD', 'JPY']
-        );
-
-        if (response.success) {
-          multiCurrencyPrices.value = response.data;
-        }
-      } catch (error) {
-        console.error('Error fetching prices in currencies:', error);
-      } finally {
-        isLoadingCurrencies.value = false;
-      }
-    };
-
     const fetchCategories = async () => {
       try {
         const response = await ItemService.getCategories();
-        categories.value = response.data || [];
+        categories.value = response.data || response || [];
       } catch (error) {
         console.error('Error fetching categories:', error);
-        categories.value = [];
       }
     };
 
     const fetchUnitOfMeasures = async () => {
       try {
-        const response = await ItemService.getUnitsOfMeasure();
-        unitOfMeasures.value = response.data || [];
+        const response = await ItemService.getUnitOfMeasures();
+        unitOfMeasures.value = response.data || response || [];
       } catch (error) {
-        console.error('Error fetching units of measure:', error);
-        unitOfMeasures.value = [];
+        console.error('Error fetching unit of measures:', error);
       }
     };
 
-    const formatDate = (dateString) => {
-      if (!dateString) return '-';
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
+    // Where Used functionality
+    const fetchUsedInFinishedGoods = async (itemId) => {
+      if (!itemId) return;
+
+      isLoadingUsedIn.value = true;
+      try {
+        const response = await axios.get(`/items/${itemId}/used-in-finished-goods`);
+        usedInFinishedGoods.value = response.data.data.used_in_finished_goods || [];
+        console.log('📊 Used in finished goods loaded:', usedInFinishedGoods.value.length);
+      } catch (error) {
+        console.error('❌ Error fetching used in finished goods:', error);
+        usedInFinishedGoods.value = [];
+      } finally {
+        isLoadingUsedIn.value = false;
+      }
+    };
+
+    const sortUsedIn = (column) => {
+      usedInFinishedGoods.value.sort((a, b) => {
+        switch(column) {
+          case 'item_code':
+            return a.finished_good.item_code.localeCompare(b.finished_good.item_code);
+          case 'quantity':
+            return a.usage_details.quantity - b.usage_details.quantity;
+          case 'bom_code':
+            return a.bom_code.localeCompare(b.bom_code);
+          default:
+            return 0;
+        }
       });
     };
 
-    const getStockStatus = (item) => {
-      if (item.current_stock <= item.minimum_stock) {
-        return 'Low Stock';
-      } else if (item.current_stock >= item.maximum_stock) {
-        return 'Over Stock';
-      } else {
-        return 'Normal';
+    const exportUsedInData = () => {
+      const exportData = usedInFinishedGoods.value.map(usage => ({
+        'Finished Good Code': usage.finished_good.item_code,
+        'Finished Good Name': usage.finished_good.item_name,
+        'BOM Code': usage.bom_code,
+        'BOM Revision': usage.bom_revision,
+        'Usage Quantity': usage.usage_details.quantity,
+        'UOM': usage.usage_details.uom,
+        'Quantity Per Unit': usage.usage_details.quantity_per_unit,
+        'Is Critical': usage.usage_details.is_critical ? 'Yes' : 'No',
+        'Is Yield Based': usage.usage_details.is_yield_based ? 'Yes' : 'No',
+        'Yield Ratio': usage.usage_details.yield_ratio || '',
+        'Shrinkage Factor': usage.usage_details.shrinkage_factor || '',
+        'Notes': usage.usage_details.notes || ''
+      }));
+
+      // For now, just console log - you can implement actual export later
+      console.log('Export data:', exportData);
+      alert('Export functionality would be implemented here');
+    };
+
+    const viewFinishedGood = (finishedGood) => {
+      router.push({
+        name: 'ItemDetail',
+        params: { id: finishedGood.item_id }
+      });
+    };
+
+    const viewBOM = (bomId) => {
+      // Navigate to BOM detail - adjust route as needed
+      window.open(`/manufacturing/bom/${bomId}`, '_blank');
+    };
+
+    // Multi-currency pricing
+    const fetchPricesInCurrencies = async () => {
+      if (isLoadingCurrencies.value || !item.value) return;
+
+      isLoadingCurrencies.value = true;
+      try {
+        const response = await axios.get(`/items/${item.value.item_id}/prices-in-currencies`);
+        multiCurrencyPrices.value = response.data;
+        showMultiCurrencyPrices.value = true;
+      } catch (error) {
+        console.error('Error fetching multi-currency prices:', error);
+        alert('Failed to load multi-currency prices');
+      } finally {
+        isLoadingCurrencies.value = false;
       }
     };
 
-    const getStockStatusClass = (item) => {
-      const status = getStockStatus(item);
-      switch (status) {
-        case 'Low Stock': return 'danger';
-        case 'Over Stock': return 'warning';
-        default: return 'success';
-      }
-    };
-
-    const getTransactionTypeClass = (type) => {
-      if (['IN', 'RECEIPT', 'RETURN', 'ADJUSTMENT_IN', 'receive', 'return', 'adjustment'].includes(type)) {
-        return 'success';
-      } else if (['OUT', 'ISSUE', 'SALE', 'ADJUSTMENT_OUT', 'issue', 'transfer', 'sale'].includes(type)) {
-        return 'danger';
-      }
-      return 'secondary';
-    };
-
-    const getQuantityClass = (type) => {
-      if (['IN', 'RECEIPT', 'RETURN', 'ADJUSTMENT_IN', 'receive', 'return'].includes(type)) {
-        return 'text-success';
-      } else if (['OUT', 'ISSUE', 'SALE', 'ADJUSTMENT_OUT', 'issue', 'transfer', 'sale'].includes(type)) {
-        return 'text-danger';
-      }
-      return '';
-    };
-
+    // Modal methods
     const openEditModal = () => {
       showEditModal.value = true;
     };
@@ -650,17 +926,13 @@ const fetchTransactions = async () => {
 
     const saveItem = async (formData) => {
       try {
-        await ItemService.updateItem(formData.get('item_id'), formData);
-        await fetchItem();
+        await ItemService.updateItem(item.value.item_id, formData);
+        await fetchItemWithRetry();
         closeEditModal();
-        alert('Item updated successfully!');
+        alert('Item updated successfully');
       } catch (error) {
         console.error('Error updating item:', error);
-        if (error.validationErrors) {
-          alert('Please check the form for errors: ' + Object.values(error.validationErrors).join(', '));
-        } else {
-          alert('An error occurred while updating the item. Please try again.');
-        }
+        alert('Failed to update item');
       }
     };
 
@@ -674,9 +946,9 @@ const fetchTransactions = async () => {
 
     const deleteItem = async () => {
       try {
-        await ItemService.deleteItem(props.id);
+        await ItemService.deleteItem(item.value.item_id);
         closeDeleteModal();
-        alert('Item deleted successfully!');
+        alert('Item deleted successfully');
         router.push('/items');
       } catch (error) {
         console.error('Error deleting item:', error);
@@ -694,6 +966,12 @@ const fetchTransactions = async () => {
       }
     };
 
+    const retryFetch = () => {
+      errorMessage.value = '';
+      retryCount.value = 0;
+      fetchItemWithRetry();
+    };
+
     // Watch for route changes
     watch(() => props.id, (newId, oldId) => {
       if (newId !== oldId && newId) {
@@ -704,7 +982,7 @@ const fetchTransactions = async () => {
       }
     });
 
-    // Enhanced onMounted
+    // Initialize
     onMounted(() => {
       if (validateRouteParams()) {
         fetchItemWithRetry();
@@ -715,29 +993,53 @@ const fetchTransactions = async () => {
     });
 
     return {
+      // Core data
       item,
       transactions,
       categories,
       unitOfMeasures,
+      bomComponents,
+
+      // Where Used
+      usedInFinishedGoods,
+      isLoadingUsedIn,
+      searchUsedIn,
+      filteredUsedIn,
+
+      // Loading states
       isLoading,
       isLoadingTransactions,
       isLoadingCurrencies,
+
+      // Modal states
       showEditModal,
       showDeleteModal,
       showMultiCurrencyPrices,
-      multiCurrencyPrices,
+
+      // Form and misc
       itemForm,
-      canDelete,
-      bomComponents,
+      multiCurrencyPrices,
       debugMode,
       errorMessage,
       retryCount,
       maxRetries,
+      canDelete,
+
+      // Utility methods
       formatDate,
+      formatQuantity,
       getStockStatus,
       getStockStatusClass,
       getTransactionTypeClass,
       getQuantityClass,
+
+      // Where Used methods
+      sortUsedIn,
+      exportUsedInData,
+      viewFinishedGood,
+      viewBOM,
+
+      // Core methods
       openEditModal,
       closeEditModal,
       saveItem,
@@ -746,7 +1048,8 @@ const fetchTransactions = async () => {
       deleteItem,
       fetchPricesInCurrencies,
       retryFetch,
-      openDocument
+      openDocument,
+      fetchTransactions
     };
   }
 };
@@ -770,7 +1073,7 @@ const fetchTransactions = async () => {
 /* Modal Dialog */
 .modal-dialog {
   width: 90%;
-  max-width: 700px;
+  max-width: 900px;
   max-height: 90vh;
   margin: auto;
 }
@@ -827,7 +1130,11 @@ const fetchTransactions = async () => {
 
 /* Section Group */
 .section-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
+  padding: 1rem;
+  border: 1px solid #e9ecef;
+  border-radius: 0.375rem;
+  background-color: #f8f9fa;
 }
 
 .section-title {
@@ -838,6 +1145,8 @@ const fetchTransactions = async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  border-bottom: 2px solid #dee2e6;
+  padding-bottom: 0.5rem;
 }
 
 /* Bootstrap-like Grid */
@@ -864,6 +1173,15 @@ const fetchTransactions = async () => {
   padding-left: 0.75rem;
   flex: 0 0 33.333333%;
   max-width: 33.333333%;
+}
+
+.col-3 {
+  position: relative;
+  width: 100%;
+  padding-right: 0.75rem;
+  padding-left: 0.75rem;
+  flex: 0 0 25%;
+  max-width: 25%;
 }
 
 .col-12 {
@@ -903,6 +1221,28 @@ const fetchTransactions = async () => {
   line-height: 1.3;
 }
 
+.form-control {
+  display: block;
+  width: 100%;
+  padding: 0.375rem 0.75rem;
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #212529;
+  background-color: #fff;
+  background-image: none;
+  border: 1px solid #ced4da;
+  border-radius: 0.375rem;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.form-control-sm {
+  min-height: calc(1.5em + 0.5rem + 2px);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  border-radius: 0.25rem;
+}
+
 /* Description Box */
 .description-box {
   background-color: #f8f9fa;
@@ -934,6 +1274,40 @@ const fetchTransactions = async () => {
 .currency-prices small {
   font-size: 0.75rem;
   color: #6c757d;
+}
+
+/* Statistics Cards */
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  word-wrap: break-word;
+  background-color: #fff;
+  background-clip: border-box;
+  border: 1px solid rgba(0, 0, 0, 0.125);
+  border-radius: 0.375rem;
+}
+
+.card-body {
+  flex: 1 1 auto;
+  padding: 1rem;
+}
+
+.border-primary {
+  border-color: #0d6efd !important;
+}
+
+.border-warning {
+  border-color: #ffc107 !important;
+}
+
+.border-info {
+  border-color: #0dcaf0 !important;
+}
+
+.border-success {
+  border-color: #198754 !important;
 }
 
 /* Buttons */
@@ -997,6 +1371,18 @@ const fetchTransactions = async () => {
   border-color: #bd2130;
 }
 
+.btn-info {
+  color: #000;
+  background-color: #0dcaf0;
+  border-color: #0dcaf0;
+}
+
+.btn-info:hover {
+  color: #000;
+  background-color: #31d2f2;
+  border-color: #25cff2;
+}
+
 .btn-outline-primary {
   color: #0d6efd;
   border-color: #0d6efd;
@@ -1006,6 +1392,29 @@ const fetchTransactions = async () => {
   color: #fff;
   background-color: #0d6efd;
   border-color: #0d6efd;
+}
+
+.btn-outline-secondary {
+  color: #6c757d;
+  border-color: #6c757d;
+}
+
+.btn-outline-secondary:hover {
+  color: #fff;
+  background-color: #6c757d;
+  border-color: #6c757d;
+}
+
+.btn-group {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+.btn-group-sm > .btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8125rem;
+  border-radius: 0.25rem;
 }
 
 /* Badges */
@@ -1039,6 +1448,11 @@ const fetchTransactions = async () => {
   background-color: #6c757d;
 }
 
+.badge-info {
+  background-color: #0dcaf0;
+  color: #000;
+}
+
 /* Tables */
 .table {
   width: 100%;
@@ -1067,10 +1481,41 @@ const fetchTransactions = async () => {
   padding: 0.3rem;
 }
 
+.table-hover tbody tr:hover {
+  background-color: rgba(0, 0, 0, 0.075);
+}
+
 .table-responsive {
   display: block;
   width: 100%;
   overflow-x: auto;
+}
+
+/* Alerts */
+.alert {
+  position: relative;
+  padding: 0.75rem 1.25rem;
+  margin-bottom: 1rem;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+}
+
+.alert-info {
+  color: #0c5460;
+  background-color: #d1ecf1;
+  border-color: #bee5eb;
+}
+
+.alert-secondary {
+  color: #383d41;
+  background-color: #f8f9fa;
+  border-color: #dee2e6;
+}
+
+.alert-danger {
+  color: #721c24;
+  background-color: #f8d7da;
+  border-color: #f5c6cb;
 }
 
 /* Utility Classes */
@@ -1100,6 +1545,11 @@ const fetchTransactions = async () => {
   padding-bottom: 1.5rem;
 }
 
+.py-2 {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
 .mb-3 {
   margin-bottom: 1rem;
 }
@@ -1112,8 +1562,43 @@ const fetchTransactions = async () => {
   margin-right: 0.5rem;
 }
 
+.me-1 {
+  margin-right: 0.25rem;
+}
+
+.ms-2 {
+  margin-left: 0.5rem;
+}
+
 .float-end {
   float: right;
+}
+
+.h6 {
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: inherit;
+}
+
+.d-flex {
+  display: flex;
+}
+
+.justify-content-between {
+  justify-content: space-between;
+}
+
+.align-items-center {
+  align-items: center;
+}
+
+.gap-2 > * {
+  margin-right: 0.5rem;
+}
+
+.gap-2 > *:last-child {
+  margin-right: 0;
 }
 
 /* Spinner */
@@ -1147,12 +1632,25 @@ const fetchTransactions = async () => {
     max-width: 50%;
   }
 
+  .col-3 {
+    flex: 0 0 50%;
+    max-width: 50%;
+  }
+
   .modal-body {
     padding: 1rem;
   }
 
   .modal-header {
     padding: 0.75rem 1rem;
+  }
+
+  .btn-group {
+    flex-direction: column;
+  }
+
+  .btn-group .btn {
+    margin-bottom: 0.25rem;
   }
 }
 
@@ -1172,6 +1670,19 @@ const fetchTransactions = async () => {
   .col-4 {
     flex: 0 0 100%;
     max-width: 100%;
+  }
+
+  .col-3 {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+
+  .section-group {
+    padding: 0.75rem;
+  }
+
+  .table-responsive {
+    font-size: 0.8rem;
   }
 }
 </style>

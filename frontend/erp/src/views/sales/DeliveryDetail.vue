@@ -307,7 +307,7 @@
       const formatDate = (dateString) => {
         if (!dateString) return '-';
         const date = new Date(dateString);
-        return date.toLocaleDateString('id-ID', {
+        return date.toLocaleDateString('en-US', {
           day: '2-digit',
           month: 'long',
           year: 'numeric'
@@ -317,10 +317,10 @@
       // Get status label
       const getStatusLabel = (status) => {
         switch (status) {
-          case 'Pending': return 'Menunggu';
-          case 'In Transit': return 'Dalam Pengiriman';
-          case 'Completed': return 'Selesai';
-          case 'Cancelled': return 'Dibatalkan';
+          case 'Pending': return 'Pending';
+          case 'In Transit': return 'In Transit';
+          case 'Completed': return 'Completed';
+          case 'Cancelled': return 'Cancelled';
           default: return status;
         }
       };
@@ -354,10 +354,10 @@
           });
 
           delivery.value.status = 'In Transit';
-          alert('Status pengiriman berhasil diubah menjadi Dalam Perjalanan');
+          alert('Delivery status successfully changed to In Transit');
         } catch (error) {
           console.error('Error updating delivery status:', error);
-          alert('Terjadi kesalahan saat mengubah status pengiriman');
+          alert('Error occurred while updating delivery status');
         }
       };
 
@@ -371,10 +371,10 @@
 
           delivery.value.status = 'Completed';
           showCompleteModal.value = false;
-          alert('Pengiriman berhasil diselesaikan!');
+          alert('Delivery successfully completed!');
         } catch (error) {
           console.error('Error completing delivery:', error);
-          alert('Terjadi kesalahan saat menyelesaikan pengiriman');
+          alert('Error occurred while completing delivery');
         }
       };
 
@@ -391,10 +391,10 @@
 
           delivery.value.status = 'Cancelled';
           showCancelModal.value = false;
-          alert('Pengiriman berhasil dibatalkan!');
+          alert('Delivery successfully cancelled!');
         } catch (error) {
           console.error('Error cancelling delivery:', error);
-          alert('Terjadi kesalahan saat membatalkan pengiriman');
+          alert('Error occurred while cancelling delivery');
         }
       };
 

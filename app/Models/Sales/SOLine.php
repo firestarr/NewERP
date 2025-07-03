@@ -30,12 +30,12 @@ class SOLine extends Model
     ];
 
     protected $casts = [
-        'unit_price' => 'decimal:2',
-        'quantity' => 'decimal:3',
-        'discount' => 'decimal:2',
-        'tax' => 'decimal:2',
-        'subtotal' => 'decimal:2',
-        'total' => 'decimal:2',
+        'unit_price' => 'decimal:5',
+        'quantity' => 'decimal:4',
+        'discount' => 'decimal:5',
+        'tax' => 'decimal:5',
+        'subtotal' => 'decimal:5',
+        'total' => 'decimal:5',
         'delivery_date' => 'date',
         'created_at' => 'datetime',
         'updated_at' => 'datetime'

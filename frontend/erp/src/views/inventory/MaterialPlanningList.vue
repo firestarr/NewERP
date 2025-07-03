@@ -1,4 +1,4 @@
-<!-- src/views/materials/MaterialPlanningList.vue -->
+<!-- src/views/inventory/MaterialPlanningList.vue -->
 <template>
   <div class="material-planning-container">
     <!-- Material Planning Header -->
@@ -44,7 +44,7 @@
                   <option value="">All Status</option>
                   <option value="Draft">Draft</option>
                   <option value="Requisitioned">Requisitioned</option>
-                  <option value="Work Order Created">Work Order Created</option>
+                  <option value="Job Order Created">Job Order Created</option>
                   <option value="Approved">Approved</option>
                 </select>
               </div>
@@ -79,7 +79,7 @@
               <i class="fas fa-file-invoice"></i> PR (Period)
             </button>
             <button class="btn btn-manufacturing" @click="showPeriodWOModal = true">
-              <i class="fas fa-cogs"></i> WO (Period)
+              <i class="fas fa-cogs"></i> JO (Period)
             </button>
           </div>
         </div>
@@ -152,7 +152,7 @@
                       </div>
                     </td>
                     <td
-                      v-for="period in periodRange"
+                      v-for="(period, periodIndex) in periodRange"
                       :key="period"
                       class="text-center"
                       :class="{
@@ -161,7 +161,8 @@
                         'empty-period': getPeriodData(item, period).is_empty
                       }"
                     >
-                      <div class="planning-cell">
+                      <!-- First period shows labels -->
+                      <div v-if="periodIndex === 0" class="planning-cell">
                         <div class="planning-row">
                           <span class="planning-label">Forecast:</span>
                           <span class="planning-value">{{ formatNumber(getPeriodData(item, period).forecast_quantity) }}</span>
@@ -178,6 +179,14 @@
                           <span class="planning-label">Plan Order:</span>
                           <span class="planning-value">{{ formatNumber(getPeriodData(item, period).planned_order_quantity) }}</span>
                         </div>
+                      </div>
+
+                      <!-- Other periods show only numbers -->
+                      <div v-else class="planning-cell-numbers">
+                        <div class="planning-number">{{ formatNumber(getPeriodData(item, period).forecast_quantity) }}</div>
+                        <div class="planning-number">{{ formatNumber(getPeriodData(item, period).available_stock) }}</div>
+                        <div class="planning-number font-weight-bold">{{ formatNumber(getPeriodData(item, period).net_requirement) }}</div>
+                        <div class="planning-number">{{ formatNumber(getPeriodData(item, period).planned_order_quantity) }}</div>
                       </div>
                     </td>
                     <td class="text-center action-column">
@@ -210,7 +219,7 @@
                           v-if="item.material_type === 'FG' && item.status === 'Draft' && hasPositiveNetRequirement(item)"
                           class="btn-icon btn-icon-manufacturing"
                           @click="generateWorkOrder(item)"
-                          title="Generate Work Order (Item)"
+                          title="Generate Job Order (Item)"
                         >
                           <i class="fas fa-cogs"></i>
                         </button>
@@ -301,12 +310,12 @@
       </div>
     </div>
 
-    <!-- Work Order Generation Modal (Per Item) -->
+    <!-- Job Order Generation Modal (Per Item) -->
     <div v-if="showWOModal" class="modal">
       <div class="modal-backdrop" @click="closeWOModal"></div>
       <div class="modal-content modal-md">
         <div class="modal-header">
-          <h2>Generate Work Order (Item)</h2>
+          <h2>Generate Job Order (Item)</h2>
           <button class="close-btn" @click="closeWOModal">
             <i class="fas fa-times"></i>
           </button>
@@ -347,7 +356,7 @@
               </button>
               <button type="submit" class="btn btn-primary" :disabled="isGeneratingWO">
                 <i class="fas fa-cogs" :class="{ 'fa-spin': isGeneratingWO }"></i>
-                {{ isGeneratingWO ? 'Generating...' : 'Generate WO' }}
+                {{ isGeneratingWO ? 'Generating...' : 'Generate JO' }}
               </button>
             </div>
           </form>
@@ -400,12 +409,12 @@
       </div>
     </div>
 
-    <!-- Period Work Order Generation Modal -->
+    <!-- Period Job Order Generation Modal -->
     <div v-if="showPeriodWOModal" class="modal">
       <div class="modal-backdrop" @click="closePeriodWOModal"></div>
       <div class="modal-content modal-md">
         <div class="modal-header">
-          <h2>Generate Work Orders by Period</h2>
+          <h2>Generate Job Orders by Period</h2>
           <button class="close-btn" @click="closePeriodWOModal">
             <i class="fas fa-times"></i>
           </button>
@@ -464,7 +473,7 @@
               </button>
               <button type="submit" class="btn btn-primary" :disabled="isGeneratingPeriodWO">
                 <i class="fas fa-cogs" :class="{ 'fa-spin': isGeneratingPeriodWO }"></i>
-                {{ isGeneratingPeriodWO ? 'Generating...' : 'Generate WO' }}
+                {{ isGeneratingPeriodWO ? 'Generating...' : 'Generate JO' }}
               </button>
             </div>
           </form>
@@ -582,7 +591,7 @@ export default {
       statusClasses: {
         'Draft': 'bg-gray',
         'Requisitioned': 'bg-blue',
-        'Work Order Created': 'bg-purple',
+        'Job Order Created': 'bg-purple',
         'Approved': 'bg-green'
       },
       showGenerateModal: false,
@@ -965,7 +974,7 @@ export default {
         // Show success message with work order details
         if (response.data.data && response.data.data.length > 0) {
           const woNumbers = response.data.data.map(wo => wo.wo_number).join(', ');
-          alert(`${response.data.message}\nWork Order Numbers: ${woNumbers}`);
+          alert(`${response.data.message}\nJob Order Numbers: ${woNumbers}`);
 
           // Optionally redirect to work order list
           // this.$router.push('/manufacturing/work-orders');
@@ -973,8 +982,8 @@ export default {
           alert(response.data.message);
         }
       } catch (error) {
-        console.error('Error generating work orders:', error);
-        const message = error.response?.data?.message || 'Failed to generate work orders';
+        console.error('Error generating Job orders:', error);
+        const message = error.response?.data?.message || 'Failed to generate job orders';
         alert(message);
       } finally {
         this.isGeneratingWO = false;
@@ -1038,13 +1047,13 @@ export default {
         // Show success message with work order details
         if (response.data.data && response.data.data.length > 0) {
           const woNumbers = response.data.data.map(wo => wo.wo_number).join(', ');
-          alert(`${response.data.message}\nGenerated ${response.data.data.length} Work Orders\nWO Numbers: ${woNumbers}`);
+          alert(`${response.data.message}\nGenerated ${response.data.data.length} Job Orders\nJO Number: ${woNumbers}`);
         } else {
           alert(response.data.message);
         }
       } catch (error) {
-        console.error('Error generating period work orders:', error);
-        const message = error.response?.data?.message || 'Failed to generate work orders for period';
+        console.error('Error generating period job orders:', error);
+        const message = error.response?.data?.message || 'Failed to generate job orders for period';
         alert(message);
       } finally {
         this.isGeneratingPeriodWO = false;
@@ -1477,10 +1486,22 @@ export default {
   gap: 0.35rem;
 }
 
+.planning-cell-numbers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
 .planning-row {
   display: flex;
   justify-content: space-between;
   font-size: 0.85rem;
+}
+
+.planning-number {
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 2px 0;
 }
 
 .planning-label {

@@ -236,7 +236,7 @@ export default {
       width: '',
       thickness: '',
       weight: '',
-      hs_code: '', // ← Tambah HS Code
+      hscode: '', // renamed to hscode
       is_purchasable: false,
       is_sellable: false,
       cost_price: 0,
@@ -501,7 +501,7 @@ export default {
         width: '',
         thickness: '',
         weight: '',
-        hs_code: '', // ← Tambah HS Code
+        hscode: '', // renamed to hscode
         is_purchasable: false,
         is_sellable: false,
         cost_price: 0,
@@ -527,7 +527,7 @@ export default {
         width: item.width || '',
         thickness: item.thickness || '',
         weight: item.weight || '',
-        hs_code: item.hs_code || '', // ← Tambah HS Code
+        hscode: item.hscode || '', // renamed to hscode
         is_purchasable: item.is_purchasable || false,
         is_sellable: item.is_sellable || false,
         cost_price: item.cost_price || 0,

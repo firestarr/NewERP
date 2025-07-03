@@ -22,7 +22,8 @@ class DeliveryLine extends Model
         'item_id',
         'delivered_quantity',
         'warehouse_id',
-        'batch_number'
+        'batch_number',
+        'reservation_reference'
     ];
 
     /**

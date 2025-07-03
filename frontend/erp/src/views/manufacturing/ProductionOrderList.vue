@@ -2,10 +2,10 @@
 <template>
     <div class="production-order-list">
       <div class="page-header">
-        <h1>Job Process</h1>
+        <h1>Job Order Process</h1>
         <div class="actions">
           <router-link to="/manufacturing/production-orders/create" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Create Job Process
+            <i class="fas fa-plus"></i> Create Job Order Process
           </router-link>
         </div>
       </div>
@@ -20,7 +20,7 @@
               <input
                 type="text"
                 class="search-input"
-                placeholder="Search Job Process by number, Job order, or product..."
+                placeholder="Search Job Order Process by number, Job order, or product..."
                 v-model="searchQuery"
                 @input="debounceSearch"
               >
@@ -131,15 +131,15 @@
 
       <div v-if="loading" class="loading-container">
         <i class="fas fa-spinner fa-spin"></i>
-        <span>Loading Job Process...</span>
+        <span>Loading Job Order Process...</span>
       </div>
 
       <div v-else-if="productionOrders.length === 0" class="empty-state">
         <i class="fas fa-clipboard-list"></i>
-        <h3>No Job Process Found</h3>
-        <p>No Job Process match your search criteria or no Job Process have been created yet.</p>
+        <h3>No Job Order Process Found</h3>
+        <p>No Job Order Process match your search criteria or no Job Order Process have been created yet.</p>
         <router-link to="/manufacturing/production-orders/create" class="btn btn-primary">
-          Create Job Process
+          Create Job Order Process
         </router-link>
       </div>
 
@@ -157,7 +157,7 @@
                 <i v-if="sortKey === 'production_date'"
                   :class="sortOrder === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down'"></i>
               </th>
-              <th>Work Order</th>
+              <th>Job Order</th>
               <th>Product</th>
               <th @click="sortBy('planned_quantity')" class="sortable">
                 Planned Qty
@@ -245,8 +245,8 @@
       <!-- Confirmation Modal -->
       <ConfirmationModal
         v-if="showDeleteModal"
-        title="Delete Job Process"
-        :message="`Are you sure you want to delete Job Process <strong>${selectedOrder?.production_number}</strong>? This action cannot be undone.`"
+        title="Delete Job Order Process"
+        :message="`Are you sure you want to delete Job Order Process <strong>${selectedOrder?.production_number}</strong>? This action cannot be undone.`"
         confirm-button-text="Delete"
         confirm-button-class="btn btn-danger"
         @confirm="deleteProductionOrder"
@@ -337,8 +337,8 @@
             this.calculatePagination();
           }
         } catch (error) {
-          console.error('Error fetching Job Process:', error);
-          this.$toast.error('Failed to load Job Process');
+          console.error('Error fetching Job Order Process:', error);
+          this.$toast.error('Failed to load Job Order Process');
         } finally {
           this.loading = false;
         }
@@ -431,7 +431,7 @@
           this.fetchProductionOrders();
         } catch (error) {
           console.error('Error deleting production order:', error);
-          this.$toast.error('Failed to delete Job Process');
+          this.$toast.error('Failed to delete Job Order Process');
         } finally {
           this.showDeleteModal = false;
           this.selectedOrder = null;

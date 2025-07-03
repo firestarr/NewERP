@@ -2,7 +2,7 @@
 <template>
   <div class="production-order-form">
     <div class="page-header">
-      <h1>{{ isEditing ? 'Edit Production Order' : 'Create Job Process' }}</h1>
+      <h1>{{ isEditing ? 'Edit Production Order' : 'Create Job Order Process' }}</h1>
       <div class="actions">
         <router-link to="/manufacturing/production-orders" class="btn btn-secondary">
           <i class="fas fa-arrow-left"></i> Back to List
@@ -18,7 +18,7 @@
     <form v-else @submit.prevent="saveProductionOrder" class="card">
       <div class="card-body">
         <div class="form-section">
-          <h2>Job Process Details</h2>
+          <h2>Job Order Process Details</h2>
 
           <div class="form-row">
             <!-- Production Number - Updated to show preview like WorkOrder -->
@@ -266,7 +266,7 @@
         <button type="button" class="btn btn-secondary" @click="cancel">Cancel</button>
         <button type="submit" class="btn btn-primary" :disabled="saving">
           <i v-if="saving" class="fas fa-spinner fa-spin"></i>
-          {{ saving ? 'Saving...' : 'Save Job Process' }}
+          {{ saving ? 'Saving...' : 'Save Job Order Process' }}
         </button>
       </div>
     </form>
@@ -406,8 +406,8 @@ export default {
           }));
         }
       } catch (error) {
-        console.error('Error fetching Job Process:', error);
-        if (this.$toast) this.$toast.error('Failed to load Job Process data');
+        console.error('Error fetching Job Order Process:', error);
+        if (this.$toast) this.$toast.error('Failed to load Job Order Process data');
       }
     },
 

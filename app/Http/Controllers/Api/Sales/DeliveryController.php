@@ -768,7 +768,9 @@ class DeliveryController extends Controller
 
                     // Decrease reserved quantity if this delivery was using reserved stock
                     if ($line->reservation_reference) {
+                        \Log::info("Decrementing reserved_quantity for item_id {$line->item_id} in warehouse_id {$line->warehouse_id} by {$line->delivered_quantity}");
                         $itemStock->fresh()->decrement('reserved_quantity', $line->delivered_quantity);
+                        \Log::info("Decremented reserved_quantity successfully");
                     }
                 }
             }
@@ -785,6 +787,7 @@ class DeliveryController extends Controller
             return response()->json(['message' => 'Delivery completed successfully'], 200);
         } catch (\Exception $e) {
             DB::rollBack();
+            \Log::error("Failed to complete delivery: " . $e->getMessage());
             return response()->json(['message' => 'Failed to complete delivery', 'error' => $e->getMessage()], 500);
         }
     }

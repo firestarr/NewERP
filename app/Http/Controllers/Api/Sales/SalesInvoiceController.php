@@ -537,6 +537,16 @@ class SalesInvoiceController extends Controller
             return response()->json(['message' => 'Sales invoice not found'], 404);
         }
 
+        // Collect PO numbers from related sales orders via salesInvoiceLines
+        $poNumbers = $invoice->salesInvoiceLines->map(function ($line) {
+            return $line->deliveryLine && $line->deliveryLine->salesOrderLine && $line->deliveryLine->salesOrderLine->salesOrder
+                ? $line->deliveryLine->salesOrderLine->salesOrder->so_number
+                : null;
+        })->filter()->unique()->values()->all();
+
+        // Add PO numbers as a new attribute to the invoice object
+        $invoice->po_numbers = $poNumbers;
+
         return response()->json(['data' => $invoice], 200);
     }
 

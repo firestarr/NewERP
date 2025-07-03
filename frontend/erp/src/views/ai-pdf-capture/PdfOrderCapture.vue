@@ -35,7 +35,7 @@
           <span class="stat-change success">{{ statistics.success_rate || 0 }}% success rate</span>
         </div>
       </div>
-
+      
       <div class="stat-card">
         <div class="stat-icon warning">
           <i class="fas fa-clock"></i>
@@ -46,7 +46,7 @@
           <span class="stat-change neutral">In progress</span>
         </div>
       </div>
-
+      
       <div class="stat-card">
         <div class="stat-icon danger">
           <i class="fas fa-exclamation-triangle"></i>
@@ -57,7 +57,7 @@
           <span class="stat-change danger">Need attention</span>
         </div>
       </div>
-
+      
       <div class="stat-card">
         <div class="stat-icon info">
           <i class="fas fa-brain"></i>
@@ -85,7 +85,7 @@
             <option value="cancelled">Cancelled</option>
           </select>
         </div>
-
+        
         <div class="filter-group">
           <label>Date Range</label>
           <select v-model="filters.days" @change="loadCaptureHistory">
@@ -95,7 +95,7 @@
             <option value="">All time</option>
           </select>
         </div>
-
+        
         <div class="filter-group">
           <label>Per Page</label>
           <select v-model="filters.per_page" @change="loadCaptureHistory">
@@ -104,7 +104,7 @@
             <option value="50">50</option>
           </select>
         </div>
-
+        
         <button @click="clearFilters" class="btn btn-outline">
           <i class="fas fa-times"></i>
           Clear Filters
@@ -121,9 +121,9 @@
             <i class="fas fa-check-square"></i>
             {{ selectedCaptures.length > 0 ? 'Deselect All' : 'Select All' }}
           </button>
-          <button
-            v-if="selectedCaptures.length > 0"
-            @click="bulkRetry"
+          <button 
+            v-if="selectedCaptures.length > 0" 
+            @click="bulkRetry" 
             class="btn btn-sm btn-warning"
             :disabled="bulkLoading"
           >
@@ -157,8 +157,8 @@
           <thead>
             <tr>
               <th class="checkbox-col">
-                <input
-                  type="checkbox"
+                <input 
+                  type="checkbox" 
                   :checked="selectedCaptures.length === captures.length && captures.length > 0"
                   @change="toggleSelectAll"
                 >
@@ -178,13 +178,13 @@
           <tbody>
             <tr v-for="capture in captures" :key="capture.id" class="table-row">
               <td class="checkbox-col">
-                <input
-                  type="checkbox"
-                  :value="capture.id"
+                <input 
+                  type="checkbox" 
+                  :value="capture.id" 
                   v-model="selectedCaptures"
                 >
               </td>
-
+              
               <td class="file-info">
                 <div class="file-details">
                   <div class="file-name">
@@ -200,16 +200,16 @@
                   </div>
                 </div>
               </td>
-
+              
               <td>
-                <span
-                  class="status-badge"
+                <span 
+                  class="status-badge" 
                   :class="getStatusClass(capture.status)"
                 >
                   {{ formatStatus(capture.status) }}
                 </span>
               </td>
-
+              
               <td class="customer-info">
                 <div v-if="capture.extracted_customer">
                   <div class="customer-name">{{ capture.extracted_customer.name }}</div>
@@ -217,7 +217,7 @@
                 </div>
                 <span v-else class="text-muted">-</span>
               </td>
-
+              
               <td class="items-info">
                 <div v-if="capture.extracted_items && capture.extracted_items.length > 0">
                   <div class="items-count">{{ capture.extracted_items.length }} items</div>
@@ -231,33 +231,29 @@
                 <span v-else class="text-muted">-</span>
               </td>
 
-              <!-- Item Validation Column -->
+              <!-- FIXED: Item Validation Column -->
               <td class="item-validation">
                 <div v-if="capture.item_validation" class="validation-summary">
-                  <div v-if="capture.item_validation.existing_items && capture.item_validation.existing_items.length > 0"
+                  <div v-if="capture.item_validation.existing_items && capture.item_validation.existing_items.length > 0" 
                        class="validation-item success">
                     <i class="fas fa-check-circle"></i>
                     {{ capture.item_validation.existing_items.length }} found
                   </div>
-                  <div v-if="capture.item_validation.missing_items && capture.item_validation.missing_items.length > 0"
+                  <div v-if="capture.item_validation.missing_items && capture.item_validation.missing_items.length > 0" 
                        class="validation-item danger">
                     <i class="fas fa-times-circle"></i>
                     {{ capture.item_validation.missing_items.length }} missing
                   </div>
-                  <div v-if="capture.item_validation.fuzzy_matches && capture.item_validation.fuzzy_matches.length > 0"
-                       class="validation-item warning">
-                    <i class="fas fa-question-circle"></i>
-                    {{ capture.item_validation.fuzzy_matches.length }} fuzzy
-                  </div>
+                  <!-- REMOVED: Fuzzy matches for items -->
                 </div>
                 <span v-else class="text-muted">-</span>
               </td>
-
+              
               <td class="confidence-score">
                 <div v-if="capture.confidence_score" class="confidence-display">
                   <div class="confidence-bar">
-                    <div
-                      class="confidence-fill"
+                    <div 
+                      class="confidence-fill" 
                       :style="{ width: capture.confidence_score + '%' }"
                       :class="getConfidenceClass(capture.confidence_score)"
                     ></div>
@@ -266,10 +262,10 @@
                 </div>
                 <span v-else class="text-muted">-</span>
               </td>
-
+              
               <td class="sales-order">
                 <div v-if="capture.sales_order">
-                  <router-link
+                  <router-link 
                     :to="`/sales/orders/${capture.sales_order.so_id}`"
                     class="order-link"
                   >
@@ -279,7 +275,7 @@
                 </div>
                 <span v-else class="text-muted">-</span>
               </td>
-
+              
               <td class="processing-info">
                 <div class="processing-details">
                   <div v-if="isPageBasedProcessing(capture)" class="processing-method page-based">
@@ -299,17 +295,17 @@
                   </div>
                 </div>
               </td>
-
+              
               <td class="created-date">
                 <div class="date-display">
                   <div class="date-main">{{ formatDate(capture.created_at) }}</div>
                   <div class="date-time">{{ formatTime(capture.created_at) }}</div>
                 </div>
               </td>
-
+              
               <td class="actions">
                 <div class="action-buttons">
-                  <button
+                  <button 
                     @click="viewDetails(capture)"
                     class="btn-icon"
                     title="View Details"
@@ -317,9 +313,9 @@
                     <i class="fas fa-eye"></i>
                   </button>
 
-                  <!-- Create SO Button -->
-                  <button
-                    v-if="capture.status === 'data_extracted' && !capture.created_so_id && canCreateSalesOrder(capture)"
+                  <!-- FIXED: Create SO Button Logic -->
+                  <button 
+                    v-if="canCreateSalesOrder(capture)"
                     @click="createSalesOrder(capture.id)"
                     class="btn-icon btn-success"
                     title="Create Sales Order"
@@ -327,8 +323,8 @@
                   >
                     <i class="fas fa-plus" :class="{ 'fa-spin': createSoLoading[capture.id] }"></i>
                   </button>
-
-                  <button
+                  
+                  <button 
                     v-if="capture.status === 'failed'"
                     @click="retryCapture(capture.id)"
                     class="btn-icon btn-warning"
@@ -337,16 +333,16 @@
                   >
                     <i class="fas fa-redo" :class="{ 'fa-spin': retryLoading[capture.id] }"></i>
                   </button>
-
-                  <button
+                  
+                  <button 
                     @click="downloadFile(capture.id)"
                     class="btn-icon btn-secondary"
                     title="Download PDF"
                   >
                     <i class="fas fa-download"></i>
                   </button>
-
-                  <button
+                  
+                  <button 
                     @click="deleteCapture(capture.id)"
                     class="btn-icon btn-danger"
                     title="Delete"
@@ -367,7 +363,7 @@
           Showing {{ pagination.from }} to {{ pagination.to }} of {{ pagination.total }} results
         </div>
         <div class="pagination-controls">
-          <button
+          <button 
             @click="changePage(pagination.current_page - 1)"
             :disabled="pagination.current_page <= 1"
             class="btn btn-sm btn-outline"
@@ -375,10 +371,10 @@
             <i class="fas fa-chevron-left"></i>
             Previous
           </button>
-
+          
           <span class="page-numbers">
-            <button
-              v-for="page in visiblePages"
+            <button 
+              v-for="page in visiblePages" 
               :key="page"
               @click="changePage(page)"
               class="btn btn-sm"
@@ -387,8 +383,8 @@
               {{ page }}
             </button>
           </span>
-
-          <button
+          
+          <button 
             @click="changePage(pagination.current_page + 1)"
             :disabled="pagination.current_page >= pagination.last_page"
             class="btn btn-sm btn-outline"
@@ -409,19 +405,19 @@
             <i class="fas fa-times"></i>
           </button>
         </div>
-
+        
         <div class="modal-body">
-          <div class="upload-area" :class="{ 'dragover': isDragOver }"
-               @drop="handleDrop" @dragover.prevent="isDragOver = true"
+          <div class="upload-area" :class="{ 'dragover': isDragOver }" 
+               @drop="handleDrop" @dragover.prevent="isDragOver = true" 
                @dragleave="isDragOver = false" @dragenter.prevent>
-            <input
-              ref="fileInput"
-              type="file"
-              accept=".pdf"
-              @change="handleFileSelect"
+            <input 
+              ref="fileInput" 
+              type="file" 
+              accept=".pdf" 
+              @change="handleFileSelect" 
               style="display: none"
             >
-
+            
             <div v-if="!selectedFile" class="upload-placeholder">
               <div class="upload-icon">
                 <i class="fas fa-cloud-upload-alt"></i>
@@ -431,9 +427,10 @@
               <div class="upload-info">
                 <small>Supported: PDF files up to 10MB</small>
                 <small>Large files will be automatically processed page-by-page for better accuracy</small>
+                <small><strong>Items must match exactly by item code</strong> - no fuzzy matching for items</small>
               </div>
             </div>
-
+            
             <div v-else class="file-selected">
               <div class="file-preview">
                 <i class="fas fa-file-pdf text-danger"></i>
@@ -451,7 +448,7 @@
                   <i class="fas fa-times"></i>
                 </button>
               </div>
-
+              
               <!-- Processing Time Estimate -->
               <div v-if="willUseChunking(selectedFile.size)" class="processing-estimate">
                 <div class="estimate-info">
@@ -461,11 +458,11 @@
               </div>
             </div>
           </div>
-
+          
           <!-- Processing Options -->
           <div class="processing-options">
             <h4>Processing Options</h4>
-
+            
             <div class="option-row">
               <div class="option-field">
                 <label>Preferred Currency</label>
@@ -476,7 +473,7 @@
                   <option value="IDR">IDR - Indonesian Rupiah</option>
                 </select>
               </div>
-
+              
               <div class="option-field">
                 <label>Confidence Threshold</label>
                 <select v-model="uploadOptions.processing_options.confidence_threshold">
@@ -496,11 +493,12 @@
               </h5>
               <div class="chunking-info">
                 <p>This file will be processed page-by-page to ensure accurate extraction. Each page is analyzed separately and results are intelligently merged.</p>
+                <p><strong>Note:</strong> Items will only be matched by exact item code - no fuzzy matching.</p>
               </div>
             </div>
           </div>
         </div>
-
+        
         <div class="modal-footer">
           <button @click="closeUploadModal" class="btn btn-secondary">
             Cancel
@@ -525,33 +523,33 @@
             <i class="fas fa-times"></i>
           </button>
         </div>
-
+        
         <div class="modal-body">
           <div v-if="selectedCapture" class="details-content">
-
-            <!-- PREVIEW SUMMARY (NEW SECTION) -->
+            
+            <!-- FIXED: PREVIEW SUMMARY -->
             <div class="details-section" v-if="selectedCapture.status === 'data_extracted'">
               <h4>📋 Extraction Preview</h4>
-
+              
               <!-- Overall Status -->
               <div class="preview-status">
                 <div v-if="canCreateSalesOrder(selectedCapture)" class="status-card success">
                   <div class="status-icon">✅</div>
                   <div class="status-content">
                     <h5>Ready to Create Sales Order</h5>
-                    <p>All items found in database. No issues detected.</p>
+                    <p>All items found in database with exact matching. No issues detected.</p>
                   </div>
                 </div>
-
+                
                 <div v-else class="status-card warning">
                   <div class="status-icon">⚠️</div>
                   <div class="status-content">
                     <h5>Action Required</h5>
-                    <p>Some items are missing from database. Please review below.</p>
+                    <p>Some items not found in database (exact match required). Please review below.</p>
                   </div>
                 </div>
               </div>
-
+              
               <!-- Quick Stats -->
               <div class="preview-stats">
                 <div class="stat-item">
@@ -572,7 +570,7 @@
                 </div>
               </div>
             </div>
-
+            
             <!-- Basic Info -->
             <div class="details-section">
               <h4>File Information</h4>
@@ -612,20 +610,24 @@
               </div>
             </div>
 
-            <!-- Item Validation Section -->
+            <!-- FIXED: Item Validation Section -->
             <div v-if="selectedCapture.item_validation" class="details-section">
-              <h4>Item Validation Results</h4>
-
+              <h4>Item Validation Results (Exact Match Only)</h4>
+              
               <!-- Missing Items -->
-              <div v-if="selectedCapture.item_validation.missing_items && selectedCapture.item_validation.missing_items.length > 0"
+              <div v-if="selectedCapture.item_validation.missing_items && selectedCapture.item_validation.missing_items.length > 0" 
                    class="validation-section missing-items">
                 <h5 class="validation-title danger">
                   <i class="fas fa-times-circle"></i>
                   Missing Items ({{ selectedCapture.item_validation.missing_items.length }})
                 </h5>
+                <div class="validation-info-box danger">
+                  <i class="fas fa-info-circle"></i>
+                  <span><strong>Exact Match Required:</strong> Items must have exact item_code or name match in database. No fuzzy matching is used.</span>
+                </div>
                 <div class="missing-items-list">
-                  <div v-for="(item, index) in selectedCapture.item_validation.missing_items"
-                       :key="index"
+                  <div v-for="(item, index) in selectedCapture.item_validation.missing_items" 
+                       :key="index" 
                        class="missing-item-card">
                     <div class="item-header">
                       <span class="item-code">{{ item.item_code || 'No Code' }}</span>
@@ -644,20 +646,24 @@
                 </div>
                 <div class="validation-warning">
                   <i class="fas fa-exclamation-triangle"></i>
-                  These items must be created in the system before a sales order can be generated.
+                  These items must be created in the system with matching item codes before a sales order can be generated.
                 </div>
               </div>
 
               <!-- Existing Items -->
-              <div v-if="selectedCapture.item_validation.existing_items && selectedCapture.item_validation.existing_items.length > 0"
+              <div v-if="selectedCapture.item_validation.existing_items && selectedCapture.item_validation.existing_items.length > 0" 
                    class="validation-section existing-items">
                 <h5 class="validation-title success">
                   <i class="fas fa-check-circle"></i>
                   Found Items ({{ selectedCapture.item_validation.existing_items.length }})
                 </h5>
+                <div class="validation-info-box success">
+                  <i class="fas fa-check-circle"></i>
+                  <span>These items were found using exact matching by item code or name.</span>
+                </div>
                 <div class="existing-items-list">
-                  <div v-for="(item, index) in selectedCapture.item_validation.existing_items"
-                       :key="index"
+                  <div v-for="(item, index) in selectedCapture.item_validation.existing_items" 
+                       :key="index" 
                        class="existing-item-card">
                     <div class="item-header">
                       <span class="item-code">{{ item.matched_item.item_code }}</span>
@@ -665,30 +671,7 @@
                     </div>
                     <div class="item-match-info">
                       <span class="extracted-data">Extracted: {{ item.extracted_data.name }}</span>
-                      <span class="match-indicator">✓ Matched</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Fuzzy Matches -->
-              <div v-if="selectedCapture.item_validation.fuzzy_matches && selectedCapture.item_validation.fuzzy_matches.length > 0"
-                   class="validation-section fuzzy-matches">
-                <h5 class="validation-title warning">
-                  <i class="fas fa-question-circle"></i>
-                  Fuzzy Matches ({{ selectedCapture.item_validation.fuzzy_matches.length }})
-                </h5>
-                <div class="fuzzy-matches-list">
-                  <div v-for="(match, index) in selectedCapture.item_validation.fuzzy_matches"
-                       :key="index"
-                       class="fuzzy-match-card">
-                    <div class="match-header">
-                      <span class="extracted-name">{{ match.extracted_name }}</span>
-                      <span class="similarity-score">{{ Math.round(match.similarity_score) }}% match</span>
-                    </div>
-                    <div class="matched-item">
-                      <span class="matched-code">{{ match.matched_item.item_code }}</span>
-                      <span class="matched-name">{{ match.matched_item.name }}</span>
+                      <span class="match-indicator">✓ Exact Match</span>
                     </div>
                   </div>
                 </div>
@@ -700,12 +683,15 @@
               <h4>Processing Information</h4>
               <div class="processing-details-full">
                 <div class="processing-note">
-                  <strong>Method:</strong>
-                  {{ isPageBasedProcessing(selectedCapture) ? 'Page-based Processing' :
+                  <strong>Method:</strong> 
+                  {{ isPageBasedProcessing(selectedCapture) ? 'Page-based Processing' : 
                       isChunkedProcessing(selectedCapture) ? 'Chunked Processing' : 'Standard Processing' }}
                 </div>
                 <div class="processing-note">
                   <strong>Details:</strong> {{ selectedCapture.extracted_data.processing_notes }}
+                </div>
+                <div class="processing-note">
+                  <strong>Item Matching:</strong> Exact match only - no fuzzy matching for items
                 </div>
                 <div v-if="selectedCapture.extracted_data.table_structure_notes" class="processing-note">
                   <strong>Table Structure:</strong> {{ selectedCapture.extracted_data.table_structure_notes }}
@@ -715,14 +701,14 @@
                 </div>
               </div>
             </div>
-
+            
             <!-- Extracted Data -->
             <div v-if="selectedCapture.extracted_data" class="details-section">
               <h4>Extracted Data</h4>
-
+              
               <!-- Customer Info -->
               <div v-if="selectedCapture.extracted_customer" class="extracted-section">
-                <h5>Customer Information</h5>
+                <h5>Customer Information (Fuzzy Matching Allowed)</h5>
                 <div class="info-grid">
                   <div class="info-item">
                     <label>Name</label>
@@ -742,10 +728,10 @@
                   </div>
                 </div>
               </div>
-
+              
               <!-- Items -->
               <div v-if="selectedCapture.extracted_items" class="extracted-section">
-                <h5>Items ({{ selectedCapture.extracted_items.length }})</h5>
+                <h5>Items ({{ selectedCapture.extracted_items.length }}) - Exact Match Only</h5>
                 <div class="items-list">
                   <div v-for="(item, index) in selectedCapture.extracted_items" :key="index" class="item-card">
                     <div class="item-header">
@@ -761,6 +747,7 @@
                       </span>
                     </div>
                     <div class="item-details">
+                      <span v-if="item.item_code" class="item-code-detail">Code: {{ item.item_code }}</span>
                       <span v-if="item.unit_price">Price: ${{ item.unit_price }}</span>
                       <span v-if="item.uom">UOM: {{ item.uom }}</span>
                       <span v-if="item.description">{{ item.description }}</span>
@@ -772,7 +759,7 @@
                 </div>
               </div>
             </div>
-
+            
             <!-- Error Message -->
             <div v-if="selectedCapture.error_message" class="details-section">
               <h4>Error Details</h4>
@@ -783,16 +770,16 @@
             </div>
           </div>
         </div>
-
+        
         <div class="modal-footer">
           <!-- Always show Close button -->
           <button @click="closeDetailsModal" class="btn btn-secondary">
             <i class="fas fa-times"></i>
             Close
           </button>
-
+          
           <!-- Download PDF button -->
-          <button
+          <button 
             v-if="selectedCapture && selectedCapture.file_path"
             @click="downloadFile(selectedCapture.id)"
             class="btn btn-outline"
@@ -800,10 +787,10 @@
             <i class="fas fa-download"></i>
             Download PDF
           </button>
-
-          <!-- Create Sales Order button (PRIMARY ACTION) -->
-          <button
-            v-if="selectedCapture && selectedCapture.status === 'data_extracted' && !selectedCapture.created_so_id && canCreateSalesOrder(selectedCapture)"
+          
+          <!-- FIXED: Create Sales Order button (PRIMARY ACTION) -->
+          <button 
+            v-if="canCreateSalesOrder(selectedCapture)"
             @click="createSalesOrder(selectedCapture.id)"
             class="btn btn-success btn-lg"
             :disabled="createSoLoading[selectedCapture.id]"
@@ -811,29 +798,29 @@
             <i class="fas fa-plus" :class="{ 'fa-spin': createSoLoading[selectedCapture.id] }"></i>
             {{ createSoLoading[selectedCapture.id] ? 'Creating Sales Order...' : 'Create Sales Order' }}
           </button>
-
-          <!-- Warning message if cannot create SO -->
-          <div
+          
+          <!-- FIXED: Warning message if cannot create SO -->
+          <div 
             v-else-if="selectedCapture && selectedCapture.status === 'data_extracted' && !selectedCapture.created_so_id && !canCreateSalesOrder(selectedCapture)"
             class="cannot-create-warning"
           >
             <i class="fas fa-exclamation-triangle"></i>
-            <span>Sales Order cannot be created:
+            <span>Sales Order cannot be created: 
               <strong v-if="selectedCapture.item_validation?.missing_items?.length > 0">
-                {{ selectedCapture.item_validation.missing_items.length }} items missing from database
+                {{ selectedCapture.item_validation.missing_items.length }} items missing from database (exact match required)
               </strong>
               <strong v-else>Items validation required</strong>
             </span>
           </div>
-
+          
           <!-- Already has Sales Order -->
-          <div
+          <div 
             v-else-if="selectedCapture && selectedCapture.created_so_id"
             class="has-so-info"
           >
             <i class="fas fa-check-circle text-success"></i>
             <span>Sales Order already created</span>
-            <router-link
+            <router-link 
               v-if="selectedCapture.sales_order"
               :to="`/sales/orders/${selectedCapture.sales_order.so_id}`"
               class="btn btn-primary btn-sm"
@@ -842,9 +829,9 @@
               View SO #{{ selectedCapture.sales_order.so_number }}
             </router-link>
           </div>
-
+          
           <!-- Retry button for failed captures -->
-          <button
+          <button 
             v-if="selectedCapture && selectedCapture.status === 'failed'"
             @click="retryCapture(selectedCapture.id)"
             class="btn btn-warning"
@@ -853,9 +840,9 @@
             <i class="fas fa-redo" :class="{ 'fa-spin': retryLoading[selectedCapture.id] }"></i>
             Retry Processing
           </button>
-
+          
           <!-- Reprocess with validation button -->
-          <button
+          <button 
             v-if="selectedCapture && ['data_extracted', 'failed'].includes(selectedCapture.status)"
             @click="reprocessWithValidation(selectedCapture.id)"
             class="btn btn-info"
@@ -884,11 +871,11 @@ export default {
       retryLoading: {},
       deleteLoading: {},
       createSoLoading: {},
-
+      
       // Data
       captures: [],
       statistics: {},
-
+      
       // Pagination
       pagination: {
         current_page: 1,
@@ -898,22 +885,22 @@ export default {
         from: 0,
         to: 0
       },
-
+      
       // Filters
       filters: {
         status: '',
         days: '30',
         per_page: 20
       },
-
+      
       // Selection
       selectedCaptures: [],
-
+      
       // Modals
       showUploadModal: false,
       showDetailsModal: false,
       selectedCapture: null,
-
+      
       // Upload
       selectedFile: null,
       isDragOver: false,
@@ -925,19 +912,19 @@ export default {
           use_ocr: true
         }
       },
-
+      
       // Chunking constants
       CHUNKING_THRESHOLD: 5 * 1024 * 1024, // 5MB
       LARGE_FILE_THRESHOLD: 2 * 1024 * 1024 // 2MB
     }
   },
-
+  
   computed: {
     visiblePages() {
       const current = this.pagination.current_page
       const last = this.pagination.last_page
       const pages = []
-
+      
       if (last <= 7) {
         for (let i = 1; i <= last; i++) {
           pages.push(i)
@@ -965,15 +952,15 @@ export default {
           pages.push(last)
         }
       }
-
+      
       return pages
     }
   },
-
+  
   async mounted() {
     await this.loadData()
   },
-
+  
   methods: {
     async loadData() {
       await Promise.all([
@@ -981,7 +968,7 @@ export default {
         this.loadCaptureHistory()
       ])
     },
-
+    
     async loadStatistics() {
       try {
         const response = await axios.get('/pdf-order-capture/statistics/overview', {
@@ -993,7 +980,7 @@ export default {
         this.$toast?.error('Failed to load statistics')
       }
     },
-
+    
     async loadCaptureHistory() {
       this.isLoading = true
       try {
@@ -1001,13 +988,13 @@ export default {
           page: this.pagination.current_page,
           per_page: this.filters.per_page
         }
-
+        
         if (this.filters.status) params.status = this.filters.status
         if (this.filters.days) params.days = this.filters.days
-
+        
         const response = await axios.get('/pdf-order-capture', { params })
         const data = response.data.data
-
+        
         this.captures = data.data
         this.pagination = {
           current_page: data.current_page,
@@ -1024,12 +1011,12 @@ export default {
         this.isLoading = false
       }
     },
-
+    
     async refreshData() {
       await this.loadData()
       this.$toast?.success('Data refreshed successfully')
     },
-
+    
     // Upload Functions
     handleFileSelect(event) {
       const file = event.target.files[0]
@@ -1039,11 +1026,11 @@ export default {
         this.$toast?.error('Please select a valid PDF file')
       }
     },
-
+    
     handleDrop(event) {
       event.preventDefault()
       this.isDragOver = false
-
+      
       const files = event.dataTransfer.files
       if (files.length > 0) {
         const file = files[0]
@@ -1054,45 +1041,45 @@ export default {
         }
       }
     },
-
+    
     clearSelectedFile() {
       this.selectedFile = null
       if (this.$refs.fileInput) {
         this.$refs.fileInput.value = ''
       }
     },
-
-    // FIXED: Upload and Extract (auto-open preview modal)
+    
+    // Upload and Extract (auto-open preview modal)
     async uploadAndExtract() {
       if (!this.selectedFile) return
-
+      
       this.isUploading = true
       try {
         const formData = new FormData()
         formData.append('pdf_file', this.selectedFile)
         formData.append('preferred_currency', this.uploadOptions.preferred_currency)
         formData.append('processing_options', JSON.stringify(this.uploadOptions.processing_options))
-
+        
         const response = await axios.post('/pdf-order-capture', formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         })
-
+        
         this.$toast?.success('PDF uploaded and data extracted successfully')
         this.closeUploadModal()
         await this.loadData()
-
-        // Get the extracted data directly from response (no need for additional API call)
+        
+        // Get the extracted data directly from response
         const captureData = response.data.data.pdf_capture
         const itemValidation = response.data.data.item_validation
-
+        
         // Show appropriate message based on validation results
         if (itemValidation && itemValidation.missing_items && itemValidation.missing_items.length > 0) {
-          this.$toast?.warning(`${itemValidation.missing_items.length} items not found in database. Please review the details.`)
+          this.$toast?.warning(`${itemValidation.missing_items.length} items not found in database (exact match required). Please review the details.`)
         } else {
-          this.$toast?.info('All items found! You can now create a sales order.')
+          this.$toast?.info('All items found with exact matching! You can now create a sales order.')
         }
-
-        // Set the capture data directly and show modal (no API call needed)
+        
+        // Set the capture data directly and show modal
         this.selectedCapture = {
           ...captureData,
           item_validation: itemValidation,
@@ -1100,7 +1087,7 @@ export default {
           extracted_items: captureData.extracted_data?.items || []
         }
         this.showDetailsModal = true
-
+        
       } catch (error) {
         console.error('Upload failed:', error)
         this.$toast?.error(error.response?.data?.message || 'Upload failed')
@@ -1108,16 +1095,24 @@ export default {
         this.isUploading = false
       }
     },
-
+    
     // FIXED: Create Sales Order (separate function)
-    async createSalesOrder(captureId) {
+async createSalesOrder(captureId) {
       // Confirm action
       const capture = this.captures.find(c => c.id === captureId) || this.selectedCapture
       if (!capture) {
         this.$toast?.error('Capture not found')
         return
       }
-
+      
+      // Ensure extracted_customer and extracted_items are set from extracted_data if missing
+      if (!capture.extracted_customer && capture.extracted_data?.customer) {
+        capture.extracted_customer = capture.extracted_data.customer
+      }
+      if (!capture.extracted_items && capture.extracted_data?.items) {
+        capture.extracted_items = capture.extracted_data.items
+      }
+      
       // Double-check if can create
       if (!this.canCreateSalesOrder(capture)) {
         let reason = 'Unknown reason'
@@ -1126,44 +1121,44 @@ export default {
         } else if (capture.created_so_id) {
           reason = 'Sales order already exists'
         } else if (capture.item_validation?.missing_items?.length > 0) {
-          reason = `${capture.item_validation.missing_items.length} items missing from database`
+          reason = `${capture.item_validation.missing_items.length} items missing from database (exact match required)`
         }
-
+        
         this.$toast?.error(`Cannot create sales order: ${reason}`)
         return
       }
-
-      const confirmed = confirm(`Create sales order from this PDF?\n\nCustomer: ${capture.extracted_customer?.name || 'Unknown'}\nItems: ${capture.extracted_items?.length || 0}`)
+      
+      const confirmed = confirm(`Create sales order from this PDF?\n\nCustomer: ${capture.extracted_customer?.name || 'Unknown'}\nItems: ${capture.extracted_items?.length || 0}\n\nNote: Only items with exact code matches were found.`)
       if (!confirmed) return
-
-      this.$set(this.createSoLoading, captureId, true)
+      
+      this.createSoLoading[captureId] = true
       try {
         const response = await axios.post(`/pdf-order-capture/${captureId}/create-sales-order`)
-
+        
         this.$toast?.success('Sales order created successfully!')
         await this.loadData()
-
+        
         // Navigate to sales order if created
         if (response.data.data.sales_order) {
           const soId = response.data.data.sales_order.so_id
           this.$toast?.info(`Redirecting to Sales Order #${response.data.data.sales_order.so_number}...`)
-
+          
           // Close modal if open
           if (this.showDetailsModal) {
             this.closeDetailsModal()
           }
-
+          
           // Redirect after short delay
           setTimeout(() => {
             this.$router.push(`/sales/orders/${soId}`)
           }, 1500)
         }
-
+        
       } catch (error) {
         console.error('Create sales order failed:', error)
         const errorMessage = error.response?.data?.message || 'Failed to create sales order'
         this.$toast?.error(errorMessage)
-
+        
         // Show specific error details if available
         if (error.response?.data?.data?.missing_items) {
           const missingItems = error.response.data.data.missing_items
@@ -1172,28 +1167,30 @@ export default {
           this.$toast?.warning(`Missing items: ${itemNames}${extraCount}`)
         }
       } finally {
-        this.$set(this.createSoLoading, captureId, false)
+        this.createSoLoading[captureId] = false
       }
     },
 
     // FIXED: Check if sales order can be created
     canCreateSalesOrder(capture) {
+      if (!capture) return false
+      
       // Must be in data_extracted status
       if (capture.status !== 'data_extracted') return false
-
+      
       // Must not already have a sales order created
       if (capture.created_so_id || capture.sales_order) return false
-
-      // Check item validation - no missing items allowed
+      
+      // Check item validation - no missing items allowed (EXACT MATCH REQUIRED)
       if (!capture.item_validation) return false
-
+      
       const missingItems = capture.item_validation.missing_items || []
       return missingItems.length === 0
     },
-
+    
     // Action Functions
     async retryCapture(captureId) {
-      this.$set(this.retryLoading, captureId, true)
+      this.retryLoading[captureId] = true
       try {
         await axios.post(`/pdf-order-capture/${captureId}/retry`)
         this.$toast?.success('Processing restarted')
@@ -1202,22 +1199,22 @@ export default {
         console.error('Retry failed:', error)
         this.$toast?.error(error.response?.data?.message || 'Retry failed')
       } finally {
-        this.$set(this.retryLoading, captureId, false)
+        this.retryLoading[captureId] = false
       }
     },
 
     async reprocessWithValidation(captureId) {
-      this.$set(this.retryLoading, captureId, true)
+      this.retryLoading[captureId] = true
       try {
         const response = await axios.post(`/pdf-order-capture/${captureId}/reprocess-with-validation`)
-        this.$toast?.success('Reprocessing completed with enhanced validation')
+        this.$toast?.success('Reprocessing completed with enhanced validation (exact match only)')
         await this.loadData()
-
+        
         // Show success info about page-based processing if used
         if (response.data.data.page_chunking_used) {
           this.$toast?.info('Large file was processed page-by-page for better accuracy')
         }
-
+        
         // Close modal and show new details
         if (this.showDetailsModal) {
           this.closeDetailsModal()
@@ -1229,14 +1226,14 @@ export default {
         console.error('Reprocess failed:', error)
         this.$toast?.error(error.response?.data?.message || 'Reprocess failed')
       } finally {
-        this.$set(this.retryLoading, captureId, false)
+        this.retryLoading[captureId] = false
       }
     },
-
+    
     async deleteCapture(captureId) {
       if (!confirm('Are you sure you want to delete this capture?')) return
-
-      this.$set(this.deleteLoading, captureId, true)
+      
+      this.deleteLoading[captureId] = true
       try {
         await axios.delete(`/pdf-order-capture/${captureId}`)
         this.$toast?.success('Capture deleted successfully')
@@ -1245,16 +1242,16 @@ export default {
         console.error('Delete failed:', error)
         this.$toast?.error(error.response?.data?.message || 'Delete failed')
       } finally {
-        this.$set(this.deleteLoading, captureId, false)
+        this.deleteLoading[captureId] = false
       }
     },
-
+    
     async downloadFile(captureId) {
       try {
         const response = await axios.get(`/pdf-order-capture/${captureId}/download`, {
           responseType: 'blob'
         })
-
+        
         const url = window.URL.createObjectURL(new Blob([response.data]))
         const link = document.createElement('a')
         link.href = url
@@ -1263,14 +1260,14 @@ export default {
         link.click()
         link.remove()
         window.URL.revokeObjectURL(url)
-
+        
       } catch (error) {
         console.error('Download failed:', error)
         this.$toast?.error('Download failed')
       }
     },
-
-    // FIXED: View Details method
+    
+    // View Details method
     async viewDetails(capture) {
       try {
         // If capture is already a full object with data, use it directly
@@ -1283,24 +1280,24 @@ export default {
           this.showDetailsModal = true
           return
         }
-
+        
         // Otherwise, fetch from API (for existing captures from table)
         const captureId = capture.id || capture
         const response = await axios.get(`/pdf-order-capture/${captureId}`)
-
+        
         this.selectedCapture = {
           ...response.data.data,
           extracted_customer: response.data.data.extracted_data?.customer || null,
           extracted_items: response.data.data.extracted_data?.items || []
         }
         this.showDetailsModal = true
-
+        
       } catch (error) {
         console.error('Failed to load details:', error)
         this.$toast?.error('Failed to load capture details')
       }
     },
-
+    
     // Bulk Actions
     toggleSelectAll() {
       if (this.selectedCaptures.length === this.captures.length) {
@@ -1309,10 +1306,10 @@ export default {
         this.selectedCaptures = this.captures.map(c => c.id)
       }
     },
-
+    
     async bulkRetry() {
       if (this.selectedCaptures.length === 0) return
-
+      
       this.bulkLoading = true
       try {
         await axios.post('/pdf-order-capture/bulk/retry', {
@@ -1328,7 +1325,7 @@ export default {
         this.bulkLoading = false
       }
     },
-
+    
     // Pagination
     changePage(page) {
       if (page >= 1 && page <= this.pagination.last_page && page !== this.pagination.current_page) {
@@ -1336,7 +1333,7 @@ export default {
         this.loadCaptureHistory()
       }
     },
-
+    
     // Filters
     clearFilters() {
       this.filters = {
@@ -1347,62 +1344,62 @@ export default {
       this.pagination.current_page = 1
       this.loadCaptureHistory()
     },
-
+    
     // Modal Functions
     closeUploadModal() {
       this.showUploadModal = false
       this.clearSelectedFile()
       this.isDragOver = false
     },
-
+    
     closeDetailsModal() {
       this.showDetailsModal = false
       this.selectedCapture = null
     },
-
+    
     // Chunking-related helper functions
     isLargeFile(fileSize) {
       return fileSize > this.LARGE_FILE_THRESHOLD
     },
-
+    
     willUseChunking(fileSize) {
       return fileSize > this.CHUNKING_THRESHOLD
     },
-
+    
     isPageBasedProcessing(capture) {
       if (!capture.extracted_data) return false
-
+      
       const processingNotes = capture.extracted_data.processing_notes || ''
       const tableNotes = capture.extracted_data.table_structure_notes || ''
-
-      return processingNotes.includes('pages') ||
+      
+      return processingNotes.includes('pages') || 
              tableNotes.includes('pages') ||
-             (capture.extracted_data.items &&
+             (capture.extracted_data.items && 
               capture.extracted_data.items.some(item => item.source_page))
     },
-
+    
     isChunkedProcessing(capture) {
       if (this.isPageBasedProcessing(capture)) return false // Page-based takes precedence
-
+      
       if (!capture.extracted_data) return false
-
+      
       const processingNotes = capture.extracted_data.processing_notes || ''
       const tableNotes = capture.extracted_data.table_structure_notes || ''
-
-      return processingNotes.includes('chunks') ||
+      
+      return processingNotes.includes('chunks') || 
              tableNotes.includes('chunks') ||
-             (capture.extracted_data.items &&
+             (capture.extracted_data.items && 
               capture.extracted_data.items.some(item => item.source_chunk))
     },
-
+    
     getTotalPages(capture) {
       if (!capture.extracted_data || !capture.extracted_data.processing_notes) return '?'
-
+      
       const pageMatch = capture.extracted_data.processing_notes.match(/(\d+)\s+pages?/)
       if (pageMatch) {
         return pageMatch[1]
       }
-
+      
       // Count unique source pages from items
       if (capture.extracted_data.items) {
         const pages = new Set()
@@ -1413,37 +1410,37 @@ export default {
         })
         return pages.size > 0 ? pages.size : '?'
       }
-
+      
       return '?'
     },
-
+    
     getProcessingNotesSummary(notes) {
       if (!notes) return ''
-
+      
       // Extract key information from processing notes
       const pageMatch = notes.match(/(\d+)\s+pages?/)
       if (pageMatch) {
         return `${pageMatch[1]} pages`
       }
-
+      
       const chunkMatch = notes.match(/(\d+)\s+chunks?/)
       if (chunkMatch) {
         return `${chunkMatch[1]} chunks`
       }
-
+      
       return notes.length > 30 ? notes.substring(0, 27) + '...' : notes
     },
-
+    
     getProcessingText() {
       if (!this.selectedFile) return 'Processing...'
-
+      
       if (this.willUseChunking(this.selectedFile.size)) {
         return 'Extracting from pages...'
       }
-
+      
       return 'Extracting data...'
     },
-
+    
     // Helper Functions
     getStatusClass(status) {
       const statusClasses = {
@@ -1459,7 +1456,7 @@ export default {
       }
       return statusClasses[status] || 'status-secondary'
     },
-
+    
     formatStatus(status) {
       const statusLabels = {
         pending: 'Pending',
@@ -1474,38 +1471,38 @@ export default {
       }
       return statusLabels[status] || status
     },
-
+    
     getConfidenceClass(score) {
       if (score >= 80) return 'confidence-high'
       if (score >= 60) return 'confidence-medium'
       return 'confidence-low'
     },
-
+    
     formatDate(dateString) {
       return new Date(dateString).toLocaleDateString()
     },
-
+    
     formatTime(dateString) {
       return new Date(dateString).toLocaleTimeString()
     },
-
+    
     formatCurrency(amount) {
       return parseFloat(amount).toLocaleString('en-US', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
       })
     },
-
+    
     formatFileSize(bytes) {
       const units = ['B', 'KB', 'MB', 'GB']
       let size = bytes
       let unitIndex = 0
-
+      
       while (size >= 1024 && unitIndex < units.length - 1) {
         size /= 1024
         unitIndex++
       }
-
+      
       return `${size.toFixed(1)} ${units[unitIndex]}`
     }
   }
@@ -1513,6 +1510,7 @@ export default {
 </script>
 
 <style scoped>
+/* [Same CSS as before] */
 .pdf-order-capture {
   padding: 2rem;
   max-width: 1400px;
@@ -2258,7 +2256,7 @@ export default {
   color: var(--text-primary);
 }
 
-/* NEW: Preview Section Styles */
+/* FIXED: Preview Section Styles */
 .preview-status {
   margin-bottom: 1.5rem;
 }
@@ -2273,13 +2271,13 @@ export default {
 }
 
 .status-card.success {
-  background: #ecfdf5; /* Solid green background instead of transparent */
+  background: #ecfdf5;
   border-color: #10b981;
   color: #065f46;
 }
 
 .status-card.warning {
-  background: #fffbeb; /* Solid yellow background instead of transparent */
+  background: #fffbeb;
   border-color: #f59e0b;
   color: #92400e;
 }
@@ -2331,12 +2329,12 @@ export default {
   color: #dc2626;
 }
 
-/* Also update the cannot-create-warning and has-so-info styles for consistency */
+/* FIXED: Warning and info styles */
 .cannot-create-warning {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: #fffbeb; /* Solid yellow background */
+  background: #fffbeb;
   color: #92400e;
   padding: 0.75rem 1rem;
   border-radius: 6px;
@@ -2350,7 +2348,7 @@ export default {
   display: flex;
   align-items: center;
   gap: 1rem;
-  background: #ecfdf5; /* Solid green background */
+  background: #ecfdf5;
   color: #065f46;
   padding: 0.75rem 1rem;
   border-radius: 6px;
@@ -2418,7 +2416,7 @@ export default {
   font-weight: 500;
 }
 
-/* Validation Section Styles */
+/* FIXED: Validation Section Styles */
 .validation-section {
   margin-bottom: 1.5rem;
   border: 1px solid var(--border-color);
@@ -2452,6 +2450,30 @@ export default {
   background: #fef3c7;
   color: #92400e;
   border-bottom: 1px solid #f59e0b;
+}
+
+/* NEW: Validation info boxes */
+.validation-info-box {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 1rem;
+  padding: 0.75rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.validation-info-box.success {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #10b981;
+}
+
+.validation-info-box.danger {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #ef4444;
 }
 
 .missing-items-list, .existing-items-list, .fuzzy-matches-list {
@@ -2506,6 +2528,11 @@ export default {
   color: var(--text-muted);
 }
 
+.item-code-detail {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
 .item-match-info {
   display: flex;
   justify-content: space-between;
@@ -2548,7 +2575,7 @@ export default {
 }
 
 .validation-warning {
-  background: #fffbeb; /* Solid yellow background */
+  background: #fffbeb;
   border: 1px solid #f59e0b;
   border-radius: 6px;
   padding: 1rem;
@@ -2697,83 +2724,108 @@ export default {
   color: #f59e0b;
 }
 
+/* Processing Info Styles */
+.processing-info {
+  min-width: 120px;
+}
+
+.processing-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .pdf-order-capture {
     padding: 1rem;
   }
-
+  
   .header-content {
     flex-direction: column;
     gap: 1rem;
   }
-
+  
   .header-actions {
     align-self: stretch;
   }
-
+  
   .stats-grid {
     grid-template-columns: 1fr;
   }
-
+  
   .search-filters {
     flex-direction: column;
     align-items: stretch;
   }
-
+  
   .filter-group {
     min-width: auto;
   }
-
+  
   .pagination-container {
     flex-direction: column;
     gap: 1rem;
     align-items: stretch;
   }
-
+  
   .table-header {
     flex-direction: column;
     gap: 1rem;
     align-items: stretch;
   }
-
+  
   .custom-table {
     font-size: 0.8rem;
   }
-
+  
   .custom-table th,
   .custom-table td {
     padding: 0.5rem;
   }
-
+  
   .action-buttons {
     flex-direction: column;
   }
-
+  
   .option-row {
     grid-template-columns: 1fr;
   }
-
+  
   .modal-overlay {
     padding: 1rem;
   }
-
+  
   .modal-content {
     max-height: 95vh;
   }
-
+  
   .info-grid {
     grid-template-columns: 1fr;
   }
-
+  
   .modal-footer {
     flex-direction: column;
     align-items: stretch;
   }
-
+  
   .cannot-create-warning,
   .has-so-info {
     min-width: auto;
   }
+}
+
+/* CSS Variables for theming */
+:root {
+  --card-bg: #ffffff;
+  --bg-secondary: #f8fafc;
+  --border-color: #e2e8f0;
+  --text-primary: #1e293b;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --primary-color: #3b82f6;
+  --gray-100: #f1f5f9;
+  --gray-400: #94a3b8;
+  --gray-600: #475569;
 }
 </style>

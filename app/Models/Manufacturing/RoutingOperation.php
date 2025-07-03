@@ -22,6 +22,8 @@ class RoutingOperation extends Model
         'routing_id',
         'workcenter_id',
         'operation_name',
+        'work_flow',
+        'models',
         'sequence',
         'setup_time',
         'run_time',
@@ -29,6 +31,16 @@ class RoutingOperation extends Model
         'labor_cost',
         'overhead_cost',
     ];
+
+    protected $appends = ['total_time'];
+
+    /**
+     * Get the total time (setup_time + run_time).
+     */
+    public function getTotalTimeAttribute()
+    {
+        return $this->setup_time + $this->run_time;
+    }
 
     /**
      * Get the routing that owns the routing operation.

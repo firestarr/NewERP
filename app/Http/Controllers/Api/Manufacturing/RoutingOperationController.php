@@ -20,16 +20,16 @@ class RoutingOperationController extends Controller
     public function index($routingId)
     {
         $routing = Routing::find($routingId);
-        
+
         if (!$routing) {
             return response()->json(['message' => 'Routing not found'], 404);
         }
-        
+
         $operations = RoutingOperation::with(['workCenter', 'unitOfMeasure'])
             ->where('routing_id', $routingId)
             ->orderBy('sequence')
             ->get();
-            
+
         return response()->json(['data' => $operations]);
     }
 
@@ -43,7 +43,7 @@ class RoutingOperationController extends Controller
     public function store(Request $request, $routingId)
     {
         $routing = Routing::find($routingId);
-        
+
         if (!$routing) {
             return response()->json(['message' => 'Routing not found'], 404);
         }
@@ -51,6 +51,8 @@ class RoutingOperationController extends Controller
         $validator = Validator::make($request->all(), [
             'workcenter_id' => 'required|integer|exists:work_centers,workcenter_id',
             'operation_name' => 'required|string|max:100',
+            'work_flow' => 'nullable|string|max:100',
+            'models' => 'nullable|string|max:100',
             'sequence' => 'required|integer',
             'setup_time' => 'required|numeric',
             'run_time' => 'required|numeric',
@@ -67,6 +69,8 @@ class RoutingOperationController extends Controller
         $operation->routing_id = $routingId;
         $operation->workcenter_id = $request->workcenter_id;
         $operation->operation_name = $request->operation_name;
+        $operation->work_flow = $request->work_flow;
+        $operation->models = $request->models;
         $operation->sequence = $request->sequence;
         $operation->setup_time = $request->setup_time;
         $operation->run_time = $request->run_time;
@@ -76,7 +80,7 @@ class RoutingOperationController extends Controller
         $operation->save();
 
         return response()->json([
-            'data' => $operation->load(['workCenter', 'unitOfMeasure']), 
+            'data' => $operation->load(['workCenter', 'unitOfMeasure']),
             'message' => 'Operation created successfully'
         ], 201);
     }
@@ -85,20 +89,26 @@ class RoutingOperationController extends Controller
      * Display the specified resource.
      *
      * @param  int  $routingId
-     * @param  int  $id
+     * @param  int  $operationId
      * @return \Illuminate\Http\Response
      */
-    public function show($routingId, $id)
+    public function show($routingId, $operationId)
     {
+        $routing = Routing::find($routingId);
+
+        if (!$routing) {
+            return response()->json(['message' => 'Routing not found'], 404);
+        }
+
         $operation = RoutingOperation::with(['workCenter', 'unitOfMeasure'])
             ->where('routing_id', $routingId)
-            ->where('operation_id', $id)
+            ->where('operation_id', $operationId)
             ->first();
-        
+
         if (!$operation) {
             return response()->json(['message' => 'Operation not found'], 404);
         }
-        
+
         return response()->json(['data' => $operation]);
     }
 
@@ -107,38 +117,56 @@ class RoutingOperationController extends Controller
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  int  $routingId
-     * @param  int  $id
+     * @param  int  $operationId
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, $routingId, $id)
+    public function update(Request $request, $routingId, $operationId)
     {
+        $routing = Routing::find($routingId);
+
+        if (!$routing) {
+            return response()->json(['message' => 'Routing not found'], 404);
+        }
+
         $operation = RoutingOperation::where('routing_id', $routingId)
-            ->where('operation_id', $id)
+            ->where('operation_id', $operationId)
             ->first();
-        
+
         if (!$operation) {
             return response()->json(['message' => 'Operation not found'], 404);
         }
 
         $validator = Validator::make($request->all(), [
-            'workcenter_id' => 'sometimes|required|integer|exists:work_centers,workcenter_id',
-            'operation_name' => 'sometimes|required|string|max:100',
-            'sequence' => 'sometimes|required|integer',
-            'setup_time' => 'sometimes|required|numeric',
-            'run_time' => 'sometimes|required|numeric',
-            'uom_id' => 'sometimes|required|integer|exists:unit_of_measures,uom_id',
-            'labor_cost' => 'sometimes|required|numeric',
-            'overhead_cost' => 'sometimes|required|numeric',
+            'workcenter_id' => 'required|integer|exists:work_centers,workcenter_id',
+            'operation_name' => 'required|string|max:100',
+            'work_flow' => 'nullable|string|max:100',
+            'models' => 'nullable|string|max:100',
+            'sequence' => 'required|integer',
+            'setup_time' => 'required|numeric',
+            'run_time' => 'required|numeric',
+            'uom_id' => 'required|integer|exists:unit_of_measures,uom_id',
+            'labor_cost' => 'required|numeric',
+            'overhead_cost' => 'required|numeric',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $operation->update($request->all());
-        
+        $operation->workcenter_id = $request->workcenter_id;
+        $operation->operation_name = $request->operation_name;
+        $operation->work_flow = $request->work_flow;
+        $operation->models = $request->models;
+        $operation->sequence = $request->sequence;
+        $operation->setup_time = $request->setup_time;
+        $operation->run_time = $request->run_time;
+        $operation->uom_id = $request->uom_id;
+        $operation->labor_cost = $request->labor_cost;
+        $operation->overhead_cost = $request->overhead_cost;
+        $operation->save();
+
         return response()->json([
-            'data' => $operation->load(['workCenter', 'unitOfMeasure']), 
+            'data' => $operation->load(['workCenter', 'unitOfMeasure']),
             'message' => 'Operation updated successfully'
         ]);
     }
@@ -147,26 +175,27 @@ class RoutingOperationController extends Controller
      * Remove the specified resource from storage.
      *
      * @param  int  $routingId
-     * @param  int  $id
+     * @param  int  $operationId
      * @return \Illuminate\Http\Response
      */
-    public function destroy($routingId, $id)
+    public function destroy($routingId, $operationId)
     {
+        $routing = Routing::find($routingId);
+
+        if (!$routing) {
+            return response()->json(['message' => 'Routing not found'], 404);
+        }
+
         $operation = RoutingOperation::where('routing_id', $routingId)
-            ->where('operation_id', $id)
+            ->where('operation_id', $operationId)
             ->first();
-        
+
         if (!$operation) {
             return response()->json(['message' => 'Operation not found'], 404);
         }
 
-        // Check if operation is being used in Work Order Operations
-        if ($operation->workOrderOperations()->count() > 0) {
-            return response()->json(['message' => 'Cannot delete operation. It is being used in Work Order Operations.'], 400);
-        }
-
         $operation->delete();
-        
+
         return response()->json(['message' => 'Operation deleted successfully']);
     }
 }

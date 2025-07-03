@@ -79,6 +79,18 @@
             <span v-if="errors.description" class="error-message">{{ errors.description }}</span>
           </div>
 
+          <!-- Add HS Code input field -->
+          <div class="form-group">
+            <label for="hscode">HS Code</label>
+            <input
+              type="text"
+              id="hscode"
+              v-model="form.hscode"
+              :class="{ 'is-invalid': errors.hscode }"
+            />
+            <span v-if="errors.hscode" class="error-message">{{ errors.hscode }}</span>
+          </div>
+
           <!-- Physical Properties Section -->
           <div class="form-section">
             <h3 class="section-title">Physical Properties</h3>
@@ -313,6 +325,7 @@ export default {
       width: props.itemForm.width || '',
       thickness: props.itemForm.thickness || '',
       weight: props.itemForm.weight || '',
+      hscode: props.itemForm.hscode || '',
       is_purchasable: props.itemForm.is_purchasable === true || props.itemForm.is_purchasable === 'true',
       is_sellable: props.itemForm.is_sellable === true || props.itemForm.is_sellable === 'true',
       cost_price: props.itemForm.cost_price || 0,
@@ -333,6 +346,7 @@ export default {
         width: newForm.width || '',
         thickness: newForm.thickness || '',
         weight: newForm.weight || '',
+        hscode: newForm.hscode || '',
         is_purchasable: newForm.is_purchasable === true || newForm.is_purchasable === 'true',
         is_sellable: newForm.is_sellable === true || newForm.is_sellable === 'true',
         cost_price: newForm.cost_price || 0,
@@ -446,7 +460,7 @@ export default {
     };
   }
 };
-</script>
+  </script>
 
 <style scoped>
 .modal {

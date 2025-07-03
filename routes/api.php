@@ -113,6 +113,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{id}/document', 'App\Http\Controllers\Api\Inventory\ItemController@downloadDocument');
         // Update default prices
         Route::put('/{itemId}/default-prices', 'App\Http\Controllers\Api\Inventory\ItemPriceController@updateDefaultPrices');
+        Route::get('/{id}/used-in-finished-goods', [ItemController::class, 'getUsedInFinishedGoods']);
     });
 
     // // Item Routes
@@ -633,6 +634,29 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/material-planning/work-orders/period', [MaterialPlanningController::class, 'generateWorkOrdersByPeriod']);
     Route::post('/material-planning/purchase-requisition/period', [MaterialPlanningController::class, 'generatePurchaseRequisitionsByPeriod']);
 
+    //MaterialPlanningMultyBOM
+    Route::prefix('material-planning')->group(function () {
+        // Basic CRUD
+        Route::get('/', [MaterialPlanningController::class, 'index']);
+        Route::get('/{id}', [MaterialPlanningController::class, 'show']);
+        Route::delete('/{id}', [MaterialPlanningController::class, 'destroy']);
+
+        // Core planning functions
+        Route::post('/generate', [MaterialPlanningController::class, 'generateMaterialPlans']);
+        Route::post('/calculate-max-production', [MaterialPlanningController::class, 'calculateMaximumProduction']);
+
+        // BOM Analysis (NEW)
+        Route::post('/bom-explosion', [MaterialPlanningController::class, 'getBOMExplosion']);
+
+        // Purchase Requisition Generation
+        Route::post('/generate-pr', [MaterialPlanningController::class, 'generatePurchaseRequisitions']);
+        Route::post('/generate-pr-by-period', [MaterialPlanningController::class, 'generatePurchaseRequisitionsByPeriod']);
+
+        // Work Order Generation
+        Route::post('/generate-wo', [MaterialPlanningController::class, 'generateWorkOrders']);
+        Route::post('/generate-wo-by-period', [MaterialPlanningController::class, 'generateWorkOrdersByPeriod']);
+    });
+
 
     Route::get('items/{id}/prices-in-currencies', 'App\Http\Controllers\Api\Inventory\ItemController@getPricesInCurrencies');
     Route::get('customers/{id}/transactions-in-currency', 'App\Http\Controllers\Api\Sales\CustomerController@getTransactionsInCurrency');
@@ -709,10 +733,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('currency-rates/current-rate', [App\Http\Controllers\Api\CurrencyRateController::class, 'getCurrentRate']);
     });
 
-    // PDF Order Capture RoutesAdd commentMore actions
+    // PDF Order Capture Routes (FIXED - Exact Match Only for Items)
     Route::prefix('pdf-order-capture')->group(function () {
-        // Main processing endpoint
+        // Main processing endpoint (ONLY EXTRACTS DATA - NO SO CREATION)
         Route::post('/', [App\Http\Controllers\Api\PdfOrderCaptureController::class, 'processPdf']);
+
+        // FIXED: Create Sales Order from extracted data (separate step, exact match required)
+        Route::post('/{id}/create-sales-order', [App\Http\Controllers\Api\PdfOrderCaptureController::class, 'createSalesOrderFromCapture']);
 
         // History and listing
         Route::get('/', [App\Http\Controllers\Api\PdfOrderCaptureController::class, 'index']);
@@ -725,14 +752,8 @@ Route::middleware('auth:sanctum')->group(function () {
         // File operations
         Route::get('/{id}/download', [App\Http\Controllers\Api\PdfOrderCaptureController::class, 'downloadFile']);
 
-        // Preview without processing
-        Route::post('/preview', [App\Http\Controllers\Api\PdfOrderCaptureController::class, 'previewExtraction']);
-
-        // Debug endpoints
-        Route::post('/debug/text-extraction', [App\Http\Controllers\Api\PdfOrderCaptureController::class, 'debugTextExtraction']);
-        Route::get('/debug/database-status', [App\Http\Controllers\Api\PdfOrderCaptureController::class, 'debugDatabaseStatus']);
-        Route::get('/debug/system-requirements', [App\Http\Controllers\Api\PdfOrderCaptureController::class, 'debugSystemRequirements']);
-        Route::post('/debug/customer-matching', [App\Http\Controllers\Api\PdfOrderCaptureController::class, 'debugCustomerMatching']);
+        // FIXED: Enhanced reprocessing with exact match validation
+        Route::post('/{id}/reprocess-with-validation', [App\Http\Controllers\Api\PdfOrderCaptureController::class, 'reprocessWithValidation']);
 
         // Bulk operations
         Route::post('/bulk/retry', [App\Http\Controllers\Api\PdfOrderCaptureController::class, 'bulkRetry']);

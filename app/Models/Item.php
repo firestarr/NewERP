@@ -20,7 +20,7 @@ class Item extends Model
 
     protected $table = 'items';
     protected $primaryKey = 'item_id';
-    
+
     protected $fillable = [
         'item_code',
         'name',
@@ -41,6 +41,7 @@ class Item extends Model
         'thickness',
         'weight',
         'document_path',
+        'hscode',
     ];
 
     protected $casts = [
@@ -112,7 +113,7 @@ class Item extends Model
     public function purchasePrices()
     {
         return $this->hasMany(ItemPrice::class, 'item_id', 'item_id')
-                    ->where('price_type', 'purchase');
+            ->where('price_type', 'purchase');
     }
 
     /**
@@ -121,7 +122,7 @@ class Item extends Model
     public function salePrices()
     {
         return $this->hasMany(ItemPrice::class, 'item_id', 'item_id')
-                    ->where('price_type', 'sale');
+            ->where('price_type', 'sale');
     }
 
     /**
@@ -190,12 +191,12 @@ class Item extends Model
     public function syncCurrentStock()
     {
         $calculatedStock = $this->calculated_current_stock;
-        
+
         if (abs($this->current_stock - $calculatedStock) > 0.01) {
             $oldStock = $this->current_stock;
             $this->current_stock = $calculatedStock;
             $this->save();
-            
+
             return [
                 'synced' => true,
                 'old_stock' => $oldStock,
@@ -203,7 +204,7 @@ class Item extends Model
                 'variance_fixed' => $calculatedStock - $oldStock
             ];
         }
-        
+
         return ['synced' => false, 'reason' => 'Already in sync'];
     }
 
@@ -231,7 +232,7 @@ class Item extends Model
         return $this->stocks()
             ->with('warehouse')
             ->get()
-            ->map(function($stock) {
+            ->map(function ($stock) {
                 return [
                     'warehouse_id' => $stock->warehouse_id,
                     'warehouse_name' => $stock->warehouse->name ?? 'Unknown',
@@ -265,11 +266,11 @@ class Item extends Model
     public function hasEnoughStockAtWarehouse($warehouseId, $quantity)
     {
         $stock = $this->getStockAtWarehouse($warehouseId);
-        
+
         if (!$stock) {
             return false;
         }
-        
+
         return $stock->quantity >= $quantity;
     }
 
@@ -282,11 +283,11 @@ class Item extends Model
     public function getAvailableQuantityAtWarehouse($warehouseId)
     {
         $stock = $this->getStockAtWarehouse($warehouseId);
-        
+
         if (!$stock) {
             return 0;
         }
-        
+
         return $stock->quantity - $stock->reserved_quantity;
     }
 
@@ -322,7 +323,7 @@ class Item extends Model
         $stock = $this->stocks()
             ->where('warehouse_id', $warehouseId)
             ->first();
-            
+
         return $stock ? $stock->quantity : 0;
     }
 
@@ -333,7 +334,7 @@ class Item extends Model
     public function getStockStatusAttribute()
     {
         $currentStock = $this->calculated_current_stock; // Use calculated instead of DB value
-        
+
         if ($currentStock <= 0) {
             return 'out_of_stock';
         } elseif ($this->minimum_stock !== null && $currentStock <= $this->minimum_stock) {
@@ -351,7 +352,7 @@ class Item extends Model
     public function getStockStatusTextAttribute()
     {
         $status = $this->stock_status;
-        
+
         return [
             'out_of_stock' => 'Out of Stock',
             'low_stock' => 'Low Stock',
@@ -366,10 +367,10 @@ class Item extends Model
     public function getStockStatusColorAttribute()
     {
         $status = $this->stock_status;
-        
+
         return [
             'out_of_stock' => 'danger',
-            'low_stock' => 'warning', 
+            'low_stock' => 'warning',
             'overstock' => 'info',
             'in_stock' => 'success'
         ][$status] ?? 'secondary';
@@ -385,7 +386,7 @@ class Item extends Model
         $items = self::all();
         $syncedCount = 0;
         $results = [];
-        
+
         foreach ($items as $item) {
             $result = $item->syncCurrentStock();
             if ($result['synced']) {
@@ -399,7 +400,7 @@ class Item extends Model
                 ];
             }
         }
-        
+
         return [
             'total_items_processed' => $items->count(),
             'items_synced' => $syncedCount,
@@ -413,7 +414,7 @@ class Item extends Model
      */
     public static function getItemsNeedingSync()
     {
-        return self::all()->filter(function($item) {
+        return self::all()->filter(function ($item) {
             return $item->needs_sync;
         });
     }
@@ -424,10 +425,10 @@ class Item extends Model
     public static function getStockDiscrepancies()
     {
         return self::all()
-            ->filter(function($item) {
+            ->filter(function ($item) {
                 return $item->needs_sync;
             })
-            ->map(function($item) {
+            ->map(function ($item) {
                 return [
                     'item_id' => $item->item_id,
                     'item_code' => $item->item_code,
@@ -447,10 +448,10 @@ class Item extends Model
      */
     public function scopeLowStock($query)
     {
-        return $query->whereHas('stocks', function($q) {
+        return $query->whereHas('stocks', function ($q) {
             $q->selectRaw('item_id, SUM(quantity) as total_stock')
-              ->groupBy('item_id')
-              ->havingRaw('SUM(quantity) <= items.minimum_stock');
+                ->groupBy('item_id')
+                ->havingRaw('SUM(quantity) <= items.minimum_stock');
         });
     }
 
@@ -459,7 +460,7 @@ class Item extends Model
      */
     public function scopeOutOfStock($query)
     {
-        return $query->whereDoesntHave('stocks', function($q) {
+        return $query->whereDoesntHave('stocks', function ($q) {
             $q->where('quantity', '>', 0);
         });
     }
@@ -469,10 +470,10 @@ class Item extends Model
      */
     public function scopeNeedsSync($query)
     {
-        return $query->whereHas('stocks', function($q) {
+        return $query->whereHas('stocks', function ($q) {
             $q->selectRaw('item_id, SUM(quantity) as calculated_stock')
-              ->groupBy('item_id')
-              ->havingRaw('ABS(SUM(quantity) - items.current_stock) > 0.01');
+                ->groupBy('item_id')
+                ->havingRaw('ABS(SUM(quantity) - items.current_stock) > 0.01');
         });
     }
 
@@ -481,9 +482,9 @@ class Item extends Model
      */
     public function scopeInWarehouse($query, $warehouseId)
     {
-        return $query->whereHas('stocks', function($q) use ($warehouseId) {
+        return $query->whereHas('stocks', function ($q) use ($warehouseId) {
             $q->where('warehouse_id', $warehouseId)
-              ->where('quantity', '>', 0);
+                ->where('quantity', '>', 0);
         });
     }
 
@@ -512,14 +513,14 @@ class Item extends Model
     public function getStockTurnoverRatio($periodDays = 365)
     {
         $periodStart = now()->subDays($periodDays);
-        
+
         $soldQuantity = $this->stockTransactions()
             ->where('transaction_type', 'sale')
             ->where('transaction_date', '>=', $periodStart)
             ->sum('quantity');
-            
+
         $averageStock = $this->calculated_current_stock; // Simplified - could be more complex
-        
+
         return $averageStock > 0 ? ($soldQuantity / $averageStock) : 0;
     }
 
@@ -527,7 +528,7 @@ class Item extends Model
 
     /**
      * Get default purchase price for this item in specific currency.
-     * 
+     *
      * @param string $currencyCode
      * @param string|null $date
      * @return float
@@ -538,21 +539,21 @@ class Item extends Model
         if ($this->cost_price_currency === $currencyCode) {
             return $this->cost_price;
         }
-        
+
         // Get exchange rate
         $rate = CurrencyRate::getCurrentRate($this->cost_price_currency, $currencyCode, $date);
-        
+
         if (!$rate) {
             // Return original price if no rate available
             return $this->cost_price;
         }
-        
+
         return $this->cost_price * $rate;
     }
-    
+
     /**
      * Get default sale price for this item in specific currency.
-     * 
+     *
      * @param string $currencyCode
      * @param string|null $date
      * @return float
@@ -563,21 +564,21 @@ class Item extends Model
         if ($this->sale_price_currency === $currencyCode) {
             return $this->sale_price;
         }
-        
+
         // Get exchange rate
         $rate = CurrencyRate::getCurrentRate($this->sale_price_currency, $currencyCode, $date);
-        
+
         if (!$rate) {
             // Return original price if no rate available
             return $this->sale_price;
         }
-        
+
         return $this->sale_price * $rate;
     }
-    
+
     /**
      * Get the best purchase price for a specific vendor and quantity in specified currency.
-     * 
+     *
      * @param int|null $vendorId
      * @param float $quantity
      * @param string $currencyCode
@@ -588,7 +589,7 @@ class Item extends Model
     {
         $currencyCode = $currencyCode ?? config('app.base_currency', 'USD');
         $date = $date ?? now()->format('Y-m-d');
-        
+
         // First try to find a vendor-specific price for the given quantity in requested currency
         if ($vendorId) {
             $vendorPrice = $this->purchasePrices()
@@ -599,11 +600,11 @@ class Item extends Model
                 ->orderBy('price', 'asc')
                 ->orderBy('min_quantity', 'desc')
                 ->first();
-                
+
             if ($vendorPrice) {
                 return $vendorPrice->price;
             }
-            
+
             // Try to find vendor-specific price in any currency and convert
             $anyVendorPrice = $this->purchasePrices()
                 ->active()
@@ -612,12 +613,12 @@ class Item extends Model
                 ->orderBy('price', 'asc')
                 ->orderBy('min_quantity', 'desc')
                 ->first();
-                
+
             if ($anyVendorPrice) {
                 return $anyVendorPrice->getPriceInCurrency($currencyCode, $date);
             }
         }
-        
+
         // Next try to find a general purchase price in requested currency
         $generalPrice = $this->purchasePrices()
             ->active()
@@ -627,11 +628,11 @@ class Item extends Model
             ->orderBy('price', 'asc')
             ->orderBy('min_quantity', 'desc')
             ->first();
-            
+
         if ($generalPrice) {
             return $generalPrice->price;
         }
-        
+
         // Try to find any general price and convert
         $anyGeneralPrice = $this->purchasePrices()
             ->active()
@@ -640,18 +641,18 @@ class Item extends Model
             ->orderBy('price', 'asc')
             ->orderBy('min_quantity', 'desc')
             ->first();
-            
+
         if ($anyGeneralPrice) {
             return $anyGeneralPrice->getPriceInCurrency($currencyCode, $date);
         }
-        
+
         // If no price found, return the default cost price in requested currency
         return $this->getDefaultPurchasePriceInCurrency($currencyCode, $date);
     }
-    
+
     /**
      * Get the best sale price for a specific customer and quantity in specified currency.
-     * 
+     *
      * @param int|null $customerId
      * @param float $quantity
      * @param string $currencyCode
@@ -662,7 +663,7 @@ class Item extends Model
     {
         $currencyCode = $currencyCode ?? config('app.base_currency', 'USD');
         $date = $date ?? now()->format('Y-m-d');
-        
+
         // First try to find a customer-specific price for the given quantity in requested currency
         if ($customerId) {
             $customerPrice = $this->salePrices()
@@ -673,11 +674,11 @@ class Item extends Model
                 ->orderBy('price', 'asc')
                 ->orderBy('min_quantity', 'desc')
                 ->first();
-                
+
             if ($customerPrice) {
                 return $customerPrice->price;
             }
-            
+
             // Try to find customer-specific price in any currency and convert
             $anyCustomerPrice = $this->salePrices()
                 ->active()
@@ -686,12 +687,12 @@ class Item extends Model
                 ->orderBy('price', 'asc')
                 ->orderBy('min_quantity', 'desc')
                 ->first();
-                
+
             if ($anyCustomerPrice) {
                 return $anyCustomerPrice->getPriceInCurrency($currencyCode, $date);
             }
         }
-        
+
         // Next try to find a general sale price in requested currency
         $generalPrice = $this->salePrices()
             ->active()
@@ -701,11 +702,11 @@ class Item extends Model
             ->orderBy('price', 'asc')
             ->orderBy('min_quantity', 'desc')
             ->first();
-            
+
         if ($generalPrice) {
             return $generalPrice->price;
         }
-        
+
         // Try to find any general price and convert
         $anyGeneralPrice = $this->salePrices()
             ->active()
@@ -714,11 +715,11 @@ class Item extends Model
             ->orderBy('price', 'asc')
             ->orderBy('min_quantity', 'desc')
             ->first();
-            
+
         if ($anyGeneralPrice) {
             return $anyGeneralPrice->getPriceInCurrency($currencyCode, $date);
         }
-        
+
         // If no price found, return the default sale price in requested currency
         return $this->getDefaultSalePriceInCurrency($currencyCode, $date);
     }
@@ -759,14 +760,14 @@ class Item extends Model
     public function toArray()
     {
         $array = parent::toArray();
-        
+
         // Always include the real current stock information
         $array['real_current_stock'] = $this->calculated_current_stock;
         $array['stock_variance'] = $this->stock_variance;
         $array['needs_sync'] = $this->needs_sync;
         $array['stock_status_text'] = $this->stock_status_text;
         $array['stock_status_color'] = $this->stock_status_color;
-        
+
         return $array;
     }
 
@@ -800,10 +801,10 @@ class Item extends Model
         if ($this->quantity < $quantity) {
             return false;
         }
-        
+
         $this->quantity -= $quantity;
         $this->save(); // Will trigger model events for auto-sync
-        
+
         return true;
     }
 

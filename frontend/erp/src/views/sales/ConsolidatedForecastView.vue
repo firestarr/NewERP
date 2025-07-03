@@ -24,39 +24,93 @@
             <div class="col-md-3">
               <div class="form-group">
                 <label class="form-label">Customer</label>
-                <select
-                  class="form-control"
-                  v-model="filters.customerId"
-                  @change="loadConsolidatedForecast"
-                >
-                  <option value="">All Customers</option>
-                  <option
-                    v-for="customer in customers"
-                    :key="customer.customer_id"
-                    :value="customer.customer_id"
-                  >
-                    {{ customer.name }}
-                  </option>
-                </select>
+                <div class="dropdown">
+                  <input
+                    type="text"
+                    class="form-control"
+                    v-model="customerSearch"
+                    placeholder="All Customers (type to search...)"
+                    @focus="showCustomerDropdown = true"
+                    @blur="hideCustomerDropdown"
+                    @input="onCustomerSearchInput"
+                  />
+                  <div v-if="showCustomerDropdown" class="dropdown-menu">
+                    <div
+                      class="dropdown-item"
+                      @mousedown="selectCustomer(null)"
+                      :class="{ 'active': !filters.customerId }"
+                    >
+                      <div class="item-info">
+                        <strong>All Customers</strong>
+                      </div>
+                    </div>
+                    <div
+                      v-for="customer in filteredCustomers"
+                      :key="customer.customer_id"
+                      @mousedown="selectCustomer(customer)"
+                      class="dropdown-item"
+                      :class="{ 'active': filters.customerId === customer.customer_id }"
+                    >
+                      <div class="item-info">
+                        <strong>{{ customer.name }}</strong>
+                        <span class="item-code" v-if="customer.customer_code">({{ customer.customer_code }})</span>
+                      </div>
+                      <div class="item-details" v-if="customer.email || customer.phone">
+                        <span class="category" v-if="customer.email">{{ customer.email }}</span>
+                        <span class="stock" v-if="customer.phone">{{ customer.phone }}</span>
+                      </div>
+                    </div>
+                    <div v-if="filteredCustomers.length === 0 && customerSearch.trim()" class="dropdown-item text-muted">
+                      No customers found
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="col-md-3">
               <div class="form-group">
                 <label class="form-label">Item</label>
-                <select
-                  class="form-control"
-                  v-model="filters.itemId"
-                  @change="loadConsolidatedForecast"
-                >
-                  <option value="">All Items</option>
-                  <option
-                    v-for="item in items"
-                    :key="item.item_id"
-                    :value="item.item_id"
-                  >
-                    {{ item.item_code }} - {{ item.name }}
-                  </option>
-                </select>
+                <div class="dropdown">
+                  <input
+                    type="text"
+                    class="form-control"
+                    v-model="itemSearch"
+                    placeholder="All Items (type to search...)"
+                    @focus="showItemDropdown = true"
+                    @blur="hideItemDropdown"
+                    @input="onItemSearchInput"
+                  />
+                  <div v-if="showItemDropdown" class="dropdown-menu">
+                    <div
+                      class="dropdown-item"
+                      @mousedown="selectItem(null)"
+                      :class="{ 'active': !filters.itemId }"
+                    >
+                      <div class="item-info">
+                        <strong>All Items</strong>
+                      </div>
+                    </div>
+                    <div
+                      v-for="item in filteredItems"
+                      :key="item.item_id"
+                      @mousedown="selectItem(item)"
+                      class="dropdown-item"
+                      :class="{ 'active': filters.itemId === item.item_id }"
+                    >
+                      <div class="item-info">
+                        <strong>{{ item.name }}</strong>
+                        <span class="item-code">({{ item.item_code }})</span>
+                      </div>
+                      <div class="item-details">
+                        <span class="category">{{ item.category ? item.category.name : 'No Category' }}</span>
+                        <span class="stock">Stock: {{ item.current_stock || 0 }}</span>
+                      </div>
+                    </div>
+                    <div v-if="filteredItems.length === 0 && itemSearch.trim()" class="dropdown-item text-muted">
+                      No items found
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="col-md-3">
@@ -189,8 +243,37 @@ export default {
         customerId: '',
         itemId: '',
         issueDate: ''
-      }
+      },
+      // New properties for searchable dropdowns
+      itemSearch: '',
+      showItemDropdown: false,
+      selectedItemName: '',
+      customerSearch: '',
+      showCustomerDropdown: false,
+      selectedCustomerName: ''
     };
+  },
+  computed: {
+    // Filter items based on search input
+    filteredItems() {
+      if (!this.itemSearch.trim()) {
+        return this.items.slice(0, 10); // Show first 10 items when no search
+      }
+      return this.items.filter(item =>
+        item.name.toLowerCase().includes(this.itemSearch.toLowerCase()) ||
+        item.item_code.toLowerCase().includes(this.itemSearch.toLowerCase())
+      ).slice(0, 10); // Limit to 10 results
+    },
+    // Filter customers based on search input
+    filteredCustomers() {
+      if (!this.customerSearch.trim()) {
+        return this.customers.slice(0, 10); // Show first 10 customers when no search
+      }
+      return this.customers.filter(customer =>
+        customer.name.toLowerCase().includes(this.customerSearch.toLowerCase()) ||
+        (customer.customer_code && customer.customer_code.toLowerCase().includes(this.customerSearch.toLowerCase()))
+      ).slice(0, 10); // Limit to 10 results
+    }
   },
   created() {
     this.fetchCustomers();
@@ -220,6 +303,78 @@ export default {
         this.items = response.data.data || [];
       } catch (error) {
         console.error('Error fetching items:', error);
+      }
+    },
+    // New methods for searchable item dropdown
+    selectItem(item) {
+      if (item === null) {
+        // Select "All Items"
+        this.filters.itemId = '';
+        this.itemSearch = '';
+        this.selectedItemName = '';
+      } else {
+        // Select specific item
+        this.filters.itemId = item.item_id;
+        this.itemSearch = `${item.name} (${item.item_code})`;
+        this.selectedItemName = this.itemSearch;
+      }
+      this.showItemDropdown = false;
+      this.loadConsolidatedForecast();
+    },
+    hideItemDropdown() {
+      setTimeout(() => {
+        this.showItemDropdown = false;
+        // Reset search if no item was selected and we have a selected item
+        if (this.selectedItemName && this.itemSearch !== this.selectedItemName) {
+          this.itemSearch = this.selectedItemName;
+        } else if (!this.filters.itemId && this.itemSearch) {
+          // If no item is selected but there's search text, clear it
+          this.itemSearch = '';
+        }
+      }, 200);
+    },
+    onItemSearchInput() {
+      // If user clears the search, reset the filter
+      if (!this.itemSearch.trim()) {
+        this.filters.itemId = '';
+        this.selectedItemName = '';
+        this.loadConsolidatedForecast();
+      }
+    },
+    // New methods for searchable customer dropdown
+    selectCustomer(customer) {
+      if (customer === null) {
+        // Select "All Customers"
+        this.filters.customerId = '';
+        this.customerSearch = '';
+        this.selectedCustomerName = '';
+      } else {
+        // Select specific customer
+        this.filters.customerId = customer.customer_id;
+        this.customerSearch = customer.name;
+        this.selectedCustomerName = this.customerSearch;
+      }
+      this.showCustomerDropdown = false;
+      this.loadConsolidatedForecast();
+    },
+    hideCustomerDropdown() {
+      setTimeout(() => {
+        this.showCustomerDropdown = false;
+        // Reset search if no customer was selected and we have a selected customer
+        if (this.selectedCustomerName && this.customerSearch !== this.selectedCustomerName) {
+          this.customerSearch = this.selectedCustomerName;
+        } else if (!this.filters.customerId && this.customerSearch) {
+          // If no customer is selected but there's search text, clear it
+          this.customerSearch = '';
+        }
+      }, 200);
+    },
+    onCustomerSearchInput() {
+      // If user clears the search, reset the filter
+      if (!this.customerSearch.trim()) {
+        this.filters.customerId = '';
+        this.selectedCustomerName = '';
+        this.loadConsolidatedForecast();
       }
     },
     async loadConsolidatedForecast() {
@@ -508,6 +663,88 @@ export default {
 /* Add space between items in expand/collapse button */
 .btn-outline-secondary i {
   margin-right: 0.25rem;
+}
+
+/* Dropdown Styles for Item and Customer Search */
+.dropdown {
+  position: relative;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #ced4da;
+  border-top: none;
+  border-radius: 0 0 5px 5px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  max-height: 250px;
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+.dropdown-item {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  border-bottom: 1px solid #f8f9fa;
+  transition: background-color 0.2s;
+}
+
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dropdown-item:hover {
+  background-color: #f8f9fa;
+}
+
+.dropdown-item.active {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.dropdown-item.text-muted {
+  color: #6c757d !important;
+  cursor: default;
+}
+
+.dropdown-item.text-muted:hover {
+  background-color: transparent;
+}
+
+.item-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.item-info strong {
+  font-weight: 600;
+  color: #495057;
+}
+
+.item-code {
+  color: #6c757d;
+  font-size: 0.8rem;
+}
+
+.item-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+}
+
+.category {
+  color: #007bff;
+  font-weight: 500;
+}
+
+.stock {
+  color: #6c757d;
 }
 
 /* Responsive adjustments */

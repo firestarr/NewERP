@@ -367,19 +367,33 @@ class AIExcelForecastController extends Controller
      */
     private function isValidMaterialCode($code)
     {
-        if (empty($code) || strlen($code) < 3) {
+        if (empty($code) || strlen(trim($code)) < 2) { // Turunkan dari 3 ke 2
             return false;
         }
 
-        // Accept various patterns:
-        // - VDH7740 (original pattern)
-        // - V-DH-7740 (with dashes)
-        // - VDH_7740 (with underscores)
-        // - vdh7740 (lowercase)
-        // - VDH7740A (with suffix letter)
-        // - 12345ABC (numeric start)
-        return preg_match('/^[A-Za-z0-9][A-Za-z0-9\-_\.]*[A-Za-z0-9]$/', $code) ||
-            preg_match('/^[A-Za-z0-9]{3,}$/', $code);
+        $code = trim($code);
+
+        // Accept common patterns found in your data:
+        // VAP4460, VAW4471, VCK5671, VDH7740, WW35140, ZA32050, ZH84680, etc.
+        $patterns = [
+            '/^[A-Z]{2,3}\d{4,5}[A-Z]?$/',           // VAP4460, ZH84680, VAW4471A
+            '/^[A-Z]{2}\d{5}$/',                     // WW35140, ZA32050
+            '/^[A-Za-z0-9][A-Za-z0-9\-_\.]*[A-Za-z0-9]$/', // General pattern with separators
+            '/^[A-Za-z0-9]{3,}$/'                    // Simple alphanumeric 3+ chars
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, strtoupper($code))) {
+                return true;
+            }
+        }
+
+        // Final fallback: if it looks like a reasonable code, accept it
+        if (preg_match('/^[A-Za-z]\w*\d+/', $code) && strlen($code) >= 3) {
+            return true;
+        }
+
+        return false;
     }
 
     /**

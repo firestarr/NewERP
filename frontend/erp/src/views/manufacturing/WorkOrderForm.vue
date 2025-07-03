@@ -330,7 +330,7 @@
             const response = await axios.get('/work-orders/next-number');
             nextWoNumber.value = response.data.next_wo_number;
           } catch (error) {
-            console.error('Error loading next work order number:', error);
+            console.error('Error loading next job order number:', error);
             nextWoNumber.value = 'J-' + new Date().getFullYear().toString().substr(-2) + '-00001';
           }
         }

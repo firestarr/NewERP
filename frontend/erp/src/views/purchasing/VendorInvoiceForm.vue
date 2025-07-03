@@ -60,18 +60,41 @@
               <div class="form-row">
                 <div class="form-group">
                   <label for="vendor_id">Vendor</label>
-                  <select
-                    id="vendor_id"
-                    v-model="selectedVendorId"
-                    required
-                    :disabled="isEditing"
-                    @change="vendorChanged"
-                  >
-                    <option value="" disabled>Select a vendor</option>
-                    <option v-for="vendor in vendors" :key="vendor.vendor_id" :value="vendor.vendor_id">
-                      {{ vendor.name }}
-                    </option>
-                  </select>
+                  <div class="dropdown">
+                    <input
+                      type="text"
+                      id="vendor_id"
+                      v-model="vendorSearch"
+                      class="form-control"
+                      :class="{ 'is-invalid': errors.vendor_id }"
+                      placeholder="Search for a vendor..."
+                      :disabled="isEditing"
+                      @focus="showVendorDropdown = true"
+                      @blur="hideVendorDropdown"
+                      autocomplete="off"
+                      required
+                    />
+                    <div v-if="showVendorDropdown && !isEditing" class="dropdown-menu">
+                      <div
+                        v-for="vendor in filteredVendors"
+                        :key="vendor.vendor_id"
+                        @mousedown="selectVendor(vendor)"
+                        class="dropdown-item"
+                      >
+                        <div class="vendor-info">
+                          <strong>{{ vendor.name }}</strong>
+                          <span class="vendor-code" v-if="vendor.vendor_code">({{ vendor.vendor_code }})</span>
+                        </div>
+                        <div class="vendor-details">
+                          <span class="email" v-if="vendor.email">{{ vendor.email }}</span>
+                          <span class="phone" v-if="vendor.phone">{{ vendor.phone }}</span>
+                        </div>
+                      </div>
+                      <div v-if="filteredVendors.length === 0" class="dropdown-item text-muted">
+                        No vendors found
+                      </div>
+                    </div>
+                  </div>
                   <span v-if="errors.vendor_id" class="error-text">{{ errors.vendor_id[0] }}</span>
                 </div>
 
@@ -303,6 +326,9 @@
         availableReceipts: [],
         selectedVendorId: '',
         selectedReceipts: [],
+        // Vendor search state
+        vendorSearch: '',
+        showVendorDropdown: false,
         form: {
           invoice_number: '',
           invoice_date: new Date().toISOString().split('T')[0],
@@ -322,76 +348,104 @@
       allReceiptsSelected() {
         return this.availableReceipts.length > 0 &&
                this.selectedReceipts.length === this.availableReceipts.length;
+      },
+      filteredVendors() {
+        if (!this.vendorSearch) {
+          return this.vendors.slice(0, 10);
+        }
+        return this.vendors.filter(vendor =>
+          vendor.name.toLowerCase().includes(this.vendorSearch.toLowerCase()) ||
+          (vendor.vendor_code && vendor.vendor_code.toLowerCase().includes(this.vendorSearch.toLowerCase())) ||
+          (vendor.email && vendor.email.toLowerCase().includes(this.vendorSearch.toLowerCase()))
+        ).slice(0, 10);
       }
     },
     async created() {
-  const invoiceId = this.$route.params.id;
-  this.isEditing = !!invoiceId;
+      const invoiceId = this.$route.params.id;
+      this.isEditing = !!invoiceId;
 
-  try {
-    // Load vendors and filter out null/undefined values
-    const vendorsResponse = await axios.get('/vendors');
-    console.log('Full vendors response:', vendorsResponse.data); // Debug log
+      try {
+        // Load vendors and filter out null/undefined values
+        const vendorsResponse = await axios.get('/vendors');
+        console.log('Full vendors response:', vendorsResponse.data); // Debug log
 
-    // Handle the nested response structure berdasarkan struktur API Anda
-    let vendorsData = [];
+        // Handle the nested response structure berdasarkan struktur API Anda
+        let vendorsData = [];
 
-    // Cek struktur response yang benar
-    if (vendorsResponse.data && vendorsResponse.data.data) {
-      if (Array.isArray(vendorsResponse.data.data.data)) {
-        // Structure: { data: { data: [...], current_page: 1, ... } }
-        vendorsData = vendorsResponse.data.data.data;
-        console.log('Using nested structure: response.data.data.data');
-      } else if (Array.isArray(vendorsResponse.data.data)) {
-        // Structure: { data: [...] }
-        vendorsData = vendorsResponse.data.data;
-        console.log('Using flat structure: response.data.data');
+        // Cek struktur response yang benar
+        if (vendorsResponse.data && vendorsResponse.data.data) {
+          if (Array.isArray(vendorsResponse.data.data.data)) {
+            // Structure: { data: { data: [...], current_page: 1, ... } }
+            vendorsData = vendorsResponse.data.data.data;
+            console.log('Using nested structure: response.data.data.data');
+          } else if (Array.isArray(vendorsResponse.data.data)) {
+            // Structure: { data: [...] }
+            vendorsData = vendorsResponse.data.data;
+            console.log('Using flat structure: response.data.data');
+          }
+        } else if (Array.isArray(vendorsResponse.data)) {
+          // Direct array response: response.data
+          vendorsData = vendorsResponse.data;
+          console.log('Using direct array: response.data');
+        }
+
+        console.log('Extracted vendors data:', vendorsData); // Debug log
+        console.log('Vendors data length:', vendorsData.length); // Debug log
+
+        // Filter dan assign ke this.vendors
+        this.vendors = vendorsData.filter(vendor => vendor != null && vendor.vendor_id);
+        console.log('Filtered vendors:', this.vendors); // Debug log
+        console.log('Final vendors count:', this.vendors.length); // Debug log
+
+        if (this.isEditing) {
+          // Load invoice data if editing
+          const invoiceResponse = await axios.get(`/vendor-invoices/${invoiceId}`);
+          const invoice = invoiceResponse.data.data.invoice;
+
+          this.form = {
+            invoice_number: invoice.invoice_number,
+            invoice_date: invoice.invoice_date,
+            due_date: invoice.due_date || '',
+            receipt_ids: invoice.goodsReceipts.map(receipt => receipt.receipt_id),
+            currency_code: invoice.currency_code || 'USD',
+            exchange_rate: invoice.exchange_rate || 1,
+            create_journal_entry: false, // Default for editing
+            ap_account_id: 'AP001',
+            expense_account_id: 'EXP001',
+            tax_account_id: 'TAX001'
+          };
+
+          this.selectedVendorId = invoice.vendor_id;
+          this.selectedReceipts = [...this.form.receipt_ids];
+
+          // Set vendor search text for editing
+          const selectedVendor = this.vendors.find(v => v.vendor_id === invoice.vendor_id);
+          if (selectedVendor) {
+            this.vendorSearch = selectedVendor.name;
+          }
+        }
+      } catch (error) {
+        console.error('Error loading initial data:', error);
+        console.error('Error details:', error.response?.data); // Additional debug info
+        // Set empty arrays as fallback
+        this.vendors = [];
+      } finally {
+        this.loading = false;
       }
-    } else if (Array.isArray(vendorsResponse.data)) {
-      // Direct array response: response.data
-      vendorsData = vendorsResponse.data;
-      console.log('Using direct array: response.data');
-    }
-
-    console.log('Extracted vendors data:', vendorsData); // Debug log
-    console.log('Vendors data length:', vendorsData.length); // Debug log
-
-    // Filter dan assign ke this.vendors
-    this.vendors = vendorsData.filter(vendor => vendor != null && vendor.vendor_id);
-    console.log('Filtered vendors:', this.vendors); // Debug log
-    console.log('Final vendors count:', this.vendors.length); // Debug log
-
-    if (this.isEditing) {
-      // Load invoice data if editing
-      const invoiceResponse = await axios.get(`/vendor-invoices/${invoiceId}`);
-      const invoice = invoiceResponse.data.data.invoice;
-
-      this.form = {
-        invoice_number: invoice.invoice_number,
-        invoice_date: invoice.invoice_date,
-        due_date: invoice.due_date || '',
-        receipt_ids: invoice.goodsReceipts.map(receipt => receipt.receipt_id),
-        currency_code: invoice.currency_code || 'USD',
-        exchange_rate: invoice.exchange_rate || 1,
-        create_journal_entry: false, // Default for editing
-        ap_account_id: 'AP001',
-        expense_account_id: 'EXP001',
-        tax_account_id: 'TAX001'
-      };
-
-      this.selectedVendorId = invoice.vendor_id;
-      this.selectedReceipts = [...this.form.receipt_ids];
-    }
-  } catch (error) {
-    console.error('Error loading initial data:', error);
-    console.error('Error details:', error.response?.data); // Additional debug info
-    // Set empty arrays as fallback
-    this.vendors = [];
-  } finally {
-    this.loading = false;
-  }
-},
+    },
     methods: {
+      // Vendor selection methods
+      selectVendor(vendor) {
+        this.selectedVendorId = vendor.vendor_id;
+        this.vendorSearch = vendor.name;
+        this.showVendorDropdown = false;
+        this.vendorChanged();
+      },
+      hideVendorDropdown() {
+        setTimeout(() => {
+          this.showVendorDropdown = false;
+        }, 200);
+      },
       async vendorChanged() {
         if (!this.selectedVendorId) return;
 
@@ -536,6 +590,7 @@
   <style scoped>
   .vendor-invoice-form {
     padding: 1rem;
+    overflow: visible; /* Ensure dropdown is not clipped by parent */
   }
 
   .page-header {
@@ -547,6 +602,7 @@
 
   .form-container {
     max-width: 1200px;
+    overflow: visible; /* Ensure dropdown is not clipped */
   }
 
   .form-header-card,
@@ -555,7 +611,7 @@
     border-radius: 0.5rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     margin-bottom: 1.5rem;
-    overflow: hidden;
+    overflow: visible; /* Changed from hidden to visible */
   }
 
   .card-header {
@@ -575,6 +631,7 @@
 
   .card-body {
     padding: 1.5rem;
+    overflow: visible; /* Ensure dropdown is not clipped */
   }
 
   .form-row {
@@ -582,6 +639,7 @@
     flex-wrap: wrap;
     gap: 1.5rem;
     margin-bottom: 1.5rem;
+    overflow: visible; /* Ensure dropdown is not clipped */
   }
 
   .form-group {
@@ -590,6 +648,8 @@
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
+    overflow: visible; /* Ensure dropdown is not clipped */
+    position: relative; /* Ensure proper stacking context */
   }
 
   .form-group label {
@@ -617,6 +677,31 @@
   .form-group select:disabled {
     background-color: var(--gray-100);
     cursor: not-allowed;
+  }
+
+  .form-control {
+    width: 100%;
+    padding: 0.625rem;
+    border: 1px solid var(--gray-300);
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background-color: white;
+  }
+
+  .form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    outline: none;
+  }
+
+  .form-control.is-invalid {
+    border-color: var(--danger-color);
+  }
+
+  .form-control:disabled {
+    background-color: var(--gray-100);
+    opacity: 0.75;
   }
 
   .input-with-button {
@@ -648,6 +733,89 @@
     margin-top: 1rem;
     padding-top: 1rem;
     border-top: 1px solid var(--gray-200);
+  }
+
+  /* Dropdown Styles */
+  .dropdown {
+    position: relative;
+    z-index: 1000;
+  }
+
+  .dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid var(--gray-300);
+    border-top: none;
+    border-radius: 0 0 0.375rem 0.375rem;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    max-height: 250px;
+    overflow-y: auto;
+    z-index: 9999;
+    margin-top: -1px;
+    /* Ensure dropdown appears above all other elements */
+    background-clip: padding-box;
+    backdrop-filter: none;
+  }
+
+  .dropdown-item {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    border-bottom: 1px solid var(--gray-100);
+    transition: background-color 0.2s;
+    background-color: white; /* Ensure solid background */
+  }
+
+  .dropdown-item:last-child {
+    border-bottom: none;
+  }
+
+  .dropdown-item:hover {
+    background-color: var(--gray-50);
+  }
+
+  .dropdown-item.text-muted {
+    color: var(--gray-500);
+    cursor: default;
+  }
+
+  .dropdown-item.text-muted:hover {
+    background-color: transparent;
+  }
+
+  .vendor-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .vendor-info strong {
+    font-weight: 600;
+    color: var(--gray-800);
+  }
+
+  .vendor-code {
+    color: var(--gray-500);
+    font-size: 0.8rem;
+  }
+
+  .vendor-details {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+  }
+
+  .email {
+    color: var(--primary-color);
+    font-weight: 500;
+  }
+
+  .phone {
+    color: var(--gray-500);
   }
 
   .btn {
@@ -781,6 +949,10 @@
     text-align: right;
   }
 
+  .text-muted {
+    color: var(--gray-500);
+  }
+
   .receipt-details {
     border-top: 1px solid var(--gray-200);
     padding-top: 1.5rem;
@@ -827,6 +999,7 @@
 
     .form-group {
       width: 100%;
+      overflow: visible; /* Ensure dropdown is not clipped on mobile */
     }
 
     .form-actions {
@@ -835,6 +1008,10 @@
 
     .btn {
       width: 100%;
+    }
+
+    .dropdown-menu {
+      max-height: 200px; /* Reduce height on mobile */
     }
   }
   </style>

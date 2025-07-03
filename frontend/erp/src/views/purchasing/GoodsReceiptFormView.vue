@@ -371,16 +371,16 @@
       }
     },
     methods: {
-      fetchVendors() {
+fetchVendors() {
         axios.get('/vendors')
           .then(response => {
-            // Correctly assign vendors from response.data.data (array)
-            const vendorsData = response.data.data;
+            // Correctly assign vendors from paginated response data.data.data (array)
+            const vendorsData = response.data.data && response.data.data.data ? response.data.data.data : [];
             if (Array.isArray(vendorsData)) {
               this.vendors = vendorsData.filter(vendor => vendor != null);
             } else {
               this.vendors = [];
-              console.warn('Vendors API response data.data is not an array:', vendorsData);
+              console.warn('Vendors API response data.data.data is not an array:', vendorsData);
             }
           })
           .catch(error => {

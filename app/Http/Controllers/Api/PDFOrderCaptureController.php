@@ -21,6 +21,34 @@ use Illuminate\Support\Facades\Validator;
 class PdfOrderCaptureController extends Controller
 {
     /**
+     * Generate the next sales order number with format SO-yy-000000
+     *
+     * @return string
+     */
+    private function generateSalesOrderNumber()
+    {
+        $currentYear = date('y'); // Get 2-digit year
+        $prefix = "SO-{$currentYear}-";
+
+        // Get the latest sales order number for current year
+        $latestSalesOrder = SalesOrder::where('so_number', 'like', $prefix . '%')
+            ->orderBy('so_number', 'desc')
+            ->first();
+
+        if ($latestSalesOrder) {
+            // Extract the sequence number from the latest sales order
+            $lastNumber = intval(substr($latestSalesOrder->so_number, -6));
+            $nextNumber = $lastNumber + 1;
+        } else {
+            // First sales order of the year
+            $nextNumber = 1;
+        }
+
+        // Format with 6 digits, padded with zeros
+        return $prefix . sprintf('%06d', $nextNumber);
+    }
+
+    /**
      * Upload and extract PDF data (Preview only - no SO creation)
      */
     public function processPdf(PdfOrderCaptureRequest $request)
@@ -92,8 +120,8 @@ class PdfOrderCaptureController extends Controller
             // Convert PDF to text using Groq AI with page-based chunking
             $extractedData = $this->extractDataWithGroqAI($pdfPath);
 
-            // Validate items exist in database
-            $itemValidation = $this->validateItemsExist($extractedData);
+            // FIXED: Validate items exist in database (NO FUZZY MATCHING FOR ITEMS)
+            $itemValidation = $this->validateItemsExistExactMatch($extractedData);
 
             // Update capture record with extracted data
             $updated = $pdfCapture->update([
@@ -183,7 +211,7 @@ class PdfOrderCaptureController extends Controller
             }
 
             $extractedData = $pdfCapture->extracted_data;
-            $itemValidation = $pdfCapture->item_validation ?? $this->validateItemsExist($extractedData);
+            $itemValidation = $pdfCapture->item_validation ?? $this->validateItemsExistExactMatch($extractedData);
 
             // Check if there are missing items
             if (!empty($itemValidation['missing_items'])) {
@@ -270,14 +298,14 @@ class PdfOrderCaptureController extends Controller
     }
 
     /**
-     * Validate if items exist in database
+     * FIXED: Validate if items exist in database (EXACT MATCH ONLY - NO FUZZY MATCHING)
      */
-    private function validateItemsExist($extractedData)
+    private function validateItemsExistExactMatch($extractedData)
     {
         $validation = [
             'missing_items' => [],
             'existing_items' => [],
-            'fuzzy_matches' => []
+            'fuzzy_matches' => [] // Keep structure but won't be used for items
         ];
 
         if (!isset($extractedData['items']) || !is_array($extractedData['items'])) {
@@ -288,34 +316,20 @@ class PdfOrderCaptureController extends Controller
             $itemCode = $itemData['item_code'] ?? null;
             $itemName = $itemData['name'] ?? null;
 
+            // FIXED: Only exact match by item_code - NO FUZZY MATCHING
             $existingItem = null;
 
-            // Try to find by item_code first
-            if ($itemCode) {
+            if (!empty($itemCode)) {
+                // Try exact match by item_code first
                 $existingItem = Item::where('item_code', $itemCode)->first();
             }
 
-            // Try to find by exact name if item_code not found
-            if (!$existingItem && $itemName) {
+            // If no item_code or exact match not found, try exact name match
+            if (!$existingItem && !empty($itemName)) {
                 $existingItem = Item::where('name', $itemName)->first();
             }
 
-            // Try fuzzy matching for name
-            if (!$existingItem && $itemName) {
-                $existingItem = $this->findItemByFuzzyName($itemName);
-                if ($existingItem) {
-                    $validation['fuzzy_matches'][] = [
-                        'extracted_name' => $itemName,
-                        'matched_item' => [
-                            'item_id' => $existingItem->item_id,
-                            'item_code' => $existingItem->item_code,
-                            'name' => $existingItem->name
-                        ],
-                        'similarity_score' => $this->calculateNameSimilarity($itemName, $existingItem->name)
-                    ];
-                }
-            }
-
+            // FIXED: No fuzzy matching for items - only exact matches allowed
             if ($existingItem) {
                 $validation['existing_items'][] = [
                     'index' => $index,
@@ -329,6 +343,7 @@ class PdfOrderCaptureController extends Controller
                     ]
                 ];
             } else {
+                // Item not found - add to missing items
                 $validation['missing_items'][] = [
                     'index' => $index,
                     'item_code' => $itemCode,
@@ -341,42 +356,51 @@ class PdfOrderCaptureController extends Controller
             }
         }
 
-        Log::info('Item validation completed', [
+        Log::info('Item validation completed (EXACT MATCH ONLY)', [
             'total_items' => count($extractedData['items']),
             'existing_items' => count($validation['existing_items']),
             'missing_items' => count($validation['missing_items']),
-            'fuzzy_matches' => count($validation['fuzzy_matches'])
+            'fuzzy_matching_disabled' => true
         ]);
 
         return $validation;
     }
 
     /**
-     * Find item using fuzzy name matching
+     * DEPRECATED: Old validation function with fuzzy matching - replaced by validateItemsExistExactMatch
      */
-    private function findItemByFuzzyName($extractedName)
+    private function validateItemsExist($extractedData)
+    {
+        // This function is deprecated - use validateItemsExistExactMatch instead
+        return $this->validateItemsExistExactMatch($extractedData);
+    }
+
+    /**
+     * Find customer using fuzzy name matching (FUZZY MATCHING ONLY FOR CUSTOMERS)
+     */
+    private function findCustomerByFuzzyName($extractedName)
     {
         // Clean the extracted name for comparison
-        $cleanExtracted = $this->cleanItemName($extractedName);
+        $cleanExtracted = $this->cleanCompanyName($extractedName);
 
-        // Get all items and try fuzzy matching
-        $items = Item::all();
+        // Get all customers and try fuzzy matching
+        $customers = Customer::all();
 
-        foreach ($items as $item) {
-            $cleanDbName = $this->cleanItemName($item->name);
+        foreach ($customers as $customer) {
+            $cleanDbName = $this->cleanCompanyName($customer->name);
 
             // Check for exact match after cleaning
             if ($cleanExtracted === $cleanDbName) {
-                return $item;
+                return $customer;
             }
 
             // Check if one contains the other (with minimum length)
-            if (strlen($cleanExtracted) >= 5 && strlen($cleanDbName) >= 5) {
+            if (strlen($cleanExtracted) >= 10 && strlen($cleanDbName) >= 10) {
                 if (
                     stripos($cleanDbName, $cleanExtracted) !== false ||
                     stripos($cleanExtracted, $cleanDbName) !== false
                 ) {
-                    return $item;
+                    return $customer;
                 }
             }
 
@@ -384,31 +408,96 @@ class PdfOrderCaptureController extends Controller
             $similarity = $this->calculateNameSimilarity($cleanExtracted, $cleanDbName);
 
             if ($similarity >= 85) { // 85% similarity threshold
-                Log::info('Item matched by similarity', [
+                Log::info('Customer matched by similarity', [
                     'extracted' => $extractedName,
-                    'matched' => $item->name,
+                    'matched' => $customer->name,
                     'similarity' => $similarity
                 ]);
-                return $item;
+                return $customer;
             }
         }
 
-        return null;
+        // Try keyword-based matching for well-known companies
+        return $this->findCustomerByKeywords($extractedName);
     }
 
     /**
-     * Clean item name for comparison
+     * Clean company name for comparison
      */
-    private function cleanItemName($name)
+    private function cleanCompanyName($name)
     {
         // Convert to uppercase and remove common suffixes/prefixes
         $cleaned = strtoupper(trim($name));
+
+        // Remove common company suffixes/prefixes
+        $removePatterns = [
+            '/\s*PVT\.?\s*LTD\.?/i',
+            '/\s*PRIVATE\s*LIMITED/i',
+            '/\s*LIMITED/i',
+            '/\s*LTD\.?/i',
+            '/\s*CORPORATION/i',
+            '/\s*CORP\.?/i',
+            '/\s*INC\.?/i',
+            '/\s*COMPANY/i',
+            '/\s*CO\.?/i',
+            '/\s*PT\.?/i',
+            '/\s*CV\.?/i',
+            '/\s*TBK\.?/i',
+            '/\s*PERSERO/i',
+            '/\s*INDIA/i', // Remove country names for better matching
+            '/\s*INDONESIA/i',
+            '/\s*JAPAN/i',
+            '/\s*MANUFACTURING/i', // Remove common business types
+            '/\s*MUSIC/i',
+            '/\s*ELECTRONICS/i'
+        ];
+
+        foreach ($removePatterns as $pattern) {
+            $cleaned = preg_replace($pattern, '', $cleaned);
+        }
 
         // Remove extra spaces and punctuation
         $cleaned = preg_replace('/[^\w\s]/', '', $cleaned);
         $cleaned = preg_replace('/\s+/', ' ', $cleaned);
 
         return trim($cleaned);
+    }
+
+    /**
+     * Find customer by keywords (for well-known companies)
+     */
+    private function findCustomerByKeywords($extractedName)
+    {
+        $keywords = strtoupper($extractedName);
+
+        // Define keyword patterns for known customers
+        $keywordPatterns = [
+            'YAMAHA' => ['YAMAHA'],
+            'HONDA' => ['HONDA'],
+            'TOYOTA' => ['TOYOTA'],
+            'MITSUBISHI' => ['MITSUBISHI'],
+            'PANASONIC' => ['PANASONIC'],
+            'SONY' => ['SONY']
+        ];
+
+        foreach ($keywordPatterns as $brand => $patterns) {
+            foreach ($patterns as $pattern) {
+                if (stripos($keywords, $pattern) !== false) {
+                    // Look for customers containing this brand
+                    $customer = Customer::where('name', 'like', '%' . $brand . '%')->first();
+                    if ($customer) {
+                        Log::info('Customer matched by keyword', [
+                            'extracted' => $extractedName,
+                            'keyword' => $brand,
+                            'matched' => $customer->name
+                        ]);
+                        return $customer;
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -750,7 +839,7 @@ class PdfOrderCaptureController extends Controller
             $headerContext = "
 CONTEXT FROM FIRST PAGE:
 - Customer: {$headerInfo['customer_name']}
-- Order Number: {$headerInfo['order_number']}
+- Customer PO Number: {$headerInfo['po_number_customer']}
 - Date: {$headerInfo['order_date']}
 - Currency: {$headerInfo['currency']}
 
@@ -784,7 +873,7 @@ For page {$pageNum} of {$totalPages}, return ONLY valid JSON in this structure:
     },
     \"document_type\": \"PURCHASE_ORDER or SALES_ORDER or INVOICE (if determinable)\",
     \"order_info\": {
-        \"order_number\": \"extract P.O. No, Order No if found on this page\",
+        \"po_number_customer\": \"extract Customer P.O. No, Order No if found on this page\",
         \"order_date\": \"extract date in YYYY-MM-DD format if found\",
         \"expected_delivery\": \"extract delivery date in YYYY-MM-DD format if found\",
         \"currency\": \"extract currency code if found\",
@@ -832,7 +921,7 @@ Page {$pageNum} text to analyze:
     {
         return [
             'customer_name' => $firstPageResult['customer']['name'] ?? '',
-            'order_number' => $firstPageResult['order_info']['order_number'] ?? '',
+            'po_number_customer' => $firstPageResult['order_info']['po_number_customer'] ?? '',
             'order_date' => $firstPageResult['order_info']['order_date'] ?? '',
             'currency' => $firstPageResult['order_info']['currency'] ?? '',
             'payment_terms' => $firstPageResult['order_info']['payment_terms'] ?? '',
@@ -848,7 +937,7 @@ Page {$pageNum} text to analyze:
         $merged = [
             'document_type' => '',
             'order_info' => [
-                'order_number' => '',
+                'po_number_customer' => '',
                 'order_date' => '',
                 'expected_delivery' => '',
                 'currency' => '',
@@ -935,7 +1024,7 @@ Page {$pageNum} text to analyze:
             'total_items' => count($merged['items']),
             'average_confidence' => $merged['confidence_score'],
             'customer_found' => !empty($merged['customer']['name']),
-            'order_number_found' => !empty($merged['order_info']['order_number'])
+            'po_number_found' => !empty($merged['order_info']['po_number_customer'])
         ]);
 
         return $merged;
@@ -1344,7 +1433,7 @@ Return ONLY valid JSON in this exact structure:
 {
     \"document_type\": \"PURCHASE_ORDER or SALES_ORDER or INVOICE\",
     \"order_info\": {
-        \"order_number\": \"extract P.O. No, Order No, SO No, etc.\",
+        \"po_number_customer\": \"extract Customer P.O. No, Order No, etc. (this will be the customer's reference number)\",
         \"order_date\": \"extract date in YYYY-MM-DD format\",
         \"expected_delivery\": \"extract delivery date in YYYY-MM-DD format\",
         \"currency\": \"extract currency code (USD, EUR, etc.)\",
@@ -1401,6 +1490,12 @@ WRONG EXAMPLE:
 CORRECT EXAMPLE:
 ✅ Using actual quantity: quantity: 500, validation: 500 × 0.07950 = 39.75 ≈ 39.75
 
+IMPORTANT NOTE ABOUT ORDER NUMBERS:
+- The 'po_number_customer' field should contain the CUSTOMER'S purchase order number
+- This will later be stored as 'po_number_customer' in our sales order
+- Our system will auto-generate its own SO number (SO-yy-000000 format)
+- So extract the customer's PO/Order number into 'po_number_customer'
+
 Document text to analyze:
 {$pdfText}
 ";
@@ -1449,12 +1544,14 @@ Document text to analyze:
             ]];
         }
 
-        // Find or create customer
+        // Find or create customer (WITH FUZZY MATCHING FOR CUSTOMERS)
         $customer = $this->findOrCreateCustomer($customerData);
 
-        // Generate SO number if not provided
-        $soNumber = $extractedData['order_info']['order_number'] ??
-            'SO-PDF-' . date('Ymd') . '-' . str_pad($pdfCapture->id, 4, '0', STR_PAD_LEFT);
+        // UPDATED: Auto-generate SO number instead of using extracted order number
+        $soNumber = $this->generateSalesOrderNumber();
+
+        // Get Customer PO Number from extracted data
+        $poNumberCustomer = $extractedData['order_info']['po_number_customer'] ?? null;
 
         // Get currency and exchange rate
         $currencyCode = $extractedData['order_info']['currency'] ?? config('app.base_currency', 'USD');
@@ -1468,7 +1565,8 @@ Document text to analyze:
         // Create sales order
         try {
             $salesOrder = SalesOrder::create([
-                'so_number' => $soNumber,
+                'so_number' => $soNumber, // Auto-generated SO number
+                'po_number_customer' => $poNumberCustomer, // Customer's PO number
                 'so_date' => $orderDate,
                 'customer_id' => $customer->customer_id,
                 'payment_terms' => $extractedData['order_info']['payment_terms'],
@@ -1482,6 +1580,13 @@ Document text to analyze:
                 'tax_amount' => 0,
                 'base_currency_total' => 0,
                 'base_currency_tax' => 0
+            ]);
+
+            Log::info('Sales order created from PDF with auto-generated SO number', [
+                'so_number' => $soNumber,
+                'po_number_customer' => $poNumberCustomer,
+                'customer_id' => $customer->customer_id,
+                'sales_order_id' => $salesOrder->so_id
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to create SalesOrder', [
@@ -1538,7 +1643,7 @@ Document text to analyze:
         $vendorInfo = $extractedData['vendor_info'] ?? [];
 
         // If order number contains company identifier, use that
-        $orderNumber = $orderInfo['order_number'] ?? '';
+        $orderNumber = $orderInfo['po_number_customer'] ?? '';
 
         // Common patterns for identifying the ordering company
         $customerCandidates = [];
@@ -1659,7 +1764,7 @@ Document text to analyze:
     }
 
     /**
-     * Find or create customer with fuzzy matching (Modified to NOT create new customers)
+     * Find or create customer with fuzzy matching (FUZZY MATCHING ALLOWED FOR CUSTOMERS)
      */
     private function findOrCreateCustomer($customerData)
     {
@@ -1684,7 +1789,7 @@ Document text to analyze:
             }
         }
 
-        // Try fuzzy matching for customer name
+        // FUZZY MATCHING ALLOWED FOR CUSTOMERS
         if (!empty($customerName) && $customerName !== 'Unknown Customer from PDF') {
             $customer = $this->findCustomerByFuzzyName($customerName);
             if ($customer) {
@@ -1735,131 +1840,6 @@ Document text to analyze:
     }
 
     /**
-     * Find customer using fuzzy name matching
-     */
-    private function findCustomerByFuzzyName($extractedName)
-    {
-        // Clean the extracted name for comparison
-        $cleanExtracted = $this->cleanCompanyName($extractedName);
-
-        // Get all customers and try fuzzy matching
-        $customers = Customer::all();
-
-        foreach ($customers as $customer) {
-            $cleanDbName = $this->cleanCompanyName($customer->name);
-
-            // Check for exact match after cleaning
-            if ($cleanExtracted === $cleanDbName) {
-                return $customer;
-            }
-
-            // Check if one contains the other (with minimum length)
-            if (strlen($cleanExtracted) >= 10 && strlen($cleanDbName) >= 10) {
-                if (
-                    stripos($cleanDbName, $cleanExtracted) !== false ||
-                    stripos($cleanExtracted, $cleanDbName) !== false
-                ) {
-                    return $customer;
-                }
-            }
-
-            // Calculate similarity percentage
-            $similarity = $this->calculateNameSimilarity($cleanExtracted, $cleanDbName);
-
-            if ($similarity >= 85) { // 85% similarity threshold
-                Log::info('Customer matched by similarity', [
-                    'extracted' => $extractedName,
-                    'matched' => $customer->name,
-                    'similarity' => $similarity
-                ]);
-                return $customer;
-            }
-        }
-
-        // Try keyword-based matching for well-known companies
-        return $this->findCustomerByKeywords($extractedName);
-    }
-
-    /**
-     * Clean company name for comparison
-     */
-    private function cleanCompanyName($name)
-    {
-        // Convert to uppercase and remove common suffixes/prefixes
-        $cleaned = strtoupper(trim($name));
-
-        // Remove common company suffixes/prefixes
-        $removePatterns = [
-            '/\s*PVT\.?\s*LTD\.?/i',
-            '/\s*PRIVATE\s*LIMITED/i',
-            '/\s*LIMITED/i',
-            '/\s*LTD\.?/i',
-            '/\s*CORPORATION/i',
-            '/\s*CORP\.?/i',
-            '/\s*INC\.?/i',
-            '/\s*COMPANY/i',
-            '/\s*CO\.?/i',
-            '/\s*PT\.?/i',
-            '/\s*CV\.?/i',
-            '/\s*TBK\.?/i',
-            '/\s*PERSERO/i',
-            '/\s*INDIA/i', // Remove country names for better matching
-            '/\s*INDONESIA/i',
-            '/\s*JAPAN/i',
-            '/\s*MANUFACTURING/i', // Remove common business types
-            '/\s*MUSIC/i',
-            '/\s*ELECTRONICS/i'
-        ];
-
-        foreach ($removePatterns as $pattern) {
-            $cleaned = preg_replace($pattern, '', $cleaned);
-        }
-
-        // Remove extra spaces and punctuation
-        $cleaned = preg_replace('/[^\w\s]/', '', $cleaned);
-        $cleaned = preg_replace('/\s+/', ' ', $cleaned);
-
-        return trim($cleaned);
-    }
-
-    /**
-     * Find customer by keywords (for well-known companies)
-     */
-    private function findCustomerByKeywords($extractedName)
-    {
-        $keywords = strtoupper($extractedName);
-
-        // Define keyword patterns for known customers
-        $keywordPatterns = [
-            'YAMAHA' => ['YAMAHA'],
-            'HONDA' => ['HONDA'],
-            'TOYOTA' => ['TOYOTA'],
-            'MITSUBISHI' => ['MITSUBISHI'],
-            'PANASONIC' => ['PANASONIC'],
-            'SONY' => ['SONY']
-        ];
-
-        foreach ($keywordPatterns as $brand => $patterns) {
-            foreach ($patterns as $pattern) {
-                if (stripos($keywords, $pattern) !== false) {
-                    // Look for customers containing this brand
-                    $customer = Customer::where('name', 'like', '%' . $brand . '%')->first();
-                    if ($customer) {
-                        Log::info('Customer matched by keyword', [
-                            'extracted' => $extractedName,
-                            'keyword' => $brand,
-                            'matched' => $customer->name
-                        ]);
-                        return $customer;
-                    }
-                }
-            }
-        }
-
-        return null;
-    }
-
-    /**
      * Generate customer code based on name
      */
     private function generateCustomerCode($customerName)
@@ -1884,13 +1864,13 @@ Document text to analyze:
     }
 
     /**
-     * Create sales order line (Modified to NOT create items if missing)
+     * Create sales order line (FIXED: Only exact match for items)
      */
     private function createSalesOrderLine($salesOrder, $itemData, $exchangeRate, $customer)
     {
         try {
-            // Find existing item - DO NOT CREATE if missing
-            $item = $this->findExistingItem($itemData);
+            // FIXED: Find existing item - EXACT MATCH ONLY (NO FUZZY MATCHING)
+            $item = $this->findExistingItemExactMatch($itemData);
 
             if (!$item) {
                 throw new \Exception('Item not found in database: ' . ($itemData['item_code'] ?? $itemData['name'] ?? 'Unknown'));
@@ -1909,13 +1889,6 @@ Document text to analyze:
             $subtotal = $unitPrice * $quantity;
             $total = $subtotal - $discount + $tax;
 
-            // Calculate base currency values
-            $baseUnitPrice = $unitPrice * $exchangeRate;
-            $baseSubtotal = $subtotal * $exchangeRate;
-            $baseDiscount = $discount * $exchangeRate;
-            $baseTax = $tax * $exchangeRate;
-            $baseTotal = $total * $exchangeRate;
-
             return SOLine::create([
                 'so_id' => $salesOrder->so_id,
                 'item_id' => $item->item_id,
@@ -1925,12 +1898,7 @@ Document text to analyze:
                 'discount' => $discount,
                 'subtotal' => $subtotal,
                 'tax' => $tax,
-                'total' => $total,
-                'base_currency_unit_price' => $baseUnitPrice,
-                'base_currency_subtotal' => $baseSubtotal,
-                'base_currency_discount' => $baseDiscount,
-                'base_currency_tax' => $baseTax,
-                'base_currency_total' => $baseTotal
+                'total' => $total
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to create SOLine', [
@@ -1943,35 +1911,40 @@ Document text to analyze:
     }
 
     /**
-     * Find existing item (DO NOT CREATE)
+     * FIXED: Find existing item (EXACT MATCH ONLY - NO FUZZY MATCHING)
      */
-    private function findExistingItem($itemData)
+    private function findExistingItemExactMatch($itemData)
     {
         $itemCode = $itemData['item_code'] ?? null;
         $itemName = $itemData['name'] ?? null;
 
-        if ($itemCode) {
-            // Try to find by item_code first
+        if (!empty($itemCode)) {
+            // Try exact match by item_code first
             $item = Item::where('item_code', $itemCode)->first();
             if ($item) {
                 return $item;
             }
         }
 
-        if ($itemName) {
-            // Try to find by name if item_code not found
-            $item = Item::where('name', 'like', '%' . $itemName . '%')->first();
+        if (!empty($itemName)) {
+            // Try exact match by name
+            $item = Item::where('name', $itemName)->first();
             if ($item) {
                 return $item;
             }
         }
 
-        // Try fuzzy matching
-        if ($itemName) {
-            return $this->findItemByFuzzyName($itemName);
-        }
+        // FIXED: NO FUZZY MATCHING FOR ITEMS - return null if not found
+        return null;
+    }
 
-        return null; // DO NOT CREATE - return null if not found
+    /**
+     * DEPRECATED: Old find existing item with fuzzy matching - replaced by findExistingItemExactMatch
+     */
+    private function findExistingItem($itemData)
+    {
+        // This function is deprecated - use findExistingItemExactMatch instead
+        return $this->findExistingItemExactMatch($itemData);
     }
 
     /**
@@ -2084,8 +2057,8 @@ Document text to analyze:
             // Re-extract data with page-based chunking support
             $extractedData = $this->extractDataWithGroqAI($capture->file_path);
 
-            // Validate items exist
-            $itemValidation = $this->validateItemsExist($extractedData);
+            // FIXED: Validate items exist (EXACT MATCH ONLY)
+            $itemValidation = $this->validateItemsExistExactMatch($extractedData);
 
             $capture->update([
                 'extracted_data' => $extractedData,
@@ -2320,8 +2293,8 @@ Document text to analyze:
             // Re-extract data with improved parsing and page-based chunking support
             $extractedData = $this->extractDataWithGroqAI($capture->file_path);
 
-            // Validate items exist
-            $itemValidation = $this->validateItemsExist($extractedData);
+            // FIXED: Validate items exist (EXACT MATCH ONLY)
+            $itemValidation = $this->validateItemsExistExactMatch($extractedData);
 
             // Log comparison if original data exists
             if ($capture->extracted_data) {
@@ -2347,6 +2320,7 @@ Document text to analyze:
                     'item_validation' => $itemValidation,
                     'can_create_sales_order' => empty($itemValidation['missing_items']),
                     'validation_applied' => true,
+                    'fuzzy_matching_disabled_for_items' => true,
                     'page_chunking_used' => isset($extractedData['processing_notes']) &&
                         strpos($extractedData['processing_notes'], 'pages') !== false
                 ]
@@ -2416,6 +2390,7 @@ Document text to analyze:
         Log::info('Data comparison after reprocessing with page-based chunking', [
             'items_compared' => count($comparisons),
             'comparisons' => $comparisons,
+            'fuzzy_matching_disabled_for_items' => true,
             'processing_method' => isset($newData['processing_notes']) &&
                 strpos($newData['processing_notes'], 'pages') !== false ? 'page-based' : 'standard'
         ]);

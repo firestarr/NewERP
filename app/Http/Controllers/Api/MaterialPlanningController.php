@@ -109,7 +109,7 @@ class MaterialPlanningController extends Controller
                 $request->item_ids ?? []
             );
 
-            // Step 2: Calculate Raw Material Requirements from BOM
+            // Step 2: Calculate Raw Material Requirements from BOM (FIXED for multi-level)
             $rawMaterialPlans = $this->calculateRawMaterialRequirements(
                 $fgPlans,
                 $bufferPercentage
@@ -119,10 +119,10 @@ class MaterialPlanningController extends Controller
 
             return response()->json([
                 'message' => count($fgPlans) . " finished goods plans and " .
-                    count($rawMaterialPlans) . " raw material plans generated successfully",
+                    count($rawMaterialPlans) . " material plans generated successfully",
                 'data' => [
                     'finished_goods' => $fgPlans,
-                    'raw_materials' => $rawMaterialPlans
+                    'materials' => $rawMaterialPlans
                 ]
             ], 200);
         } catch (\Exception $e) {
@@ -171,17 +171,45 @@ class MaterialPlanningController extends Controller
             $periods = array_keys($periodForecasts->toArray());
             sort($periods);
 
-            foreach ($periods as $period) {
-                $periodForecasts = $forecasts[$itemId][$period];
+            foreach ($periods as $periodIndex => $period) {
+                $periodForecastsData = $forecasts[$itemId][$period];
 
                 // Calculate total forecast for this period
-                $totalForecast = $periodForecasts->sum('forecast_quantity');
+                $totalForecast = $periodForecastsData->sum('forecast_quantity');
 
                 // Get WIP stock
                 $wipStock = $this->getWIPStock($itemId, $period);
 
-                // Calculate buffer
-                $bufferQty = ($totalForecast * $bufferPercentage) / 100;
+                // Calculate buffer using NEXT PERIOD's forecast
+                $bufferQty = 0;
+                $nextPeriodForecast = 0;
+
+                // Check if there's a next period
+                if (isset($periods[$periodIndex + 1])) {
+                    $nextPeriod = $periods[$periodIndex + 1];
+                    $nextPeriodForecastsData = $forecasts[$itemId][$nextPeriod];
+                    $nextPeriodForecast = $nextPeriodForecastsData->sum('forecast_quantity');
+                    $bufferQty = ($nextPeriodForecast * $bufferPercentage) / 100;
+                } else {
+                    // If this is the last period, try to get forecast from one month ahead
+                    $currentPeriodDate = Carbon::parse($period);
+                    $nextMonthPeriod = $currentPeriodDate->copy()->addMonth()->format('Y-m-d');
+
+                    // Query for next month's forecast
+                    $nextMonthForecast = SalesForecast::where('item_id', $itemId)
+                        ->where('forecast_period', $nextMonthPeriod)
+                        ->where('is_current_version', true)
+                        ->sum('forecast_quantity');
+
+                    if ($nextMonthForecast > 0) {
+                        $nextPeriodForecast = $nextMonthForecast;
+                        $bufferQty = ($nextPeriodForecast * $bufferPercentage) / 100;
+                    } else {
+                        // Fallback: use current period if no next period data available
+                        $nextPeriodForecast = $totalForecast;
+                        $bufferQty = ($totalForecast * $bufferPercentage) / 100;
+                    }
+                }
 
                 // Calculate net requirement
                 $netRequirement = $totalForecast - $availableStock - $wipStock + $bufferQty;
@@ -204,7 +232,9 @@ class MaterialPlanningController extends Controller
                         'net_requirement' => $netRequirement,
                         'planned_order_quantity' => $netRequirement,
                         'bom_id' => $bom->bom_id,
-                        'status' => 'Draft'
+                        'status' => 'Draft',
+                        // Optional: Store next period forecast for reference
+                        'notes' => "Buffer based on next period forecast: {$nextPeriodForecast}"
                     ]
                 );
 
@@ -221,10 +251,12 @@ class MaterialPlanningController extends Controller
 
     /**
      * Calculate raw material requirements based on BOM (with yield-based calculations)
+     * FIXED: Support for multi-level BOM - Components with BOM are treated as FG/Sub-Assembly
      */
     private function calculateRawMaterialRequirements($fgPlans, $bufferPercentage)
     {
-        $rawMaterialRequirements = [];
+        $materialRequirements = [];
+        $processedSubAssemblies = []; // Track sub-assemblies to avoid duplicate processing
 
         // Group FG plans by period
         $periodPlans = collect($fgPlans)->groupBy(function ($plan) {
@@ -233,6 +265,7 @@ class MaterialPlanningController extends Controller
 
         foreach ($periodPlans as $period => $plans) {
             $materialNeeds = [];
+            $subAssemblyNeeds = [];
 
             // For each FG in the period, explode its BOM
             foreach ($plans as $plan) {
@@ -245,37 +278,103 @@ class MaterialPlanningController extends Controller
 
                 // Calculate materials needed based on BOM
                 foreach ($bom->bomLines as $bomLine) {
-                    $materialItemId = $bomLine->item_id;
+                    $componentItemId = $bomLine->item_id;
+                    $componentItem = $bomLine->item;
 
-                    // Check if this is a yield-based BOM line
+                    // Check if this component has its own BOM (multi-level BOM)
+                    $componentBOM = $this->getActiveBOM($componentItemId);
+                    $isSubAssembly = !is_null($componentBOM);
+
+                    // Calculate required quantity for this component
                     if ($bomLine->is_yield_based) {
                         // For yield-based: How many units of material needed to produce desired quantity
-                        // Formula: (Desired production) / (Yield ratio) / (1 - Shrinkage)
                         $shrinkageFactor = $bomLine->shrinkage_factor ?? 0;
                         $effectiveFactor = (1 - $shrinkageFactor);
 
-                        // Prevent division by zero
                         if ($bomLine->yield_ratio > 0) {
                             $requiredQty = $productionQty / $bomLine->yield_ratio / $effectiveFactor;
                         } else {
-                            // Fallback to using quantity as-is if no yield ratio
                             $requiredQty = $bomLine->quantity * ($productionQty / $bom->standard_quantity);
                         }
                     } else {
-                        // Traditional BOM calculation: quantity per unit * production quantity / standard quantity
+                        // Traditional BOM calculation
                         $requiredQty = ($bomLine->quantity / $bom->standard_quantity) * $productionQty;
                     }
 
-                    // Aggregate requirements by material
-                    if (!isset($materialNeeds[$materialItemId])) {
-                        $materialNeeds[$materialItemId] = 0;
+                    if ($isSubAssembly) {
+                        // This component is a sub-assembly (has its own BOM)
+                        // Treat it as a Finished Good that needs to be produced
+                        if (!isset($subAssemblyNeeds[$componentItemId])) {
+                            $subAssemblyNeeds[$componentItemId] = 0;
+                        }
+                        $subAssemblyNeeds[$componentItemId] += $requiredQty;
+                    } else {
+                        // This is a true raw material (no BOM)
+                        if (!isset($materialNeeds[$componentItemId])) {
+                            $materialNeeds[$componentItemId] = 0;
+                        }
+                        $materialNeeds[$componentItemId] += $requiredQty;
                     }
-
-                    $materialNeeds[$materialItemId] += $requiredQty;
                 }
             }
 
-            // Create material plans for raw materials
+            // Create material plans for sub-assemblies (FG)
+            foreach ($subAssemblyNeeds as $subAssemblyItemId => $requiredQty) {
+                $subAssembly = Item::find($subAssemblyItemId);
+                if (!$subAssembly) continue;
+
+                $availableStock = $subAssembly->current_stock;
+                $wipStock = $this->getWIPStock($subAssemblyItemId, $period);
+
+                // Calculate buffer
+                $bufferQty = ($requiredQty * $bufferPercentage) / 100;
+
+                // Calculate net requirement
+                $netRequirement = $requiredQty - $availableStock - $wipStock + $bufferQty;
+                $netRequirement = max(0, $netRequirement);
+                $netRequirement = ceil($netRequirement);
+
+                $subAssemblyBOM = $this->getActiveBOM($subAssemblyItemId);
+
+                // Create or update material plan for sub-assembly
+                $plan = MaterialPlan::updateOrCreate(
+                    [
+                        'item_id' => $subAssemblyItemId,
+                        'planning_period' => $period,
+                        'material_type' => 'FG', // Sub-assembly is treated as Finished Good
+                    ],
+                    [
+                        'forecast_quantity' => $requiredQty,
+                        'available_stock' => $availableStock,
+                        'wip_stock' => $wipStock,
+                        'buffer_percentage' => $bufferPercentage,
+                        'buffer_quantity' => $bufferQty,
+                        'net_requirement' => $netRequirement,
+                        'planned_order_quantity' => $netRequirement,
+                        'bom_id' => $subAssemblyBOM ? $subAssemblyBOM->bom_id : null,
+                        'status' => 'Draft'
+                    ]
+                );
+
+                $materialRequirements[] = $plan;
+
+                // Track processed sub-assemblies
+                $processedSubAssemblies[] = $subAssemblyItemId;
+
+                // Recursively explode sub-assembly BOM if it has net requirement > 0
+                if ($netRequirement > 0 && $subAssemblyBOM) {
+                    $subAssemblyRequirements = $this->explodeSubAssemblyBOM(
+                        $subAssemblyBOM,
+                        $netRequirement,
+                        $period,
+                        $bufferPercentage,
+                        $processedSubAssemblies
+                    );
+                    $materialRequirements = array_merge($materialRequirements, $subAssemblyRequirements);
+                }
+            }
+
+            // Create material plans for true raw materials (RM)
             foreach ($materialNeeds as $materialItemId => $requiredQty) {
                 $material = Item::find($materialItemId);
                 if (!$material) continue;
@@ -290,12 +389,12 @@ class MaterialPlanningController extends Controller
                 $netRequirement = max(0, $netRequirement);
                 $netRequirement = ceil($netRequirement);
 
-                // Create or update material plan
+                // Create or update material plan for raw material
                 $plan = MaterialPlan::updateOrCreate(
                     [
                         'item_id' => $materialItemId,
                         'planning_period' => $period,
-                        'material_type' => 'RM', // Raw Material
+                        'material_type' => 'RM', // True Raw Material
                     ],
                     [
                         'forecast_quantity' => $requiredQty,
@@ -310,11 +409,292 @@ class MaterialPlanningController extends Controller
                     ]
                 );
 
-                $rawMaterialRequirements[] = $plan;
+                $materialRequirements[] = $plan;
             }
         }
 
-        return $rawMaterialRequirements;
+        return $materialRequirements;
+    }
+
+    /**
+     * NEW METHOD: Recursively explode sub-assembly BOM to get raw material requirements
+     */
+    private function explodeSubAssemblyBOM($subAssemblyBOM, $requiredQuantity, $period, $bufferPercentage, &$processedSubAssemblies)
+    {
+        $requirements = [];
+        $materialNeeds = [];
+        $subAssemblyNeeds = [];
+
+        // Calculate materials needed for this sub-assembly
+        foreach ($subAssemblyBOM->bomLines as $bomLine) {
+            $componentItemId = $bomLine->item_id;
+            $componentItem = $bomLine->item;
+
+            // Check if this component has its own BOM
+            $componentBOM = $this->getActiveBOM($componentItemId);
+            $isSubAssembly = !is_null($componentBOM);
+
+            // Calculate required quantity for this component
+            if ($bomLine->is_yield_based) {
+                $shrinkageFactor = $bomLine->shrinkage_factor ?? 0;
+                $effectiveFactor = (1 - $shrinkageFactor);
+
+                if ($bomLine->yield_ratio > 0) {
+                    $componentRequiredQty = $requiredQuantity / $bomLine->yield_ratio / $effectiveFactor;
+                } else {
+                    $componentRequiredQty = $bomLine->quantity * ($requiredQuantity / $subAssemblyBOM->standard_quantity);
+                }
+            } else {
+                $componentRequiredQty = ($bomLine->quantity / $subAssemblyBOM->standard_quantity) * $requiredQuantity;
+            }
+
+            if ($isSubAssembly && !in_array($componentItemId, $processedSubAssemblies)) {
+                // This is another sub-assembly
+                if (!isset($subAssemblyNeeds[$componentItemId])) {
+                    $subAssemblyNeeds[$componentItemId] = 0;
+                }
+                $subAssemblyNeeds[$componentItemId] += $componentRequiredQty;
+            } else {
+                // This is a raw material
+                if (!isset($materialNeeds[$componentItemId])) {
+                    $materialNeeds[$componentItemId] = 0;
+                }
+                $materialNeeds[$componentItemId] += $componentRequiredQty;
+            }
+        }
+
+        // Process sub-assemblies
+        foreach ($subAssemblyNeeds as $subItemId => $reqQty) {
+            $subItem = Item::find($subItemId);
+            if (!$subItem) continue;
+
+            $availableStock = $subItem->current_stock;
+            $wipStock = $this->getWIPStock($subItemId, $period);
+            $bufferQty = ($reqQty * $bufferPercentage) / 100;
+            $netRequirement = $reqQty - $availableStock - $wipStock + $bufferQty;
+            $netRequirement = max(0, ceil($netRequirement));
+
+            $subBOM = $this->getActiveBOM($subItemId);
+
+            $plan = MaterialPlan::updateOrCreate(
+                [
+                    'item_id' => $subItemId,
+                    'planning_period' => $period,
+                    'material_type' => 'FG',
+                ],
+                [
+                    'forecast_quantity' => $reqQty,
+                    'available_stock' => $availableStock,
+                    'wip_stock' => $wipStock,
+                    'buffer_percentage' => $bufferPercentage,
+                    'buffer_quantity' => $bufferQty,
+                    'net_requirement' => $netRequirement,
+                    'planned_order_quantity' => $netRequirement,
+                    'bom_id' => $subBOM ? $subBOM->bom_id : null,
+                    'status' => 'Draft'
+                ]
+            );
+
+            $requirements[] = $plan;
+            $processedSubAssemblies[] = $subItemId;
+
+            // Recursively explode if needed
+            if ($netRequirement > 0 && $subBOM) {
+                $subRequirements = $this->explodeSubAssemblyBOM(
+                    $subBOM,
+                    $netRequirement,
+                    $period,
+                    $bufferPercentage,
+                    $processedSubAssemblies
+                );
+                $requirements = array_merge($requirements, $subRequirements);
+            }
+        }
+
+        // Process raw materials
+        foreach ($materialNeeds as $materialItemId => $reqQty) {
+            $material = Item::find($materialItemId);
+            if (!$material) continue;
+
+            $availableStock = $material->current_stock;
+            $bufferQty = ($reqQty * $bufferPercentage) / 100;
+            $netRequirement = $reqQty - $availableStock + $bufferQty;
+            $netRequirement = max(0, ceil($netRequirement));
+
+            $plan = MaterialPlan::updateOrCreate(
+                [
+                    'item_id' => $materialItemId,
+                    'planning_period' => $period,
+                    'material_type' => 'RM',
+                ],
+                [
+                    'forecast_quantity' => $reqQty,
+                    'available_stock' => $availableStock,
+                    'wip_stock' => 0,
+                    'buffer_percentage' => $bufferPercentage,
+                    'buffer_quantity' => $bufferQty,
+                    'net_requirement' => $netRequirement,
+                    'planned_order_quantity' => $netRequirement,
+                    'bom_id' => null,
+                    'status' => 'Draft'
+                ]
+            );
+
+            $requirements[] = $plan;
+        }
+
+        return $requirements;
+    }
+
+    /**
+     * NEW METHOD: Get BOM explosion summary for analysis
+     */
+    public function getBOMExplosion(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'bom_id' => 'required|exists:boms,bom_id',
+            'quantity' => 'required|numeric|min:0.01',
+            'levels' => 'sometimes|integer|min:1|max:10'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        try {
+            $bom = BOM::with(['item', 'unitOfMeasure'])->find($request->bom_id);
+            $quantity = $request->quantity;
+            $maxLevels = $request->levels ?? 5;
+
+            if (!$bom) {
+                return response()->json(['message' => 'BOM not found'], 404);
+            }
+
+            $explosion = $this->explodeBOMRecursive($bom, $quantity, 1, $maxLevels);
+
+            return response()->json([
+                'data' => [
+                    'parent_item' => [
+                        'item_id' => $bom->item->item_id,
+                        'item_code' => $bom->item->item_code,
+                        'name' => $bom->item->name,
+                        'quantity' => $quantity,
+                        'uom' => $bom->unitOfMeasure->symbol
+                    ],
+                    'explosion' => $explosion,
+                    'summary' => $this->getBOMSummary($explosion)
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to explode BOM', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Recursively explode BOM for analysis
+     */
+    private function explodeBOMRecursive($bom, $quantity, $level, $maxLevels, $processed = [])
+    {
+        if ($level > $maxLevels || in_array($bom->bom_id, $processed)) {
+            return [];
+        }
+
+        $processed[] = $bom->bom_id;
+        $explosion = [];
+
+        foreach ($bom->bomLines as $bomLine) {
+            $componentItem = $bomLine->item;
+            $componentBOM = $this->getActiveBOM($componentItem->item_id);
+
+            // Calculate required quantity
+            if ($bomLine->is_yield_based) {
+                $shrinkageFactor = $bomLine->shrinkage_factor ?? 0;
+                $effectiveFactor = (1 - $shrinkageFactor);
+
+                if ($bomLine->yield_ratio > 0) {
+                    $requiredQty = $quantity / $bomLine->yield_ratio / $effectiveFactor;
+                } else {
+                    $requiredQty = $bomLine->quantity * ($quantity / $bom->standard_quantity);
+                }
+            } else {
+                $requiredQty = ($bomLine->quantity / $bom->standard_quantity) * $quantity;
+            }
+
+            $componentData = [
+                'level' => $level,
+                'item_id' => $componentItem->item_id,
+                'item_code' => $componentItem->item_code,
+                'name' => $componentItem->name,
+                'quantity_in_bom' => $bomLine->quantity,
+                'required_quantity' => $requiredQty,
+                'uom' => $bomLine->unitOfMeasure->symbol,
+                'has_bom' => !is_null($componentBOM),
+                'material_type' => $componentBOM ? 'FG/Sub-Assembly' : 'Raw Material',
+                'is_yield_based' => $bomLine->is_yield_based,
+                'yield_ratio' => $bomLine->yield_ratio,
+                'shrinkage_factor' => $bomLine->shrinkage_factor,
+                'current_stock' => $componentItem->current_stock,
+                'children' => []
+            ];
+
+            // Recursively explode if component has BOM
+            if ($componentBOM && $level < $maxLevels) {
+                $componentData['children'] = $this->explodeBOMRecursive(
+                    $componentBOM,
+                    $requiredQty,
+                    $level + 1,
+                    $maxLevels,
+                    $processed
+                );
+            }
+
+            $explosion[] = $componentData;
+        }
+
+        return $explosion;
+    }
+
+    /**
+     * Get BOM explosion summary
+     */
+    private function getBOMSummary($explosion)
+    {
+        $summary = [
+            'total_components' => 0,
+            'raw_materials' => 0,
+            'sub_assemblies' => 0,
+            'max_level' => 0,
+            'yield_based_components' => 0
+        ];
+
+        $this->processSummaryRecursive($explosion, $summary);
+
+        return $summary;
+    }
+
+    /**
+     * Process summary recursively
+     */
+    private function processSummaryRecursive($explosion, &$summary)
+    {
+        foreach ($explosion as $component) {
+            $summary['total_components']++;
+            $summary['max_level'] = max($summary['max_level'], $component['level']);
+
+            if ($component['has_bom']) {
+                $summary['sub_assemblies']++;
+            } else {
+                $summary['raw_materials']++;
+            }
+
+            if ($component['is_yield_based']) {
+                $summary['yield_based_components']++;
+            }
+
+            if (!empty($component['children'])) {
+                $this->processSummaryRecursive($component['children'], $summary);
+            }
+        }
     }
 
     /**
@@ -675,7 +1055,7 @@ class MaterialPlanningController extends Controller
     }
 
     /**
-     * Generate work orders from material plans (for Finished Goods)
+     * Generate job orders from material plans (for Finished Goods)
      * PER ITEM - Modified to support single item generation
      */
     public function generateWorkOrders(Request $request)
@@ -737,7 +1117,7 @@ class MaterialPlanningController extends Controller
 
                 $woNumber = $this->generateWONumber();
 
-                // Create work order
+                // Create job order
                 $workOrder = WorkOrder::create([
                     'wo_number' => $woNumber,
                     'wo_date' => now(),
@@ -774,7 +1154,7 @@ class MaterialPlanningController extends Controller
                 }
 
                 // Update plan status
-                $plan->update(['status' => 'Work Order Created']);
+                $plan->update(['status' => 'Job Order Created']);
 
                 $workOrders[] = $workOrder->load(['item', 'bom', 'routing']);
             }
@@ -782,21 +1162,21 @@ class MaterialPlanningController extends Controller
             DB::commit();
 
             if (empty($workOrders)) {
-                return response()->json(['message' => 'No work orders could be generated. Please check that items have valid BOM and Routing.'], 400);
+                return response()->json(['message' => 'No job orders could be generated. Please check that items have valid BOM and Routing.'], 400);
             }
 
             return response()->json([
-                'message' => count($workOrders) . ' work order(s) generated successfully',
+                'message' => count($workOrders) . ' job order(s) generated successfully',
                 'data' => $workOrders
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['message' => 'Failed to generate work orders', 'error' => $e->getMessage()], 500);
+            return response()->json(['message' => 'Failed to generate job orders', 'error' => $e->getMessage()], 500);
         }
     }
 
     /**
-     * Generate work orders by period (for all items in a period)
+     * Generate job orders by period (for all items in a period)
      * NEW METHOD FOR PERIOD-BASED GENERATION
      */
     public function generateWorkOrdersByPeriod(Request $request)
@@ -872,7 +1252,7 @@ class MaterialPlanningController extends Controller
 
                 $woNumber = $this->generateWONumber();
 
-                // Create work order
+                // Create job order
                 $workOrder = WorkOrder::create([
                     'wo_number' => $woNumber,
                     'wo_date' => now(),
@@ -909,14 +1289,14 @@ class MaterialPlanningController extends Controller
                 }
 
                 // Update plan status
-                $plan->update(['status' => 'Work Order Created']);
+                $plan->update(['status' => 'Job Order Created']);
 
                 $workOrders[] = $workOrder;
             }
 
             DB::commit();
 
-            $message = count($workOrders) . ' work order(s) generated successfully';
+            $message = count($workOrders) . ' job order(s) generated successfully';
             if (!empty($skippedItems)) {
                 $message .= '. Skipped items: ' . implode(', ', $skippedItems);
             }
@@ -928,7 +1308,7 @@ class MaterialPlanningController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
-                'message' => 'Failed to generate work orders by period',
+                'message' => 'Failed to generate job orders by period',
                 'error' => $e->getMessage()
             ], 500);
         }
@@ -956,11 +1336,11 @@ class MaterialPlanningController extends Controller
     }
 
     /**
-     * Generate WO number
+     * Generate Job Order number
      */
     private function generateWONumber()
     {
-        $prefix = 'WO-AUTO-';
+        $prefix = 'JO-AUTO-';
         $date = date('Ymd');
         $lastWO = WorkOrder::where('wo_number', 'like', "{$prefix}{$date}%")
             ->orderBy('wo_number', 'desc')

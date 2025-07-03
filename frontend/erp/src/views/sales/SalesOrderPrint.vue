@@ -14,109 +14,101 @@
       </button>
     </div>
 
-    <!-- Print Content - Only this will be printed -->
-    <div id="printDocument" class="sales-order-document">
-      <div class="document-header">
-        <div class="company-info">
-          <h1 class="company-name">PT. ARMSTRONG INDUSTRI INDONESIA</h1>
-          <p>EJIP Industrial park Plot1 A-3, Desa Sukaresmi</p>
-          <p>Cikarang Selatan, Bekasi 17857, Indonesia</p>
+    <!-- Print Content - A4 Document with Original Layout -->
+    <div class="document-wrapper">
+      <div id="printDocument" class="sales-order-document">
+        <div class="document-header">
+          <div class="company-info">
+            <h1 class="company-name">ARMSTRONG MIRATECH INDIA PRIVATE LIMITED</h1>
+            <p>Plot No 1705, Portia Road, SRI CITY</p>
+            <p>PIN:517646</p>
+          </div>
+          <div class="document-title">
+            <h2>SALES ORDER</h2>
+            <div class="document-number">No. {{ order?.soNumber }}</div>
+            <div class="page-info">Page: {{ currentPage }} of {{ totalPages }}</div>
+          </div>
         </div>
-        <div class="document-title">
-          <h2>SALES ORDER</h2>
-          <div class="document-number">No. {{ order?.soNumber }}</div>
-          <div class="page-info">Page: {{ currentPage }} of {{ totalPages }}</div>
-        </div>
-      </div>
 
-      <div class="document-info">
-        <div class="customer-details">
-          <div class="customer-name">{{ order?.customer?.name }}</div>
-          <div class="customer-address">{{ order?.customer?.address }}</div>
+        <div class="document-info">
+          <div class="customer-details">
+            <div class="customer-name">{{ order?.customer?.name }}</div>
+            <div class="customer-address">{{ order?.customer?.address }}</div>
+          </div>
+          <div class="order-details">
+            <table class="info-table">
+              <tr>
+                <td>Date</td>
+                <td>:</td>
+                <td>{{ formatDate(order?.soDate) }}</td>
+              </tr>
+              <tr>
+                <td>Terms</td>
+                <td>:</td>
+                <td>{{ order?.payment_terms || 'Net 30 days' }}</td>
+              </tr>
+              <tr>
+                <td>Our Ref No.</td>
+                <td>:</td>
+                <td>{{ order?.poNumberCustomer }}</td>
+              </tr>
+              <tr>
+                <td>Your Ref No.</td>
+                <td>:</td>
+                <td>-</td>
+              </tr>
+            </table>
+          </div>
         </div>
-        <div class="order-details">
-          <table class="info-table">
-            <tr>
-              <td>Date</td>
-              <td>:</td>
-              <td>{{ formatDate(order?.soDate) }}</td>
-            </tr>
-            <tr>
-              <td>Terms</td>
-              <td>:</td>
-              <td>{{ order?.payment_terms || 'Net 30 days' }}</td>
-            </tr>
-            <tr>
-              <td>Our Ref No.</td>
-              <td>:</td>
-              <td>{{ order?.quotation_id ? order?.salesQuotation?.quotation_number : '-' }}</td>
-            </tr>
-            <tr>
-              <td>Your Ref No.</td>
-              <td>:</td>
-              <td>-</td>
-            </tr>
+
+        <div class="order-items">
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th class="no">No.</th>
+                <th class="item-code">Item Code</th>
+                <th class="description">Description</th>
+                <th class="qty">Qty</th>
+                <th class="uom">UOM</th>
+                <th class="price">U/Price</th>
+                <th class="disc">Disc.</th>
+                <th class="amount">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Regular item rows -->
+              <tr v-for="(line, index) in paginatedSalesOrderLines" :key="index">
+                <td class="no">{{ (currentPage - 1) * perPage + index + 1 }}</td>
+                <td class="item-code">{{ line.item.itemCode }}</td>
+                <td class="description">{{ line.item.name }}</td>
+                <td class="qty">{{ formatNumber(line.quantity) }}</td>
+                <td class="uom">{{ getUomSymbol(line.uomId) }}</td>
+                <td class="price">{{ formatCurrency(line.unitPrice, order.currencyCode, true, 4) }}</td>
+                <td class="disc">{{ line.discount ? formatCurrency(line.discount, order.currencyCode, true) : '0.00' }}</td>
+                <td class="amount">{{ formatCurrency(line.total, order.currencyCode, true) }}</td>
+              </tr>
+
+              <!-- Total row - appears right after items -->
+              <tr v-if="isLastPage" class="total-row">
+                <td colspan="7" class="total-label">Total</td>
+                <td class="total-value">{{ order?.currencyCode }} {{ formatCurrency(order?.totalAmount, order?.currencyCode, true) }}</td>
+              </tr>
+            </tbody>
           </table>
         </div>
-      </div>
 
-      <div class="order-items">
-        <table class="items-table">
-          <thead>
-            <tr>
-              <th class="no">No.</th>
-              <th class="item-code">Item Code</th>
-              <th class="description">Description</th>
-              <th class="qty">Qty</th>
-              <th class="uom">UOM</th>
-              <th class="price">U/Price</th>
-              <th class="disc">Disc.</th>
-              <th class="amount">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(line, index) in paginatedSalesOrderLines" :key="index">
-              <td class="no">{{ (currentPage - 1) * perPage + index + 1 }}</td>
-              <td class="item-code">{{ line.item.itemCode }}</td>
-              <td class="description">{{ line.item.name }}</td>
-              <td class="qty">{{ formatNumber(line.quantity) }}</td>
-              <td class="uom">{{ getUomSymbol(line.uomId) }}</td>
-              <td class="price">{{ formatCurrency(line.unitPrice, order.currencyCode, true, 4) }}</td>
-              <td class="disc">{{ line.discount ? formatCurrency(line.discount, order.currencyCode, true) : '-' }}</td>
-              <td class="amount">{{ formatCurrency(line.total, order.currencyCode, true) }}</td>
-            </tr>
-            <!-- Empty rows to ensure consistent spacing -->
-            <tr v-for="n in (perPage - paginatedSalesOrderLines.length)" :key="`empty-${n}`" class="empty-row">
-              <td class="no"></td>
-              <td class="item-code"></td>
-              <td class="description"></td>
-              <td class="qty"></td>
-              <td class="uom"></td>
-              <td class="price"></td>
-              <td class="disc"></td>
-              <td class="amount"></td>
-            </tr>
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colspan="7" class="total-label">Total</td>
-              <td class="total-value"> {{ order?.currencyCode }} {{ formatCurrency(order?.totalAmount, order?.currencyCode, true) }}</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-
-      <div class="document-footer">
-        <div class="signature-section">
-          <div class="signature-box">
-            <p>Authorised Signature</p>
+        <div class="document-footer">
+          <div class="signature-section">
+            <div class="signature-box">
+              <p>Authorised Signature</p>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Pagination Controls -->
-    <div class="pagination-controls no-print" style="text-align: center; margin-top: 1rem;">
+    <div class="pagination-controls no-print">
       <button class="btn btn-secondary" @click="prevPage" :disabled="currentPage === 1">
         &laquo; Previous
       </button>
@@ -173,16 +165,13 @@ export default {
         unitOfMeasures.value = uomResponse.data.data;
 
         // Load order details
-        const orderResponse = await axios.get(
-          `orders/${route.params.id}`
-        );
+        const orderResponse = await axios.get(`orders/${route.params.id}`);
         console.log("Order API response data:", orderResponse.data.data);
         order.value = toCamelCase(orderResponse.data.data);
         console.log("Order description:", order.value.description);
 
         // Auto-print if requested in the URL
         if (route.query.autoprint === 'true') {
-          // Wait for content to load before printing
           setTimeout(() => {
             printDocument();
           }, 1000);
@@ -208,66 +197,15 @@ export default {
       return Math.ceil(order.value.salesOrderLines.length / perPage.value);
     });
 
-    // Convert number to words
-    const numberToWords = (num) => {
-      const ones = ['', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN', 'ELEVEN', 'TWELVE', 'THIRTEEN', 'FOURTEEN', 'FIFTEEN', 'SIXTEEN', 'SEVENTEEN', 'EIGHTEEN', 'NINETEEN'];
-      const tens = ['', '', 'TWENTY', 'THIRTY', 'FORTY', 'FIFTY', 'SIXTY', 'SEVENTY', 'EIGHTY', 'NINETY'];
-
-      const numString = num.toString();
-
-      if (num < 0) return 'MINUS ' + numberToWords(Math.abs(num));
-
-      if (num === 0) return 'ZERO';
-
-      // For decimals
-      if (numString.includes('.')) {
-        const parts = numString.split('.');
-        const integerPart = parseInt(parts[0]);
-
-        // Handle the decimal part specifically for currency
-        let decimalPart = parts[1];
-        if (decimalPart.length === 1) decimalPart = decimalPart + '0';
-        if (decimalPart.length > 2) decimalPart = decimalPart.substring(0, 2);
-
-        const decimalWords = parseInt(decimalPart) > 0
-          ? ' AND CENTS ' + numberToWords(parseInt(decimalPart)) + ' ONLY'
-          : ' ONLY';
-
-        return numberToWords(integerPart) + decimalWords;
-      }
-
-      if (num < 20) return ones[num];
-
-      if (num < 100) {
-        return tens[Math.floor(num / 10)] + (num % 10 ? ' ' + ones[num % 10] : '');
-      }
-
-      if (num < 1000) {
-        return ones[Math.floor(num / 100)] + ' HUNDRED' + (num % 100 ? ' ' + numberToWords(num % 100) : '');
-      }
-
-      if (num < 1000000) {
-        return numberToWords(Math.floor(num / 1000)) + ' THOUSAND' + (num % 1000 ? ' ' + numberToWords(num % 1000) : '');
-      }
-
-      if (num < 1000000000) {
-        return numberToWords(Math.floor(num / 1000000)) + ' MILLION' + (num % 1000000 ? ' ' + numberToWords(num % 1000000) : '');
-      }
-
-      return numberToWords(Math.floor(num / 1000000000)) + ' BILLION' + (num % 1000000000 ? ' ' + numberToWords(num % 1000000000) : '');
-    };
-
-    // Computed property for amount in words
-    const amountInWords = computed(() => {
-      if (!order.value || !order.value.totalAmount) return '';
-      return numberToWords(parseFloat(order.value.totalAmount));
+    // Check if current page is the last page
+    const isLastPage = computed(() => {
+      return currentPage.value === totalPages.value;
     });
 
     // Format currency
     const formatCurrency = (value, currencyCode = "IDR", noSymbol = false, decimalPlaces = 2) => {
       if (!value) return "0.00";
 
-      // Format number with specified decimal places
       const formattedValue = new Intl.NumberFormat('en-US', {
         minimumFractionDigits: decimalPlaces,
         maximumFractionDigits: decimalPlaces
@@ -284,11 +222,11 @@ export default {
     const formatDate = (dateString) => {
       if (!dateString) return "-";
       const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', {
+      return date.toLocaleDateString('en-GB', {
         day: "2-digit",
         month: "2-digit",
         year: "numeric"
-      }).replace(/\//g, '/');
+      });
     };
 
     // Format number
@@ -297,115 +235,315 @@ export default {
       return new Intl.NumberFormat('en-US').format(value);
     };
 
-    // Get currency name
-    const getCurrencyName = (code) => {
-      const currencies = {
-        "IDR": "INDONESIAN RUPIAH",
-        "USD": "US DOLLAR",
-        "EUR": "EURO",
-        "SGD": "SINGAPORE DOLLAR",
-        "JPY": "JAPANESE YEN"
-      };
-
-      return currencies[code] || code;
-    };
-
     // Get UOM symbol
     const getUomSymbol = (uomId) => {
       const uom = unitOfMeasures.value.find((u) => u.uom_id === uomId);
       return uom ? uom.symbol : "-";
     };
 
-    // Print document - Modified to print all pages (all sales order lines)
+    // Print document - Modified to maintain preview styling with smaller fonts
     const printDocument = () => {
       if (!order.value || !order.value.salesOrderLines) return;
 
-      // Save current page and page info text
-      const originalPage = currentPage.value;
-      const originalPageInfo = document.querySelector('.page-info')?.textContent;
+      // Create a new window for printing
+      const printWindow = window.open('', '_blank');
 
-      // Temporarily set currentPage to 1 and perPage to total lines to show all lines
-      currentPage.value = 1;
-      perPage.value = order.value.salesOrderLines.length;
+      // Get the current document content
+      const documentElement = document.getElementById('printDocument');
+      const documentHTML = documentElement.outerHTML;
 
-      // Wait for DOM update
-      setTimeout(() => {
-        // Create a new style element
-        const printStyles = document.createElement('style');
-
-        // Add print-specific styles
-        printStyles.textContent = `
-          @media print {
-            body * {
-              visibility: hidden;
+      // Create the print HTML with same styling as preview
+      const printHTML = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Sales Order - ${order.value?.soNumber || 'Document'}</title>
+          <style>
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
             }
-            #printDocument, #printDocument * {
-              visibility: visible;
+
+            body {
+              font-family: Arial, sans-serif;
+              background: white;
+              margin: 0;
+              padding: 20px;
             }
-            #printDocument {
-              position: absolute;
-              left: 0;
-              top: 0;
+
+            .print-page {
+              width: 210mm;
+              min-height: 297mm;
+              margin: 0 auto;
+              background: white;
+              padding: 0;
+              box-shadow: none;
+            }
+
+            .sales-order-document {
               width: 100%;
-              padding: 0 !important;
-              margin: 0 !important;
-              box-shadow: none !important;
+              min-height: 297mm;
+              padding: 3rem;
+              background-color: white;
+              font-family: Arial, sans-serif;
+              font-size: 11pt;
+              box-sizing: border-box;
             }
-            .pagination-controls {
-              display: none !important;
+
+            .document-header {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 2rem;
             }
-            @page {
-              size: A4;
-              margin: 0.5cm;
+
+            .company-info {
+              flex-grow: 1;
             }
-          }
-        `;
 
-        // Add the style element to the head
-        document.head.appendChild(printStyles);
+            .company-name {
+              font-size: 10pt;
+              font-weight: bold;
+              margin: 0 0 0.5rem 0;
+              letter-spacing: 0.3px;
+            }
 
-        // Update page info to show all pages as 1 of 1
-        const pageInfo = document.querySelector('.page-info');
-        if (pageInfo) {
-          pageInfo.textContent = `Page: 1 of 1`;
-        }
+            .company-info p {
+              margin: 0.1rem 0;
+              font-size: 9pt;
+            }
 
-        // Trigger the print dialog
-        window.print();
+            .document-title {
+              text-align: right;
+            }
 
-        // Remove the style element after printing
+            .document-title h2 {
+              font-size: 14pt;
+              margin: 0 0 0.5rem 0;
+              text-decoration: underline;
+              font-weight: bold;
+            }
+
+            .document-number {
+              font-weight: bold;
+              margin-bottom: 0.25rem;
+              font-size: 10pt;
+            }
+
+            .page-info {
+              font-size: 9pt;
+            }
+
+            .document-info {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 2rem;
+            }
+
+            .customer-details {
+              width: 60%;
+            }
+
+            .customer-name {
+              font-weight: bold;
+              margin-bottom: 0.5rem;
+              text-transform: uppercase;
+              font-size: 10pt;
+            }
+
+            .customer-address {
+              font-size: 9pt;
+              white-space: pre-line;
+            }
+
+            .order-details {
+              width: 40%;
+            }
+
+            .info-table {
+              width: 100%;
+              border-collapse: collapse;
+            }
+
+            .info-table td {
+              padding: 0.25rem;
+              vertical-align: top;
+              font-size: 9pt;
+            }
+
+            .info-table td:nth-child(2) {
+              width: 10px;
+              text-align: center;
+            }
+
+            .items-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 2rem;
+            }
+
+            .items-table th,
+            .items-table td {
+              border: none;
+              padding: 0.5rem;
+              font-size: 9pt;
+            }
+
+            .items-table thead tr {
+              border-top: 1px solid #000;
+              border-bottom: 1px solid #000;
+            }
+
+            .items-table th {
+              background-color: transparent;
+              font-weight: bold;
+              text-align: center;
+              padding-top: 0.75rem;
+              padding-bottom: 0.75rem;
+            }
+
+            .items-table td.no,
+            .items-table th.no {
+              text-align: center;
+              width: 5%;
+            }
+
+            .items-table td.item-code,
+            .items-table th.item-code {
+              width: 15%;
+            }
+
+            .items-table td.description,
+            .items-table th.description {
+              width: 30%;
+            }
+
+            .items-table td.qty,
+            .items-table th.qty {
+              text-align: right;
+              width: 8%;
+            }
+
+            .items-table td.uom,
+            .items-table th.uom {
+              text-align: center;
+              width: 7%;
+            }
+
+            .items-table td.price,
+            .items-table th.price {
+              text-align: right;
+              width: 12%;
+            }
+
+            .items-table td.disc,
+            .items-table th.disc {
+              text-align: right;
+              width: 8%;
+            }
+
+            .items-table td.amount,
+            .items-table th.amount {
+              text-align: right;
+              width: 15%;
+            }
+
+            .total-row {
+              border-top: 1px solid #000;
+            }
+
+            .total-row td {
+              font-weight: bold;
+              padding-top: 0.75rem;
+            }
+
+            .total-label {
+              text-align: right;
+            }
+
+            .total-value {
+              text-align: right;
+            }
+
+            .document-footer {
+              position: absolute;
+              bottom: 3rem;
+              right: 3rem;
+              width: 200px;
+            }
+
+            .signature-section {
+              display: flex;
+              justify-content: flex-end;
+            }
+
+            .signature-box {
+              width: 200px;
+              border-top: 1px solid #000;
+              text-align: center;
+              padding-top: 0.5rem;
+              margin-top: 3rem;
+            }
+
+            .signature-box p {
+              margin: 0;
+              font-size: 9pt;
+            }
+
+            @media print {
+              body {
+                margin: 0 !important;
+                padding: 0 !important;
+              }
+
+              .print-page {
+                margin: 0 !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+              }
+
+              @page {
+                size: A4;
+                margin: 0.5cm;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="print-page">
+            ${documentHTML}
+          </div>
+        </body>
+        </html>
+      `;
+
+      // Write the HTML to the new window
+      printWindow.document.write(printHTML);
+      printWindow.document.close();
+
+      // Wait for content to load, then print
+      printWindow.onload = () => {
         setTimeout(() => {
-          document.head.removeChild(printStyles);
-
-          // Restore original page and perPage values
-          currentPage.value = originalPage;
-          perPage.value = 10; // reset to default or original perPage if stored
-
-          // Restore original page info text
-          if (pageInfo) {
-            pageInfo.textContent = originalPageInfo || '';
-          }
-        }, 1000);
-      }, 100);
+          printWindow.print();
+          printWindow.close();
+        }, 500);
+      };
     };
 
-    // Print PDF document using html2pdf.js
+    // Print PDF document
     const printPdf = async () => {
       if (isLoading.value) {
         console.warn("Data is still loading. Please wait before printing PDF.");
         return;
       }
 
-      // Create a temporary container for the full document with pagination
       const container = document.createElement('div');
       container.style.position = 'static';
-      container.style.top = '0';
-      container.style.left = '0';
-      container.style.width = '210mm'; // A4 width
+      container.style.width = '210mm';
       container.style.backgroundColor = 'white';
       container.style.padding = '0';
       container.style.margin = '0';
-      container.style.zIndex = 'auto';
 
       const lines = order.value?.salesOrderLines || [];
       const totalLines = lines.length;
@@ -413,26 +551,21 @@ export default {
       const totalPagesPdf = Math.ceil(totalLines / linesPerPage);
 
       for (let page = 1; page <= totalPagesPdf; page++) {
-        // Clone the printDocument div for each page
         const element = document.getElementById('printDocument');
         const clonedElement = element.cloneNode(true);
 
-        // Remove pagination controls from the cloned element if present
         const paginationControls = clonedElement.querySelector('.pagination-controls');
         if (paginationControls) {
           paginationControls.remove();
         }
 
-        // Update page info for the current page
         const pageInfo = clonedElement.querySelector('.page-info');
         if (pageInfo) {
           pageInfo.textContent = `Page: ${page} of ${totalPagesPdf}`;
         }
 
-        // Replace the tbody content with the sales order lines for the current page
         const tbody = clonedElement.querySelector('tbody');
         if (tbody) {
-          // Clear existing rows
           while (tbody.firstChild) {
             tbody.removeChild(tbody.firstChild);
           }
@@ -445,36 +578,28 @@ export default {
             tr.innerHTML = `
               <td class="no">${startIndex + index + 1}</td>
               <td class="item-code">${line.item.itemCode}</td>
-              <td class="description">${line.item.description}</td>
+              <td class="description">${line.item.name}</td>
               <td class="qty">${formatNumber(line.quantity)}</td>
               <td class="uom">${getUomSymbol(line.uomId)}</td>
               <td class="price">${formatCurrency(line.unitPrice, order.value.currencyCode, true, 4)}</td>
-              <td class="disc">${line.discount ? formatCurrency(line.discount, order.value.currencyCode, true) : '-'}</td>
+              <td class="disc">${line.discount ? formatCurrency(line.discount, order.value.currencyCode, true) : '0.00'}</td>
               <td class="amount">${formatCurrency(line.total, order.value.currencyCode, true)}</td>
             `;
             tbody.appendChild(tr);
           });
 
-          // Add empty rows to maintain consistent spacing if needed
-          const emptyRowsCount = linesPerPage - pageLines.length;
-          for (let n = 0; n < emptyRowsCount; n++) {
-            const emptyTr = document.createElement('tr');
-            emptyTr.classList.add('empty-row');
-            emptyTr.innerHTML = `
-              <td class="no"></td>
-              <td class="item-code"></td>
-              <td class="description"></td>
-              <td class="qty"></td>
-              <td class="uom"></td>
-              <td class="price"></td>
-              <td class="disc"></td>
-              <td class="amount"></td>
+          // Add total row only on last page
+          if (page === totalPagesPdf) {
+            const totalTr = document.createElement('tr');
+            totalTr.classList.add('total-row');
+            totalTr.innerHTML = `
+              <td colspan="7" class="total-label">Total</td>
+              <td class="total-value">${order.value.currencyCode} ${formatCurrency(order.value.totalAmount, order.value.currencyCode, true)}</td>
             `;
-            tbody.appendChild(emptyTr);
+            tbody.appendChild(totalTr);
           }
         }
 
-        // Append a page break div after each page except the last
         if (page < totalPagesPdf) {
           const pageBreak = document.createElement('div');
           pageBreak.style.pageBreakAfter = 'always';
@@ -487,11 +612,11 @@ export default {
       document.body.appendChild(container);
 
       const opt = {
-        margin:       0,
-        filename:     `SalesOrder_${order.value?.soNumber || 'document'}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2 },
-        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+        margin: 0,
+        filename: `SalesOrder_${order.value?.soNumber || 'document'}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
       };
 
       try {
@@ -499,7 +624,6 @@ export default {
       } catch (error) {
         console.error("Error generating PDF:", error);
       } finally {
-        // Clean up the temporary container after saving
         document.body.removeChild(container);
       }
     };
@@ -530,11 +654,9 @@ export default {
       order,
       isLoading,
       printSection,
-      amountInWords,
       formatCurrency,
       formatDate,
       formatNumber,
-      getCurrencyName,
       getUomSymbol,
       printDocument,
       printPdf,
@@ -544,7 +666,8 @@ export default {
       paginatedSalesOrderLines,
       totalPages,
       nextPage,
-      prevPage
+      prevPage,
+      isLastPage
     };
   }
 };
@@ -553,16 +676,22 @@ export default {
 <style>
 /* Component styles */
 .print-container {
-  padding: 2rem;
-  background-color: #f1f5f9;
   min-height: 100vh;
+  background-color: #f1f5f9;
+  padding: 2rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
 }
 
 .print-actions {
   display: flex;
   gap: 1rem;
   margin-bottom: 2rem;
-  justify-content: flex-end;
+  justify-content: center;
+  width: 100%;
+  max-width: 210mm;
 }
 
 .btn {
@@ -579,12 +708,12 @@ export default {
 }
 
 .btn-primary {
-  background-color: #2563eb;
+  background-color: #059669;
   color: white;
 }
 
 .btn-primary:hover {
-  background-color: #1d4ed8;
+  background-color: #047857;
 }
 
 .btn-secondary {
@@ -596,14 +725,36 @@ export default {
   background-color: #cbd5e1;
 }
 
-.sales-order-document {
+.btn-danger {
+  background-color: #ef4444;
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #dc2626;
+}
+
+/* Document wrapper for A4 sizing - Perfectly centered */
+.document-wrapper {
   width: 210mm;
-  margin: 0 auto;
+  min-height: 297mm;
+  margin: 0;
+  background-color: white;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e5e7eb;
+  position: relative;
+  display: block;
+}
+
+.sales-order-document {
+  width: 100%;
+  min-height: 297mm;
   padding: 3rem;
   background-color: white;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   font-family: Arial, sans-serif;
   font-size: 11pt;
+  box-sizing: border-box;
+  position: relative;
 }
 
 .document-header {
@@ -617,14 +768,15 @@ export default {
 }
 
 .company-name {
-  font-size: 18pt;
+  font-size: 10pt;
   font-weight: bold;
   margin: 0 0 0.5rem 0;
+  letter-spacing: 0.3px;
 }
 
 .company-info p {
   margin: 0.1rem 0;
-  font-size: 10pt;
+  font-size: 9pt;
 }
 
 .document-title {
@@ -632,18 +784,20 @@ export default {
 }
 
 .document-title h2 {
-  font-size: 16pt;
+  font-size: 14pt;
   margin: 0 0 0.5rem 0;
   text-decoration: underline;
+  font-weight: bold;
 }
 
 .document-number {
   font-weight: bold;
   margin-bottom: 0.25rem;
+  font-size: 10pt;
 }
 
 .page-info {
-  font-size: 10pt;
+  font-size: 9pt;
 }
 
 .document-info {
@@ -660,10 +814,11 @@ export default {
   font-weight: bold;
   margin-bottom: 0.5rem;
   text-transform: uppercase;
+  font-size: 10pt;
 }
 
 .customer-address {
-  font-size: 10pt;
+  font-size: 9pt;
   white-space: pre-line;
 }
 
@@ -679,7 +834,7 @@ export default {
 .info-table td {
   padding: 0.25rem;
   vertical-align: top;
-  font-size: 10pt;
+  font-size: 9pt;
 }
 
 .info-table td:nth-child(2) {
@@ -687,28 +842,25 @@ export default {
   text-align: center;
 }
 
-/* Updated styles for items table without borders */
+/* Items table styles - keeping original layout */
 .items-table {
   width: 100%;
   border-collapse: collapse;
   margin-bottom: 2rem;
 }
 
-/* Remove borders from all cells */
 .items-table th,
 .items-table td {
   border: none;
   padding: 0.5rem;
-  font-size: 10pt;
+  font-size: 9pt;
 }
 
-/* Add only top and bottom borders to header */
 .items-table thead tr {
   border-top: 1px solid #000;
   border-bottom: 1px solid #000;
 }
 
-/* Style header */
 .items-table th {
   background-color: transparent;
   font-weight: bold;
@@ -717,48 +869,51 @@ export default {
   padding-bottom: 0.75rem;
 }
 
-/* Adjust column widths and alignments */
-.items-table td.no {
+/* Column widths and alignments - matching original */
+.items-table td.no,
+.items-table th.no {
   text-align: center;
   width: 5%;
 }
 
-.items-table td.item-code {
+.items-table td.item-code,
+.items-table th.item-code {
   width: 15%;
 }
 
-.items-table td.description {
+.items-table td.description,
+.items-table th.description {
   width: 30%;
 }
 
-.items-table td.qty {
+.items-table td.qty,
+.items-table th.qty {
   text-align: right;
   width: 8%;
 }
 
-.items-table td.uom {
+.items-table td.uom,
+.items-table th.uom {
   text-align: center;
   width: 7%;
 }
 
-.items-table td.price {
+.items-table td.price,
+.items-table th.price {
   text-align: right;
   width: 12%;
 }
 
-.items-table td.disc {
+.items-table td.disc,
+.items-table th.disc {
   text-align: right;
   width: 8%;
 }
 
-.items-table td.amount {
+.items-table td.amount,
+.items-table th.amount {
   text-align: right;
   width: 15%;
-}
-
-/* Empty rows */
-.empty-row td {
-  height: 1.5rem;
 }
 
 .items-table tr {
@@ -767,13 +922,12 @@ export default {
   break-inside: avoid;
 }
 
-/* Add top border to footer */
-.items-table tfoot tr {
+/* Total row styling - appears right after items */
+.total-row {
   border-top: 1px solid #000;
 }
 
-/* Footer cell styles */
-.items-table tfoot td {
+.total-row td {
   font-weight: bold;
   padding-top: 0.75rem;
 }
@@ -787,7 +941,10 @@ export default {
 }
 
 .document-footer {
-  margin-top: 2rem;
+  position: absolute;
+  bottom: 3rem;
+  right: 3rem;
+  width: 200px;
 }
 
 .signature-section {
@@ -800,42 +957,23 @@ export default {
   border-top: 1px solid #000;
   text-align: center;
   padding-top: 0.5rem;
-  margin-top: 5rem;
+  margin-top: 3rem;
 }
 
 .signature-box p {
   margin: 0;
-  font-size: 10pt;
+  font-size: 9pt;
 }
 
-/* Print media query for proper printing */
-@media print {
-  body {
-    margin: 0;
-    padding: 0;
-    background-color: #fff;
-  }
+.pagination-controls {
+  text-align: center;
+  margin-top: 1rem;
+}
 
+/* Simplified Print media query */
+@media print {
   .no-print {
     display: none !important;
-  }
-
-  .print-container {
-    padding: 0;
-    background-color: #fff;
-  }
-
-.sales-order-document {
-  width: 100%;
-  margin: 0;
-  padding: 5mm;
-  box-shadow: none;
-  overflow: visible;
-  max-width: 210mm;
-}
-
-  .document-header, .document-info {
-    margin-bottom: 10mm;
   }
 
   @page {
@@ -847,6 +985,10 @@ export default {
 @media (max-width: 768px) {
   .print-container {
     padding: 1rem;
+  }
+
+  .document-wrapper {
+    width: 100%;
   }
 
   .sales-order-document {

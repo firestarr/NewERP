@@ -56,6 +56,7 @@ class ItemController extends Controller
             'width' => 'nullable|numeric|min:0',
             'thickness' => 'nullable|numeric|min:0',
             'weight' => 'nullable|numeric|min:0',
+            'hscode' => 'nullable|string|min:3',
             'document' => 'nullable|file|mimes:pdf|max:10240' // Accept PDF files up to 10MB
         ]);
 
@@ -845,6 +846,109 @@ class ItemController extends Controller
                 ],
                 'customer_prices' => array_values($priceMatrix)
             ]
+        ]);
+    }
+    /**
+     * Get finished goods that use this item as a material/component in their BOM
+     *
+     * @param int $id
+     * @return \Illuminate\Http\Response
+     */
+    public function getUsedInFinishedGoods($id)
+    {
+        $item = Item::find($id);
+
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Item not found'
+            ], 404);
+        }
+
+        // SOLUSI 1: Gunakan DISTINCT atau GROUP BY di level query
+        $usedInBOMs = BOMLine::with([
+            'bom.item',
+            'bom.unitOfMeasure',
+            'unitOfMeasure'
+        ])
+            ->where('item_id', $id)
+            // ->whereHas('bom', function($query) {
+            //     $query->where('status', 'active');
+            // })
+            ->get()
+            ->unique('bom_id'); // ← TAMBAH INI untuk remove duplicate by bom_id
+
+        // SOLUSI 2: Atau group by bom_id di database level
+        /*
+        $usedInBOMs = BOMLine::select([
+            'bom_lines.*',
+            DB::raw('MIN(line_id) as min_line_id') // Ambil line_id terkecil jika ada duplicate
+        ])
+        ->with(['bom.item', 'bom.unitOfMeasure', 'unitOfMeasure'])
+        ->where('item_id', $id)
+        ->whereHas('bom', function($query) {
+            $query->where('status', 'active');
+        })
+        ->groupBy('bom_id', 'item_id', 'bom_lines.quantity', 'bom_lines.uom_id',
+                'bom_lines.is_critical', 'bom_lines.is_yield_based',
+                'bom_lines.yield_ratio', 'bom_lines.shrinkage_factor', 'bom_lines.notes')
+        ->get();
+        */
+
+        $usedInFinishedGoods = [];
+
+        foreach ($usedInBOMs as $bomLine) {
+            $finishedGood = $bomLine->bom->item;
+
+            $usageData = [
+                'line_id' => $bomLine->line_id, // ← TAMBAH untuk debugging
+                'bom_id' => $bomLine->bom->bom_id,
+                'bom_code' => $bomLine->bom->bom_code,
+                'bom_revision' => $bomLine->bom->revision,
+                'finished_good' => [
+                    'item_id' => $finishedGood->item_id,
+                    'item_code' => $finishedGood->item_code,
+                    'item_name' => $finishedGood->name,
+                    'category' => $finishedGood->category ? $finishedGood->category->name : null,
+                ],
+                'usage_details' => [
+                    'quantity' => $bomLine->quantity,
+                    'uom' => $bomLine->unitOfMeasure ? $bomLine->unitOfMeasure->symbol : null,
+                    'is_critical' => $bomLine->is_critical,
+                    'is_yield_based' => $bomLine->is_yield_based,
+                    'yield_ratio' => $bomLine->yield_ratio,
+                    'shrinkage_factor' => $bomLine->shrinkage_factor,
+                    'notes' => $bomLine->notes,
+                ],
+                'bom_details' => [
+                    'standard_quantity' => $bomLine->bom->standard_quantity,
+                    'standard_uom' => $bomLine->bom->unitOfMeasure ? $bomLine->bom->unitOfMeasure->symbol : null,
+                    'effective_date' => $bomLine->bom->effective_date,
+                    'status' => $bomLine->bom->status,
+                ]
+            ];
+
+            // Calculate quantity per unit of finished good
+            if ($bomLine->bom->standard_quantity > 0) {
+                $usageData['usage_details']['quantity_per_unit'] =
+                    $bomLine->quantity / $bomLine->bom->standard_quantity;
+            }
+
+            $usedInFinishedGoods[] = $usageData;
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'item' => [
+                    'item_id' => $item->item_id,
+                    'item_code' => $item->item_code,
+                    'item_name' => $item->name,
+                ],
+                'used_in_count' => count($usedInFinishedGoods),
+                'used_in_finished_goods' => $usedInFinishedGoods
+            ],
+            'message' => 'Material usage in finished goods retrieved successfully'
         ]);
     }
 }

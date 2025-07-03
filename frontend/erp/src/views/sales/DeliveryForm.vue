@@ -3,14 +3,14 @@
   <div class="delivery-form">
     <div class="page-header">
       <h1>{{ isEditMode ? 'Edit Delivery' : 'Create New Delivery' }}</h1>
-      <div class="page-actions">
+      <!-- <div class="page-actions">
         <button class="btn btn-secondary" @click="goBack">
           <i class="fas fa-arrow-left"></i> Back
         </button>
         <button class="btn btn-primary" @click="saveDelivery" :disabled="isSubmitting">
           <i class="fas fa-save"></i> {{ isSubmitting ? 'Saving...' : 'Save' }}
         </button>
-      </div>
+      </div> -->
     </div>
 
     <div v-if="error" class="alert alert-danger">
