@@ -2,158 +2,136 @@
 
 namespace App\Http\Controllers\Api\Manufacturing;
 
+use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Validator;
 use App\Models\Manufacturing\Routing;
 use App\Models\Manufacturing\RoutingOperation;
-use Illuminate\Http\Request;
-use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Database\QueryException;
 
 class RoutingController extends Controller
 {
     /**
      * Display a listing of the resource.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
      */
     public function index(Request $request)
     {
-        $query = Routing::with(['item']);
+        try {
+            $query = Routing::with('item');
 
-        // Search functionality
-        if ($request->has('search') && !empty($request->search)) {
-            $searchTerm = $request->search;
-            $query->where(function ($q) use ($searchTerm) {
-                $q->where('routing_code', 'LIKE', "%{$searchTerm}%")
-                    ->orWhere('revision', 'LIKE', "%{$searchTerm}%")
-                    ->orWhere('status', 'LIKE', "%{$searchTerm}%")
-                    ->orWhereHas('item', function ($itemQuery) use ($searchTerm) {
-                        $itemQuery->where('name', 'LIKE', "%{$searchTerm}%");
-                    });
-            });
-        }
-
-        // Status filter
-        if ($request->has('status') && !empty($request->status)) {
-            $query->where('status', $request->status);
-        }
-
-        // Item filter
-        if ($request->has('item_id') && !empty($request->item_id)) {
-            $query->where('item_id', $request->item_id);
-        }
-
-        // Sorting
-        $sortField = $request->get('sort_field', 'routing_code');
-        $sortOrder = $request->get('sort_order', 'asc');
-
-        // Validate sort order
-        $sortOrder = in_array(strtolower($sortOrder), ['asc', 'desc']) ? $sortOrder : 'asc';
-
-        // Handle sorting for related fields
-        if ($sortField === 'item_name') {
-            $query->join('items', 'routings.item_id', '=', 'items.item_id')
-                ->orderBy('items.name', $sortOrder)
-                ->select('routings.*');
-        } else {
-            // Validate sort field to prevent SQL injection
-            $allowedSortFields = [
-                'routing_code',
-                'revision',
-                'effective_date',
-                'status',
-                'created_at',
-                'updated_at'
-            ];
-
-            if (in_array($sortField, $allowedSortFields)) {
-                $query->orderBy($sortField, $sortOrder);
-            } else {
-                $query->orderBy('routing_code', 'asc');
+            // Search functionality
+            if ($request->has('search') && !empty($request->search)) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('routing_code', 'like', '%' . $search . '%')
+                        ->orWhere('revision', 'like', '%' . $search . '%')
+                        ->orWhereHas('item', function ($itemQuery) use ($search) {
+                            $itemQuery->where('name', 'like', '%' . $search . '%')
+                                ->orWhere('item_code', 'like', '%' . $search . '%');
+                        });
+                });
             }
+
+            // Filter by status
+            if ($request->has('status') && !empty($request->status)) {
+                $query->where('status', $request->status);
+            }
+
+            // Sorting
+            $sortBy = $request->get('sort_by', 'routing_code');
+            $sortOrder = $request->get('sort_order', 'asc');
+            $query->orderBy($sortBy, $sortOrder);
+
+            $perPage = $request->get('per_page', 10);
+            $routings = $query->paginate($perPage);
+
+            return response()->json([
+                'data' => $routings->items(),
+                'meta' => [
+                    'current_page' => $routings->currentPage(),
+                    'last_page' => $routings->lastPage(),
+                    'per_page' => $routings->perPage(),
+                    'from' => $routings->firstItem(),
+                    'to' => $routings->lastItem(),
+                    'total' => $routings->total(),
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to fetch routings',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        // Pagination
-        $perPage = $request->get('per_page', 10);
-        $perPage = is_numeric($perPage) && $perPage > 0 && $perPage <= 100 ? $perPage : 10;
-
-        $routings = $query->paginate($perPage);
-
-        return response()->json([
-            'data' => $routings->items(),
-            'meta' => [
-                'current_page' => $routings->currentPage(),
-                'last_page' => $routings->lastPage(),
-                'per_page' => $routings->perPage(),
-                'from' => $routings->firstItem(),
-                'to' => $routings->lastItem(),
-                'total' => $routings->total(),
-            ]
-        ]);
     }
 
     /**
      * Display the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
      */
     public function show($id)
     {
-        $routing = Routing::with('item')->find($id);
+        try {
+            $routing = Routing::with('item')->find($id);
 
-        if (!$routing) {
-            return response()->json(['message' => 'Routing not found'], 404);
+            if (!$routing) {
+                return response()->json(['message' => 'Routing not found'], 404);
+            }
+
+            return response()->json(['data' => $routing]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to fetch routing',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        return response()->json(['data' => $routing]);
     }
 
     /**
      * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
      */
-    //    <?php
-
-    // Update untuk method store() di RoutingController.php
-
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'item_id' => 'required|integer|exists:items,item_id',
-            'routing_code' => 'required|string|max:20|unique:routings,routing_code',
-            'revision' => 'required|string|max:10',
-            'effective_date' => 'required|date',
-            'status' => 'required|in:Active,Inactive',
-            'operations' => 'array',
-            'operations.*.workcenter_id' => 'required|integer|exists:work_centers,workcenter_id',
-            'operations.*.operation_name' => 'required|string|max:100',
-            'operations.*.work_flow' => 'nullable|string|max:100',
-            'operations.*.models' => 'nullable|string|max:100',
-            'operations.*.sequence' => 'required|integer',
-            'operations.*.setup_time' => 'required|numeric',
-            'operations.*.run_time' => 'required|numeric',
-            'operations.*.uom_id' => 'required|integer|exists:UnitOfMeasure,uom_id',
-            'operations.*.labor_cost' => 'required|numeric',
-            'operations.*.overhead_cost' => 'required|numeric',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        DB::beginTransaction();
         try {
+            $validator = Validator::make($request->all(), [
+                'item_id' => 'required|integer|exists:items,item_id',
+                'routing_code' => 'required|string|max:20|unique:routings,routing_code',
+                'revision' => 'required|string|max:10',
+                'effective_date' => 'required|date',
+                'status' => 'required|in:Active,Inactive',
+                'cavity' => 'nullable|integer|min:1',
+                'process' => 'nullable|string|max:255',
+                'set_jump' => 'nullable|numeric|min:0',
+                'operations' => 'array',
+                'operations.*.workcenter_id' => 'required|integer|exists:work_centers,workcenter_id',
+                'operations.*.operation_name' => 'required|string|max:100',
+                'operations.*.work_flow' => 'nullable|string|max:100',
+                'operations.*.models' => 'nullable|string|max:100',
+                'operations.*.sequence' => 'required|integer',
+                'operations.*.setup_time' => 'required|numeric',
+                'operations.*.run_time' => 'required|numeric',
+                'operations.*.uom_id' => 'required|integer|exists:unit_of_measures,uom_id',
+                'operations.*.labor_cost' => 'required|numeric',
+                'operations.*.overhead_cost' => 'required|numeric',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            DB::beginTransaction();
+
             $routing = Routing::create([
                 'item_id' => $request->item_id,
                 'routing_code' => $request->routing_code,
                 'revision' => $request->revision,
                 'effective_date' => $request->effective_date,
                 'status' => $request->status,
+                'cavity' => $request->cavity,
+                'process' => $request->process,
+                'set_jump' => $request->set_jump,
             ]);
 
             if ($request->has('operations')) {
@@ -164,6 +142,7 @@ class RoutingController extends Controller
                         'operation_name' => $operation['operation_name'],
                         'work_flow' => $operation['work_flow'] ?? null,
                         'models' => $operation['models'] ?? null,
+                        // Field existing
                         'sequence' => $operation['sequence'],
                         'setup_time' => $operation['setup_time'],
                         'run_time' => $operation['run_time'],
@@ -180,53 +159,83 @@ class RoutingController extends Controller
                 'data' => $routing->load('routingOperations'),
                 'message' => 'Routing created successfully'
             ], 201);
+        } catch (QueryException $e) {
+            DB::rollBack();
+
+            // Handle specific database errors
+            if ($e->getCode() === '23000') {
+                return response()->json([
+                    'message' => 'Database constraint violation',
+                    'error' => 'Duplicate entry or foreign key constraint failed'
+                ], 422);
+            }
+
+            return response()->json([
+                'message' => 'Database error occurred',
+                'error' => $e->getMessage()
+            ], 500);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['message' => 'Failed to create routing', 'error' => $e->getMessage()], 500);
+            return response()->json([
+                'message' => 'Failed to create routing',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 
-    // Update untuk method update() di RoutingController.php
-
+    /**
+     * Update the specified resource in storage.
+     */
     public function update(Request $request, $id)
     {
-        $routing = Routing::find($id);
-
-        if (!$routing) {
-            return response()->json(['message' => 'Routing not found'], 404);
-        }
-
-        $validator = Validator::make($request->all(), [
-            'item_id' => 'required|integer|exists:items,item_id',
-            'routing_code' => 'required|string|max:20|unique:routings,routing_code,' . $id . ',routing_id',
-            'revision' => 'required|string|max:10',
-            'effective_date' => 'required|date',
-            'status' => 'required|in:Active,Inactive',
-            'operations' => 'array',
-            'operations.*.workcenter_id' => 'required|integer|exists:work_centers,workcenter_id',
-            'operations.*.operation_name' => 'required|string|max:100',
-            'operations.*.work_flow' => 'nullable|string|max:100',
-            'operations.*.models' => 'nullable|string|max:100',
-            'operations.*.sequence' => 'required|integer',
-            'operations.*.setup_time' => 'required|numeric',
-            'operations.*.run_time' => 'required|numeric',
-            'operations.*.uom_id' => 'required|integer|exists:UnitOfMeasure,uom_id',
-            'operations.*.labor_cost' => 'required|numeric',
-            'operations.*.overhead_cost' => 'required|numeric',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        DB::beginTransaction();
         try {
+            $routing = Routing::find($id);
+
+            if (!$routing) {
+                return response()->json(['message' => 'Routing not found'], 404);
+            }
+
+            $validator = Validator::make($request->all(), [
+                'item_id' => 'required|integer|exists:items,item_id',
+                'routing_code' => 'required|string|max:20|unique:routings,routing_code,' . $id . ',routing_id',
+                'revision' => 'required|string|max:10',
+                'effective_date' => 'required|date',
+                'status' => 'required|in:Active,Inactive',
+                'cavity' => 'nullable|integer|min:1',
+                'process' => 'nullable|string|max:255',
+                'set_jump' => 'nullable|numeric|min:0',
+                'operations' => 'array',
+                'operations.*.workcenter_id' => 'required|integer|exists:work_centers,workcenter_id',
+                'operations.*.operation_name' => 'required|string|max:100',
+                'operations.*.work_flow' => 'nullable|string|max:100',
+                'operations.*.models' => 'nullable|string|max:100',
+                // Field existing
+                'operations.*.sequence' => 'required|integer',
+                'operations.*.setup_time' => 'required|numeric',
+                'operations.*.run_time' => 'required|numeric',
+                'operations.*.uom_id' => 'required|integer|exists:unit_of_measures,uom_id',
+                'operations.*.labor_cost' => 'required|numeric',
+                'operations.*.overhead_cost' => 'required|numeric',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            DB::beginTransaction();
+
             $routing->update([
                 'item_id' => $request->item_id,
                 'routing_code' => $request->routing_code,
                 'revision' => $request->revision,
                 'effective_date' => $request->effective_date,
                 'status' => $request->status,
+                'cavity' => $request->cavity,
+                'process' => $request->process,
+                'set_jump' => $request->set_jump,
             ]);
 
             // Delete existing operations and recreate
@@ -240,6 +249,7 @@ class RoutingController extends Controller
                         'operation_name' => $operation['operation_name'],
                         'work_flow' => $operation['work_flow'] ?? null,
                         'models' => $operation['models'] ?? null,
+                        // Field existing
                         'sequence' => $operation['sequence'],
                         'setup_time' => $operation['setup_time'],
                         'run_time' => $operation['run_time'],
@@ -256,44 +266,152 @@ class RoutingController extends Controller
                 'data' => $routing->load('routingOperations'),
                 'message' => 'Routing updated successfully'
             ]);
+        } catch (QueryException $e) {
+            DB::rollBack();
+
+            // Handle specific database errors
+            if ($e->getCode() === '23000') {
+                return response()->json([
+                    'message' => 'Database constraint violation',
+                    'error' => 'Duplicate entry or foreign key constraint failed'
+                ], 422);
+            }
+
+            return response()->json([
+                'message' => 'Database error occurred',
+                'error' => $e->getMessage()
+            ], 500);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['message' => 'Failed to update routing', 'error' => $e->getMessage()], 500);
+            return response()->json([
+                'message' => 'Failed to update routing',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 
     /**
      * Remove the specified resource from storage.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
      */
     public function destroy($id)
     {
-        $routing = Routing::find($id);
-
-        if (!$routing) {
-            return response()->json(['message' => 'Routing not found'], 404);
-        }
-
-        // Check if routing is being used in Work Orders
-        if ($routing->workOrders()->count() > 0) {
-            return response()->json(['message' => 'Cannot delete routing. It is being used in Work Orders.'], 400);
-        }
-
-        DB::beginTransaction();
         try {
-            // Delete routing operations first
+            $routing = Routing::find($id);
+
+            if (!$routing) {
+                return response()->json(['message' => 'Routing not found'], 404);
+            }
+
+            DB::beginTransaction();
+
+            // Delete related operations first
             $routing->routingOperations()->delete();
 
-            // Then delete the routing
+            // Delete the routing
             $routing->delete();
 
             DB::commit();
+
             return response()->json(['message' => 'Routing deleted successfully']);
+        } catch (QueryException $e) {
+            DB::rollBack();
+
+            // Handle foreign key constraint errors
+            if ($e->getCode() === '23000') {
+                return response()->json([
+                    'message' => 'Cannot delete routing',
+                    'error' => 'This routing is being used by other records'
+                ], 422);
+            }
+
+            return response()->json([
+                'message' => 'Database error occurred',
+                'error' => $e->getMessage()
+            ], 500);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['message' => 'Failed to delete routing', 'error' => $e->getMessage()], 500);
+            return response()->json([
+                'message' => 'Failed to delete routing',
+                'error' => $e->getMessage()
+            ], 500);
         }
+    }
+
+    /**
+     * Get routing operations with new fields included
+     */
+    public function getOperations($routingId)
+    {
+        try {
+            $routing = Routing::find($routingId);
+
+            if (!$routing) {
+                return response()->json(['message' => 'Routing not found'], 404);
+            }
+
+            $operations = RoutingOperation::with(['workCenter', 'unitOfMeasure'])
+                ->where('routing_id', $routingId)
+                ->orderBy('sequence')
+                ->get()
+                ->map(function ($operation) {
+                    return [
+                        'operation_id' => $operation->operation_id,
+                        'routing_id' => $operation->routing_id,
+                        'workcenter_id' => $operation->workcenter_id,
+                        'operation_name' => $operation->operation_name,
+                        'work_flow' => $operation->work_flow,
+                        'models' => $operation->models,
+                        // Field baru
+                        'cavity' => $operation->cavity,
+                        'process' => $operation->process,
+                        'set_jump' => $operation->set_jump,
+                        // Field existing
+                        'sequence' => $operation->sequence,
+                        'setup_time' => $operation->setup_time,
+                        'run_time' => $operation->run_time,
+                        'total_time' => $operation->total_time,
+                        'uom_id' => $operation->uom_id,
+                        'labor_cost' => $operation->labor_cost,
+                        'overhead_cost' => $operation->overhead_cost,
+                        'work_center' => $operation->workCenter,
+                        'unit_of_measure' => $operation->unitOfMeasure,
+                    ];
+                });
+
+            return response()->json(['data' => $operations]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to fetch operations',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Validate operation data with new fields
+     */
+    private function validateOperationData($operations)
+    {
+        $rules = [];
+
+        foreach ($operations as $index => $operation) {
+            $rules["operations.{$index}.workcenter_id"] = 'required|integer|exists:work_centers,workcenter_id';
+            $rules["operations.{$index}.operation_name"] = 'required|string|max:100';
+            $rules["operations.{$index}.work_flow"] = 'nullable|string|max:100';
+            $rules["operations.{$index}.models"] = 'nullable|string|max:100';
+            // Field baru
+            $rules["operations.{$index}.cavity"] = 'nullable|integer|min:1';
+            $rules["operations.{$index}.process"] = 'nullable|string|max:255';
+            $rules["operations.{$index}.set_jump"] = 'nullable|numeric|min:0';
+            // Field existing
+            $rules["operations.{$index}.sequence"] = 'required|integer';
+            $rules["operations.{$index}.setup_time"] = 'required|numeric|min:0';
+            $rules["operations.{$index}.run_time"] = 'required|numeric|min:0';
+            $rules["operations.{$index}.uom_id"] = 'required|integer|exists:unit_of_measures,uom_id';
+            $rules["operations.{$index}.labor_cost"] = 'required|numeric|min:0';
+            $rules["operations.{$index}.overhead_cost"] = 'required|numeric|min:0';
+        }
+
+        return $rules;
     }
 }

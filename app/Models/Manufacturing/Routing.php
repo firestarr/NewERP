@@ -22,6 +22,9 @@ class Routing extends Model
         'revision',
         'effective_date',
         'status',
+        'cavity',
+        'process',
+        'set_jump',
     ];
 
     protected $casts = [

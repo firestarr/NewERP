@@ -81,14 +81,14 @@
                 </div>
                 <div class="row">
                   <dt>Process</dt>
-                  <dd>{{ workOrderData.routing?.routing_name || 'SINGLE KNIFE Dummy' }}</dd>
+                  <dd>{{ workOrderData.routing?.process || 'SINGLE KNIFE Dummy' }}</dd>
                 </div>
 
                 <div class="row cavity-punch-knife">
                   <div class="cavity-punch-wrapper">
                     <div class="item">
                       <dt>Cavity</dt>
-                      <dd>{{ workOrderData.cavity || '1 Dummy' }}</dd>
+                      <dd>{{ workOrderData.routing?.cavity || '1 Dummy' }}</dd>
                     </div>
                     <div class="item">
                       <dt>Total Punch</dt>
@@ -96,7 +96,7 @@
                     </div>
                   </div>
                   <div class="single-knife-inline">
-                    {{ workOrderData.routing?.routing_name || 'SINGLE KNIFE' }}
+                    {{ workOrderData.routing?.process || 'SINGLE KNIFE' }}
                   </div>
                 </div>
 
@@ -106,7 +106,7 @@
                 </div>
                 <div class="row">
                   <dt>Set Jump</dt>
-                  <dd>{{ workOrderData.set_jump || '0.000 Dummy' }}</dd>
+                  <dd>{{ workOrderData.routing?.set_jump || '0.000 Dummy' }}</dd>
                   <dd></dd>
                 </div>
               </dl>
@@ -151,7 +151,7 @@
                   <tr><td>Issue WH :</td><td>{{ workOrderData.issue_wh || '' }}</td></tr>
                   <tr><td>Issue Date</td><td>{{ formatDate(workOrderData.wo_date) || formatDate(new Date()) }}</td></tr>
                   <tr><td>Print Date</td><td>{{ formatDate(new Date()) || '17 May 2025 Dum' }}</td></tr>
-                  <tr><td>Order Qty</td><td>{{ formatNumber(workOrderData.actual_quantity) || '2,396 Dummy' }} PCS</td></tr>
+                  <tr><td>Order Qty</td><td>{{ formatNumber(workOrderData.actual_quantity) || ' ' }} PCS</td></tr>
                   <tr><td>Prod. Qty</td><td>{{ formatNumber(workOrderData.planned_quantity) || '2,388 Dummy' }} PCS</td></tr>
                   <tr><td>Important</td><td>{{ workOrderData.important || '' }}</td></tr>
                   <tr><td>Yield</td><td>{{ workOrderData.yield || '' }}</td></tr>

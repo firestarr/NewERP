@@ -76,7 +76,7 @@
             <div class="row mt-3">
               <div class="col-md-4">
                 <div class="form-group">
-                  <label for="revision">Revised <span class="text-danger">*</span></label>
+                  <label for="revision">Revision <span class="text-danger">*</span></label>
                   <input
                     id="revision"
                     v-model="routing.revision"
@@ -108,9 +108,58 @@
                   <select id="status" v-model="routing.status" class="form-control" required>
                     <option value="Draft">Draft</option>
                     <option value="Active">Active</option>
-                    <option value="Obsolete">Not Applicable</option>
+                    <option value="Obsolete">Obsolete</option>
                   </select>
                   <small v-if="errors.status" class="text-danger">{{ errors.status[0] }}</small>
+                </div>
+              </div>
+            </div>
+
+            <!-- Field Baru -->
+            <div class="row mt-3">
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label for="cavity">Cavity</label>
+                  <input
+                    id="cavity"
+                    v-model.number="routing.cavity"
+                    type="number"
+                    class="form-control"
+                    placeholder="Number of cavities"
+                    min="1"
+                  />
+                  <small class="text-muted">Number of cavities in mold/tool</small>
+                  <small v-if="errors.cavity" class="text-danger">{{ errors.cavity[0] }}</small>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label for="process">Process</label>
+                  <input
+                    id="process"
+                    v-model="routing.process"
+                    type="text"
+                    class="form-control"
+                    placeholder="Process type"
+                  />
+                  <small class="text-muted">Process type or description</small>
+                  <small v-if="errors.process" class="text-danger">{{ errors.process[0] }}</small>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label for="set_jump">Set Jump</label>
+                  <input
+                    id="set_jump"
+                    v-model.number="routing.set_jump"
+                    type="number"
+                    class="form-control"
+                    placeholder="Set jump value"
+                    step="0.01"
+                    min="0"
+                  />
+                  <small class="text-muted">Set jump time or distance</small>
+                  <small v-if="errors.set_jump" class="text-danger">{{ errors.set_jump[0] }}</small>
                 </div>
               </div>
             </div>
@@ -152,6 +201,10 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
       revision: '',
       effective_date: new Date().toISOString().substring(0, 10), // Default to today
       status: 'Draft',
+      // Field baru
+      cavity: null,
+      process: '',
+      set_jump: null,
     });
 
     const searchQuery = ref('');
@@ -171,6 +224,27 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
           item.item_code.toLowerCase().includes(query)
       );
     });
+
+    // Load items
+    const loadItems = async () => {
+      try {
+        const response = await axios.get('/items');
+        items.value = response.data.data || [];
+      } catch (error) {
+        console.error('Error loading items:', error);
+      }
+    };
+
+    // Load routing data for edit mode
+    const loadRoutingData = async () => {
+      try {
+        const response = await axios.get(`/routings/${routingId.value}`);
+        Object.assign(routing, response.data.data);
+        updateSearchQueryFromItemId();
+      } catch (error) {
+        console.error('Error loading routing data:', error);
+      }
+    };
 
     // Update searchQuery when routing.item_id changes (for edit mode)
     const updateSearchQueryFromItemId = () => {
@@ -221,38 +295,6 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
       }
     };
 
-    // Load items for dropdown
-    const loadItems = async () => {
-      try {
-        const response = await axios.get('/items');
-        items.value = response.data.data;
-        updateSearchQueryFromItemId();
-      } catch (error) {
-        console.error('Error loading items:', error);
-      }
-    };
-
-    // Load existing routing data if in edit mode
-    const loadRoutingData = async () => {
-      if (!isEditMode.value) return;
-
-      try {
-        const response = await axios.get(`/routings/${routingId.value}`);
-        const data = response.data.data;
-
-        // Update reactive object with fetched data
-        routing.item_id = data.item_id;
-        routing.routing_code = data.routing_code;
-        routing.revision = data.revision;
-        routing.effective_date = new Date(data.effective_date).toISOString().substring(0, 10);
-        routing.status = data.status;
-      } catch (error) {
-        console.error('Error loading routing data:', error);
-        alert('Gagal memuat data routing. Silakan coba lagi.');
-      }
-    };
-
-    // Close dropdown when clicking outside
     const hideDropdown = () => {
       setTimeout(() => {
         showDropdown.value = false;
@@ -265,24 +307,23 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
       errors.value = {};
 
       try {
-        let response;
+        const url = isEditMode.value ? `/routings/${routingId.value}` : '/routings';
+        const method = isEditMode.value ? 'put' : 'post';
 
-        if (isEditMode.value) {
-          response = await axios.put(`/routings/${routingId.value}`, routing);
-        } else {
-          response = await axios.post('/routings', routing);
+        const response = await axios[method](url, routing);
+
+        if (response.data) {
+          console.log('Routing saved successfully');
+          const savedRouting = response.data.data;
+          router.push(`/manufacturing/routings/${savedRouting.routing_id}`);
         }
-
-        // Navigate to detail page after successful save
-        const savedRouting = response.data.data;
-        router.push(`/manufacturing/routings/${savedRouting.routing_id}`);
       } catch (error) {
         console.error('Error saving routing:', error);
 
-        if (error.response && error.response.data && error.response.data.errors) {
-          errors.value = error.response.data.errors;
+        if (error.response?.status === 422) {
+          errors.value = error.response.data.errors || {};
         } else {
-          alert('Gagal menyimpan routing. Silakan coba lagi.');
+          console.error('Failed to save routing. Please try again.');
         }
       } finally {
         isSaving.value = false;
@@ -301,8 +342,6 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
         loadRoutingData();
       }
     });
-
-    // Removed global click listener for outside clicks
 
     return {
       routing,
@@ -379,7 +418,7 @@ form {
 .row {
   display: flex;
   flex-wrap: wrap;
-  margin: 0 -0.75rem 1.5rem -0.75rem;
+  margin: 0 -0.75rem;
 }
 
 .row:last-child {
@@ -512,6 +551,11 @@ label {
   color: #1e293b;
 }
 
+.btn-sm {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.875rem;
+}
+
 /* Spacing utilities */
 .mr-1 {
   margin-right: 0.25rem;
@@ -529,6 +573,10 @@ label {
   margin-top: 1.5rem;
 }
 
+.mb-0 {
+  margin-bottom: 0;
+}
+
 /* Section headers */
 h3 {
   font-size: 1.2rem;
@@ -536,6 +584,12 @@ h3 {
   color: #334155;
   margin-top: 0.5rem;
   margin-bottom: 0.75rem;
+}
+
+h6 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #334155;
 }
 
 .text-muted {
@@ -548,6 +602,37 @@ small.text-danger {
   display: block;
   margin-top: 0.35rem;
   font-size: 0.8rem;
+}
+
+small.text-muted {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+}
+
+/* Utility classes */
+.d-flex {
+  display: flex;
+}
+
+.justify-content-between {
+  justify-content: space-between;
+}
+
+.align-items-center {
+  align-items: center;
+}
+
+.position-relative {
+  position: relative;
+}
+
+.w-100 {
+  width: 100%;
+}
+
+.show {
+  display: block;
 }
 
 /* Responsive adjustments */
