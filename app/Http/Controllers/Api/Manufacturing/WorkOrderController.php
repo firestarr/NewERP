@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api\Manufacturing;
 use App\Http\Controllers\Controller;
 use App\Models\Manufacturing\WorkOrder;
 use App\Models\Manufacturing\WorkOrderOperation;
+use App\Models\ItemPrice;
+use App\Models\Sales\Customer;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Validator;
@@ -38,6 +40,106 @@ class WorkOrderController extends Controller
 
         // Format with 5 digits, padded with zeros
         return $prefix . sprintf('%05d', $nextNumber);
+    }
+
+    /**
+     * Get customer information based on item prices
+     *
+     * @param  int  $itemId
+     * @return array
+     */
+    private function getCustomerInfoFromItemPrices($itemId)
+    {
+        // Get the most recent active sale price with customer
+        $itemPrice = ItemPrice::where('item_id', $itemId)
+            ->where('price_type', 'sale')
+            ->whereNotNull('customer_id')
+            ->where('is_active', true)
+            ->where(function ($q) {
+                $q->whereNull('end_date')
+                    ->orWhere('end_date', '>=', now());
+            })
+            ->where(function ($q) {
+                $q->whereNull('start_date')
+                    ->orWhere('start_date', '<=', now());
+            })
+            ->with('customer')
+            ->orderBy('updated_at', 'desc')
+            ->first();
+
+        if ($itemPrice && $itemPrice->customer) {
+            return [
+                'customer_id' => $itemPrice->customer->customer_id,
+                'customer_code' => $itemPrice->customer->customer_code,
+                'customer_name' => $itemPrice->customer->name
+            ];
+        }
+
+        return [
+            'customer_id' => null,
+            'customer_code' => null,
+            'customer_name' => null
+        ];
+    }
+
+    /**
+     * Get all customers that have item prices for this item
+     *
+     * @param  int  $itemId
+     * @return array
+     */
+    private function getAllCustomersFromItemPrices($itemId)
+    {
+        $itemPrices = ItemPrice::where('item_id', $itemId)
+            ->where('price_type', 'sale')
+            ->whereNotNull('customer_id')
+            ->where('is_active', true)
+            ->where(function ($q) {
+                $q->whereNull('end_date')
+                    ->orWhere('end_date', '>=', now());
+            })
+            ->where(function ($q) {
+                $q->whereNull('start_date')
+                    ->orWhere('start_date', '<=', now());
+            })
+            ->with('customer')
+            ->get();
+
+        return $itemPrices->map(function ($itemPrice) {
+            return [
+                'customer_id' => $itemPrice->customer->customer_id,
+                'customer_code' => $itemPrice->customer->customer_code,
+                'customer_name' => $itemPrice->customer->name,
+                'price' => $itemPrice->price,
+                'currency_code' => $itemPrice->currency_code,
+                'min_quantity' => $itemPrice->min_quantity
+            ];
+        })->toArray();
+    }
+
+    /**
+     * Transform work order data to include customer information
+     *
+     * @param  \App\Models\Manufacturing\WorkOrder  $workOrder
+     * @param  bool  $includeAllCustomers
+     * @return array
+     */
+    private function transformWorkOrderData($workOrder, $includeAllCustomers = false)
+    {
+        $data = $workOrder->toArray();
+
+        // Get customer info from item prices
+        $customerInfo = $this->getCustomerInfoFromItemPrices($workOrder->item_id);
+
+        // Add customer information to work order data
+        $data['primary_customer'] = $customerInfo;
+
+        // If requested, include all customers that have prices for this item
+        if ($includeAllCustomers) {
+            $data['all_customers'] = $this->getAllCustomersFromItemPrices($workOrder->item_id);
+        }
+
+        return $data;
     }
 
     /**
@@ -75,8 +177,23 @@ class WorkOrderController extends Controller
             });
         }
 
+        // Filter by customer if requested
+        if ($request->has('customer_id') && !empty($request->customer_id)) {
+            $query->whereHas('item.salePrices', function ($q) use ($request) {
+                $q->where('customer_id', $request->customer_id)
+                    ->where('is_active', true);
+            });
+        }
+
         $workOrders = $query->get();
-        return response()->json(['data' => $workOrders]);
+
+        // Transform each work order to include customer information
+        $transformedWorkOrders = $workOrders->map(function ($workOrder) use ($request) {
+            $includeAllCustomers = $request->has('include_all_customers') && $request->include_all_customers;
+            return $this->transformWorkOrderData($workOrder, $includeAllCustomers);
+        });
+
+        return response()->json(['data' => $transformedWorkOrders]);
     }
 
     /**
@@ -97,6 +214,7 @@ class WorkOrderController extends Controller
             'planned_start_date' => 'required|date',
             'planned_end_date' => 'required|date|after_or_equal:planned_start_date',
             'status' => 'required|string|max:50',
+            'customer_id' => 'nullable|integer|exists:Customer,customer_id', // Optional customer reference
         ]);
 
         if ($validator->fails()) {
@@ -127,10 +245,13 @@ class WorkOrderController extends Controller
                 ]);
             }
 
+            // Load relationships
+            $workOrder->load(['item', 'bom', 'routing', 'workOrderOperations']);
+
             DB::commit();
 
             return response()->json([
-                'data' => $workOrder->load(['item', 'bom', 'routing', 'workOrderOperations']),
+                'data' => $this->transformWorkOrderData($workOrder, true),
                 'message' => 'Work order created successfully'
             ], 201);
         } catch (\Exception $e) {
@@ -158,7 +279,9 @@ class WorkOrderController extends Controller
             return response()->json(['message' => 'Work order not found'], 404);
         }
 
-        return response()->json(['data' => $workOrder]);
+        return response()->json([
+            'data' => $this->transformWorkOrderData($workOrder, true)
+        ]);
     }
 
     /**
@@ -186,6 +309,7 @@ class WorkOrderController extends Controller
             'planned_start_date' => 'sometimes|required|date',
             'planned_end_date' => 'sometimes|required|date|after_or_equal:planned_start_date',
             'status' => 'sometimes|required|string|max:50',
+            'customer_id' => 'nullable|integer|exists:Customer,customer_id', // Allow updating customer reference
         ]);
 
         if ($validator->fails()) {
@@ -198,8 +322,11 @@ class WorkOrderController extends Controller
 
         $workOrder->update($updateData);
 
+        // Load relationships
+        $workOrder->load(['item', 'bom', 'routing']);
+
         return response()->json([
-            'data' => $workOrder,
+            'data' => $this->transformWorkOrderData($workOrder, true),
             'message' => 'Work order updated successfully'
         ]);
     }
@@ -248,6 +375,63 @@ class WorkOrderController extends Controller
     {
         return response()->json([
             'next_wo_number' => $this->generateWorkOrderNumber()
+        ]);
+    }
+
+    /**
+     * Get customers that have item prices for a specific item
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function getCustomersForItem(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'item_id' => 'required|integer|exists:items,item_id'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $customers = $this->getAllCustomersFromItemPrices($request->item_id);
+
+        return response()->json([
+            'data' => $customers,
+            'message' => 'Customers retrieved successfully'
+        ]);
+    }
+
+    /**
+     * Get work orders by customer
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function getWorkOrdersByCustomer(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'customer_id' => 'required|integer|exists:Customer,customer_id'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $workOrders = WorkOrder::with(['item', 'bom', 'routing'])
+            ->whereHas('item.salePrices', function ($q) use ($request) {
+                $q->where('customer_id', $request->customer_id)
+                    ->where('is_active', true);
+            })
+            ->get();
+
+        $transformedWorkOrders = $workOrders->map(function ($workOrder) {
+            return $this->transformWorkOrderData($workOrder, false);
+        });
+
+        return response()->json([
+            'data' => $transformedWorkOrders,
+            'message' => 'Work orders for customer retrieved successfully'
         ]);
     }
 }

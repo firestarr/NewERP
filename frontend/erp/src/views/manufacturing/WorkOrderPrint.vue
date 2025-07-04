@@ -61,7 +61,7 @@
               <dl>
                 <div class="row">
                   <dt>Customer</dt>
-                  <dd>{{ workOrderData.customer_name || (workOrderData.item?.customer_name || 'PT. YAMAHA MUSIC MANUFACTURING Dummy') }}</dd>
+                  <dd>{{ workOrderData.customer_name || (workOrderData.primary_customer?.customer_name || 'PT. YAMAHA MUSIC MANUFACTURING Dummy') }}</dd>
                 </div>
                 <div class="row">
                   <dt>Intern Code</dt>
@@ -69,7 +69,7 @@
                 </div>
                 <div class="row">
                   <dt>Cust Code</dt>
-                  <dd>{{ workOrderData.item?.customer_part_number || 'YMI-0001 Dummy' }}</dd>
+                  <dd>{{ workOrderData.primary_customer?.customer_code || 'YMI-0001 Dummy' }}</dd>
                 </div>
                 <div class="row">
                   <dt>Part Name</dt>

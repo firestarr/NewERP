@@ -478,7 +478,7 @@ export default {
       { key: 'total_time', label: 'Total Time' },
       { key: 'labor_cost', label: 'Labor Cost' },
       { key: 'overhead_cost', label: 'Overhead Cost' },
-      { key: 'actions', label: 'Actions' },
+    //   { key: 'actions', label: 'Actions' },
     ];
 
     // Sort operations by sequence

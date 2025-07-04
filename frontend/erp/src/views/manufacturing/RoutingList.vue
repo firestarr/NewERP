@@ -71,7 +71,7 @@
                 <router-link
                   :to="`/manufacturing/routings/${item.routing_id}`"
                   class="btn btn-sm btn-secondary"
-                  title="Lihat Detail"
+                  title="View Details"
                 >
                   <i class="fas fa-eye"></i>
                 </router-link>
@@ -85,7 +85,7 @@
                 <button
                   @click="confirmDelete(item)"
                   class="btn btn-sm btn-danger"
-                  title="Hapus"
+                  title="Delete"
                 >
                   <i class="fas fa-trash-alt"></i>
                 </button>
@@ -109,9 +109,9 @@
       <!-- Confirmation Modal for Delete -->
       <ConfirmationModal
         v-if="showDeleteModal"
-        :title="'Hapus Routing'"
-        :message="`Anda yakin ingin menghapus routing <strong>${selectedRouting?.routing_code}</strong>?<br>Tindakan ini tidak dapat dibatalkan.`"
-        confirm-button-text="Hapus"
+        :title="'Delete Routing'"
+        :message="`Are you sure you want to delete routing <strong>${selectedRouting?.routing_code}</strong>?<br>This action cannot be undone.`"
+        confirm-button-text="Delete"
         confirm-button-class="btn btn-danger"
         @confirm="deleteRouting"
         @close="showDeleteModal = false"
@@ -297,7 +297,7 @@
           if (error.response && error.response.data && error.response.data.message) {
             alert(error.response.data.message);
           } else {
-            alert('Gagal menghapus routing. Silakan coba lagi.');
+            alert('Failed to delete routing. Please try again.');
           }
         }
       };
