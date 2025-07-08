@@ -502,6 +502,7 @@ export default {
         thickness: '',
         weight: '',
         hscode: '', // renamed to hscode
+        tape_mat_pcc: '',
         is_purchasable: false,
         is_sellable: false,
         cost_price: 0,
@@ -528,6 +529,7 @@ export default {
         thickness: item.thickness || '',
         weight: item.weight || '',
         hscode: item.hscode || '', // renamed to hscode
+        tape_mat_pcc: item.tape_mat_pcc || '',
         is_purchasable: item.is_purchasable || false,
         is_sellable: item.is_sellable || false,
         cost_price: item.cost_price || 0,

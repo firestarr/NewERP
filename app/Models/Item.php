@@ -40,6 +40,7 @@ class Item extends Model
         'width',
         'thickness',
         'weight',
+        'tape_mat_pcc',
         'document_path',
         'hscode',
     ];
@@ -81,6 +82,29 @@ class Item extends Model
     public function unitOfMeasure()
     {
         return $this->belongsTo(UnitOfMeasure::class, 'uom_id', 'uom_id');
+    }
+
+    // NEW: Accessor for formatted tape_mat_pcc display
+    public function getTapeMatPccDisplayAttribute()
+    {
+        if (!$this->tape_mat_pcc) {
+            return '-';
+        }
+
+        return match ($this->tape_mat_pcc) {
+            'tape' => 'Tape',
+            'material' => 'Material',
+            default => ucfirst($this->tape_mat_pcc)
+        };
+    }
+
+    // NEW: Get all available tape mat pcc options
+    public static function getTapeMatPccOptions()
+    {
+        return [
+            'tape' => 'Tape',
+            'material' => 'Material'
+        ];
     }
 
     /**

@@ -144,6 +144,17 @@
                   <div class="form-value">{{ item.weight || '-' }}</div>
                 </div>
               </div>
+            <div class="col-6">
+            <div class="form-group">
+                <label class="form-label">Tape Mat PCC</label>
+                <div class="form-value">
+                <span v-if="item.tape_mat_pcc" class="badge" :class="getTapeMatPccBadgeClass(item.tape_mat_pcc)">
+                    {{ getTapeMatPccDisplay(item.tape_mat_pcc) }}
+                </span>
+                <span v-else>-</span>
+            </div>
+      </div>
+    </div>
             </div>
           </div>
 
@@ -745,6 +756,7 @@ export default {
           width: itemData.width || '',
           thickness: itemData.thickness || '',
           weight: itemData.weight || '',
+          tape_mat_pcc: itemData.tape_mat_pcc || '',
           hs_code: itemData.hs_code || ''
         });
 

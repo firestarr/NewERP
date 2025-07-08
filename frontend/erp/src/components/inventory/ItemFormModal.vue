@@ -146,6 +146,25 @@
                 <span v-if="errors.weight" class="error-message">{{ errors.weight }}</span>
               </div>
             </div>
+            <!-- MODIFIED: TapeMatPCC Field - Changed to select -->
+            <div class="form-row">
+              <div class="form-group">
+                <label for="tape_mat_pcc">Tape Mat PCC</label>
+                <select
+                  id="tape_mat_pcc"
+                  v-model="form.tape_mat_pcc"
+                  :class="{ 'is-invalid': errors.tape_mat_pcc }"
+                >
+                  <option value="">-- Select Tape Mat PCC --</option>
+                  <option value="tape">Tape</option>
+                  <option value="material">Material</option>
+                </select>
+                <span v-if="errors.tape_mat_pcc" class="error-message">{{ errors.tape_mat_pcc }}</span>
+              </div>
+              <div class="form-group">
+                <!-- Empty div to maintain grid layout -->
+              </div>
+            </div>
             <div class="form-group">
               <label for="document">Technical Document</label>
               <input
@@ -198,14 +217,14 @@
             <div class="form-row">
               <div class="form-group">
                 <label for="cost_price">Cost Price</label>
-              <input
-                type="number"
-                id="cost_price"
-                v-model="form.cost_price"
-                min="0"
-                step="0.0001"
-                :class="{ 'is-invalid': errors.cost_price }"
-              />
+                <input
+                  type="number"
+                  id="cost_price"
+                  v-model="form.cost_price"
+                  min="0"
+                  step="0.0001"
+                  :class="{ 'is-invalid': errors.cost_price }"
+                />
                 <span v-if="errors.cost_price" class="error-message">{{ errors.cost_price }}</span>
               </div>
               <div class="form-group">
@@ -225,15 +244,14 @@
             <div class="form-row">
               <div class="form-group">
                 <label for="sale_price">Sale Price</label>
-                <!--Update 4 digit / step="0.0001"-->
-              <input
-                type="number"
-                id="sale_price"
-                v-model="form.sale_price"
-                min="0"
-                step="0.0001"
-                :class="{ 'is-invalid': errors.sale_price }"
-              />
+                <input
+                  type="number"
+                  id="sale_price"
+                  v-model="form.sale_price"
+                  min="0"
+                  step="0.0001"
+                  :class="{ 'is-invalid': errors.sale_price }"
+                />
                 <span v-if="errors.sale_price" class="error-message">{{ errors.sale_price }}</span>
               </div>
               <div class="form-group">
@@ -326,6 +344,7 @@ export default {
       thickness: props.itemForm.thickness || '',
       weight: props.itemForm.weight || '',
       hscode: props.itemForm.hscode || '',
+      tape_mat_pcc: props.itemForm.tape_mat_pcc || '', // MODIFIED: Changed from tape_mat_pcc to tape_mat_pcc
       is_purchasable: props.itemForm.is_purchasable === true || props.itemForm.is_purchasable === 'true',
       is_sellable: props.itemForm.is_sellable === true || props.itemForm.is_sellable === 'true',
       cost_price: props.itemForm.cost_price || 0,
@@ -347,6 +366,7 @@ export default {
         thickness: newForm.thickness || '',
         weight: newForm.weight || '',
         hscode: newForm.hscode || '',
+        tape_mat_pcc: newForm.tape_mat_pcc || '', // MODIFIED: Changed from tape_mat_pcc to tape_mat_pcc
         is_purchasable: newForm.is_purchasable === true || newForm.is_purchasable === 'true',
         is_sellable: newForm.is_sellable === true || newForm.is_sellable === 'true',
         cost_price: newForm.cost_price || 0,
@@ -401,6 +421,11 @@ export default {
         errors.value.weight = 'Weight cannot be negative';
       }
 
+      // MODIFIED: Updated validation for tape_mat_pcc (select field)
+      if (form.tape_mat_pcc && !['tape', 'material'].includes(form.tape_mat_pcc)) {
+        errors.value.tape_mat_pcc = 'Please select a valid Tape Mat PCC option';
+      }
+
       if (form.cost_price < 0) {
         errors.value.cost_price = 'Cost price cannot be negative';
       }
@@ -427,15 +452,15 @@ export default {
     const submitForm = () => {
       if (validateForm()) {
         // Round cost_price and sale_price to 4 decimal places before submission
-        form.cost_price = Math.round(form.cost_price * 10000) / 10000; //Update 4 digit
-        form.sale_price = Math.round(form.sale_price * 10000) / 10000; //Update 4 digit
+        form.cost_price = Math.round(form.cost_price * 10000) / 10000;
+        form.sale_price = Math.round(form.sale_price * 10000) / 10000;
 
         // Create a FormData object to handle file upload
         const formData = new FormData();
 
         // Add all form fields to the FormData except checkboxes
         Object.keys(form).forEach(key => {
-          if (key === 'document' && form[key]) {
+        if (key === 'document' && form[key]) {
             formData.append(key, form[key]);
           } else if (key !== 'is_purchasable' && key !== 'is_sellable' && form[key] !== null && form[key] !== undefined) {
             formData.append(key, form[key]);
@@ -460,7 +485,7 @@ export default {
     };
   }
 };
-  </script>
+</script>
 
 <style scoped>
 .modal {

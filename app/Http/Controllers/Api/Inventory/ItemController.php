@@ -56,6 +56,7 @@ class ItemController extends Controller
             'width' => 'nullable|numeric|min:0',
             'thickness' => 'nullable|numeric|min:0',
             'weight' => 'nullable|numeric|min:0',
+            'tape_mat_pcc' => 'nullable|string|in:tape,material',
             'hscode' => 'nullable|string|min:3',
             'document' => 'nullable|file|mimes:pdf|max:10240' // Accept PDF files up to 10MB
         ]);
@@ -240,6 +241,7 @@ class ItemController extends Controller
             'width' => 'nullable|numeric|min:0',
             'thickness' => 'nullable|numeric|min:0',
             'weight' => 'nullable|numeric|min:0',
+            'tape_mat_pcc' => 'nullable|string|in:tape,material',
             'document' => 'nullable|file|mimes:pdf|max:10240' // Accept PDF files up to 10MB
         ]);
 

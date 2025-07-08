@@ -954,18 +954,31 @@ export default {
         const response = await axios.get(`/work-orders/${woId}`);
         workOrderData.value = response.data.data;
 
-        // Load BOM materials if available
+        // Load BOM materials and tapes if available
         if (workOrderData.value.bom && workOrderData.value.bom.bom_lines) {
-          const bomMaterials = workOrderData.value.bom.bom_lines.map((bomLine) => ({
-            code: bomLine.item?.item_code || '□□□□□□',
-            name: bomLine.item?.name || '',
-            size: bomLine.item?.description || '',
-            yield: bomLine.yield_ratio ? bomLine.yield_ratio.toFixed(2) : '',
-            issue_qty: bomLine.quantity || '0.00000',
-            qty_mtr: '□□□□□□'
-          }));
+          const bomMaterials = [];
+          const bomTapes = [];
+
+          workOrderData.value.bom.bom_lines.forEach((bomLine) => {
+            const tapeMatPcc = bomLine.item?.tape_mat_pcc || '';
+            const itemData = {
+              code: bomLine.item?.item_code || '□□□□□□',
+              name: bomLine.item?.name || '',
+              size: bomLine.item?.description || '',
+              yield: bomLine.yield_ratio ? bomLine.yield_ratio.toFixed(2) : '',
+              issue_qty: bomLine.quantity || '0.00000',
+              qty_mtr: '□□□□□□'
+            };
+
+            if (tapeMatPcc.toLowerCase() === 'tape') {
+              bomTapes.push(itemData);
+            } else if (tapeMatPcc.toLowerCase() === 'material') {
+              bomMaterials.push(itemData);
+            }
+          });
 
           materials.value = bomMaterials;
+          tapes.value = bomTapes;
         } else {
           // Keep default fallback data if no BOM data available
           materials.value = [
@@ -992,6 +1005,23 @@ export default {
               yield: '',
               issue_qty: '0.00000',
               qty_mtr: '□□□□□□'
+            }
+          ];
+
+          tapes.value = [
+            {
+              code: 'N500A/1210',
+              name: '',
+              size: '',
+              yield: '20,696',
+              issue_qty: '0.11538 / RL'
+            },
+            {
+              code: '',
+              name: '',
+              size: '',
+              yield: '',
+              issue_qty: '0.00000'
             }
           ];
         }
