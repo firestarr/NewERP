@@ -162,6 +162,23 @@
                   <small v-if="errors.set_jump" class="text-danger">{{ errors.set_jump[0] }}</small>
                 </div>
               </div>
+              <div class="col-md-3">
+              <div class="form-group">
+                <label for="yield">Yield (%)</label>
+                <input
+                  id="yield"
+                  v-model.number="routing.yield"
+                  type="number"
+                  class="form-control"
+                  placeholder="Yield percentage"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                />
+                <small class="text-muted">Production yield percentage (0-100%)</small>
+                <small v-if="errors.yield" class="text-danger">{{ errors.yield[0] }}</small>
+              </div>
+            </div>
             </div>
 
             <div class="mt-4">
@@ -205,6 +222,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
       cavity: null,
       process: '',
       set_jump: null,
+      yield: null,
     });
 
     const searchQuery = ref('');
@@ -336,10 +354,10 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
     };
 
     // Load necessary data on component mount
-    onMounted(() => {
-      loadItems();
+    onMounted(async () => {
+      await loadItems();
       if (isEditMode.value) {
-        loadRoutingData();
+        await loadRoutingData();
       }
     });
 

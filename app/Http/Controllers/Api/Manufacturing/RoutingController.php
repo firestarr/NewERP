@@ -112,6 +112,7 @@ class RoutingController extends Controller
                 'operations.*.uom_id' => 'required|integer|exists:unit_of_measures,uom_id',
                 'operations.*.labor_cost' => 'required|numeric',
                 'operations.*.overhead_cost' => 'required|numeric',
+                'yield' => 'nullable|numeric|min:0|max:100',
             ]);
 
             if ($validator->fails()) {
@@ -132,6 +133,7 @@ class RoutingController extends Controller
                 'cavity' => $request->cavity,
                 'process' => $request->process,
                 'set_jump' => $request->set_jump,
+                'yield' => $request->yield,
             ]);
 
             if ($request->has('operations')) {
@@ -216,6 +218,7 @@ class RoutingController extends Controller
                 'operations.*.uom_id' => 'required|integer|exists:unit_of_measures,uom_id',
                 'operations.*.labor_cost' => 'required|numeric',
                 'operations.*.overhead_cost' => 'required|numeric',
+                'yield' => 'nullable|numeric|min:0|max:100',
             ]);
 
             if ($validator->fails()) {
@@ -236,6 +239,7 @@ class RoutingController extends Controller
                 'cavity' => $request->cavity,
                 'process' => $request->process,
                 'set_jump' => $request->set_jump,
+                'yield' => $request->yield,
             ]);
 
             // Delete existing operations and recreate

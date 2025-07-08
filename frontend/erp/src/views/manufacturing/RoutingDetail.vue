@@ -80,6 +80,44 @@
                   </tbody>
                 </table>
               </div>
+<div class="row mt-3">
+  <div class="col-12">
+    <h5 class="text-muted mb-3">Additional Information</h5>
+  </div>
+  <div class="col-md-6">
+    <table class="table table-borderless detail-table">
+      <tbody>
+        <tr>
+          <th width="40%">Cavity:</th>
+          <td>{{ routing.cavity || 'N/A' }}</td>
+        </tr>
+        <tr>
+          <th>Process:</th>
+          <td>{{ routing.process || 'N/A' }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="col-md-6">
+    <table class="table table-borderless detail-table">
+      <tbody>
+        <tr>
+          <th width="40%">Set Jump:</th>
+          <td>{{ routing.set_jump || 'N/A' }}</td>
+        </tr>
+        <tr>
+          <th>Yield (%):</th>
+          <td>
+            <span v-if="routing.yield" class="badge badge-info">
+              {{ routing.yield }}%
+            </span>
+            <span v-else class="text-muted">N/A</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
             </div>
           </div>
         </div>

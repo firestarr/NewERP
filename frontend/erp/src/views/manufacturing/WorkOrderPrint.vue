@@ -154,7 +154,7 @@
                   <tr><td>Order Qty</td><td>{{ formatNumber(workOrderData.actual_quantity) || ' ' }} PCS</td></tr>
                   <tr><td>Prod. Qty</td><td>{{ formatNumber(workOrderData.planned_quantity) || '2,388 Dummy' }} PCS</td></tr>
                   <tr><td>Important</td><td>{{ workOrderData.important || '' }}</td></tr>
-                  <tr><td>Yield</td><td>{{ workOrderData.yield || '' }}</td></tr>
+                  <tr><td>Yield</td><td>{{ workOrderData.routing?.yield || '' }}</td></tr>
                   <tr><td>Size</td><td>{{ workOrderData.description || '' }}</td></tr>
                   <tr><td>Qty</td><td>{{ workOrderData.qty_info || '' }}</td></tr>
                 </tbody>

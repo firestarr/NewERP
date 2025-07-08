@@ -25,6 +25,7 @@ class Routing extends Model
         'cavity',
         'process',
         'set_jump',
+        'yield',
     ];
 
     protected $casts = [
