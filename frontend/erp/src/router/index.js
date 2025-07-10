@@ -133,6 +133,7 @@ import SalesReturnForm from "@/views/sales/SalesReturnForm.vue";
 import RoutingList from "../views/manufacturing/RoutingList.vue";
 import RoutingDetail from "@/views/manufacturing/RoutingDetail.vue";
 import RoutingForm from "@/views/manufacturing/RoutingForm.vue";
+import RoutingPrint from "../views/manufacturing/RoutingPrint.vue"; //new
 // Add these imports at the top of your router/index.js file
 import BOMList from "../views/manufacturing/BOMList.vue";
 import BOMDetail from "../views/manufacturing/BOMDetail.vue";
@@ -154,6 +155,13 @@ import QualityAnalysisDashboard from "../views/manufacturing/QualityAnalysisDash
 import SalesOrderPrint from "../views/sales/SalesOrderPrint.vue";
 
 import PdfOrderCapture from "../views/ai-pdf-capture/PdfOrderCapture.vue";
+
+// PackingList components
+import PackingListIndex from "../views/sales/PackingListIndex.vue";
+import PackingListForm from "../views/sales/PackingListForm.vue";
+import PackingListDashboard from "../views/sales/PackingListDashboard.vue";
+import PackingListDetail from "../views/sales/PackingListDetail.vue";
+// import PackingList from "../views/sales/PackingList.vue";
 
 // import SalesForecastFormModal from "../views/sales/SalesForecastFormModal.vue";
 // Import other components as needed
@@ -1304,6 +1312,13 @@ const routes = [
                 meta: { requiresAuth: true },
             },
             {
+                path: "/manufacturing/routings/:id/print",
+                name: "PrintRouting",
+                component: RoutingPrint,
+                props: true,
+                meta: { requiresAuth: true, title: "Print Routing" },
+            },
+            {
                 path: "/manufacturing/work-centers",
                 name: "WorkCentersList",
                 component: () =>
@@ -1598,6 +1613,46 @@ const routes = [
                     // Add other admin routes as needed
                 ],
             },
+
+            // PackingList routes
+            {
+                path: "sales/packinglist",
+                name: "PackingListIndex",
+                component: PackingListIndex,
+                meta: { requiresAuth: true },
+            },
+            {
+                path: "sales/packinglist/form",
+                name: "PackingListForm",
+                component: PackingListForm,
+                meta: { requiresAuth: true },
+            },
+            {
+                path: "sales/packinglist/:id/edit",
+                name: "PackingListEdit",
+                component: PackingListForm,
+                props: true,
+                meta: { requiresAuth: true },
+            },
+            {
+                path: "sales/packinglist/dashboard",
+                name: "PackingListDashboard",
+                component: PackingListDashboard,
+                meta: { requiresAuth: true },
+            },
+            {
+                path: "sales/packinglist/detail/:id",
+                name: "PackingListDetail",
+                component: PackingListDetail,
+                props: true,
+                meta: { requiresAuth: true },
+            },
+            // {
+            //     path: "sales/packinglist/view",
+            //     name: "PackingList",
+            //     component: PackingList,
+            //     meta: { requiresAuth: true },
+            // },
         ],
     },
     // Catch-all 404 route

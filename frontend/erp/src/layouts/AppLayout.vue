@@ -300,6 +300,10 @@
                                     <i class="fas fa-truck"></i>
                                     <span>Deliveries</span>
                                 </router-link>
+                                <router-link to="/sales/packinglist" class="submenu-link">
+                                    <i class="fas fa-box"></i>
+                                    <span>Packing List</span>
+                                </router-link>
                                 <router-link to="/sales/invoices" class="submenu-link">
                                     <i class="fas fa-file-invoice"></i>
                                     <span>Invoices</span>

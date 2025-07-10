@@ -34,6 +34,11 @@
                 <i class="fas fa-edit"></i> Edit
               </router-link>
               <button
+                @click="printProductionOrder"
+                class="btn btn-info">
+                <i class="fas fa-print"></i> Print
+              </button>
+              <button
                 @click="confirmIssueMaterials"
                 class="btn btn-warning"
                 :disabled="!allMaterialsAvailable">
@@ -76,11 +81,6 @@
 
             <!-- Completed Status Actions -->
             <template v-if="productionOrder.status === 'Completed'">
-              <button
-                @click="printProductionOrder"
-                class="btn btn-info">
-                <i class="fas fa-print"></i> Print
-              </button>
               <button
                 @click="viewProductionSummary"
                 class="btn btn-primary">

@@ -762,4 +762,58 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/statistics/overview', [App\Http\Controllers\Api\PdfOrderCaptureController::class, 'getStatistics']);
         Route::get('/health/ai-service', [App\Http\Controllers\Api\PdfOrderCaptureController::class, 'checkAiServiceHealth']);
     });
+
+    // Sales Module - Packing List Routes
+    Route::prefix('sales')->group(function () {
+
+        // Packing List CRUD operations
+        Route::apiResource('packing-lists', 'App\Http\Controllers\Api\Sales\PackingListController');
+
+        // Special packing list operations
+        Route::post('packing-lists/from-delivery', 'App\Http\Controllers\Api\Sales\PackingListController@createFromDelivery');
+        Route::put('packing-lists/{id}/complete', 'App\Http\Controllers\Api\Sales\PackingListController@completePacking');
+        Route::put('packing-lists/{id}/ship', 'App\Http\Controllers\Api\Sales\PackingListController@markAsShipped');
+
+        // Packing list utilities
+        Route::get('packing-lists-available-deliveries', 'App\Http\Controllers\Api\Sales\PackingListController@getAvailableDeliveries');
+        Route::get('packing-lists-progress', 'App\Http\Controllers\Api\Sales\PackingListController@getPackingProgress');
+
+        // Integration with existing delivery routes
+        Route::get('deliveries/{id}/packing-list', function ($deliveryId) {
+            $packingList = \App\Models\Sales\PackingList::with(['packingListLines.item', 'customer'])
+                ->where('delivery_id', $deliveryId)
+                ->first();
+
+            if (!$packingList) {
+                return response()->json(['message' => 'No packing list found for this delivery'], 404);
+            }
+
+            return response()->json(['data' => $packingList], 200);
+        });
+
+        // Bulk operations
+        Route::post('packing-lists/bulk-ship', function (\Illuminate\Http\Request $request) {
+            $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+                'packing_list_ids' => 'required|array',
+                'packing_list_ids.*' => 'exists:PackingList,packing_list_id'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['errors' => $validator->errors()], 422);
+            }
+
+            $packingLists = \App\Models\Sales\PackingList::whereIn('packing_list_id', $request->packing_list_ids)
+                ->where('status', \App\Models\Sales\PackingList::STATUS_COMPLETED)
+                ->get();
+
+            foreach ($packingLists as $packingList) {
+                $packingList->update(['status' => \App\Models\Sales\PackingList::STATUS_SHIPPED]);
+            }
+
+            return response()->json([
+                'message' => 'Packing lists marked as shipped successfully',
+                'count' => $packingLists->count()
+            ], 200);
+        });
+    });
 });

@@ -8,6 +8,9 @@
           <router-link to="/manufacturing/routings" class="btn btn-secondary mr-2">
             <i class="fas fa-list mr-1"></i> Routing List
           </router-link>
+           <router-link :to="`/manufacturing/routings/${routingId}/print`" class="btn btn-info mr-2" target="_blank">
+            <i class="fas fa-print mr-1"></i> Print
+          </router-link>
           <router-link :to="`/manufacturing/routings/${routingId}/edit`" class="btn btn-primary mr-2">
             <i class="fas fa-edit mr-1"></i> Edit Routing
           </router-link>
@@ -30,94 +33,63 @@
             <h2 class="card-title">Routing Information</h2>
           </div>
           <div class="card-body">
-            <div class="row">
-              <div class="col-md-6">
-                <table class="table table-borderless detail-table">
-                  <tbody>
-                    <tr>
-                      <th width="40%">Routing Code:</th>
-                      <td>{{ routing.routing_code }}</td>
-                    </tr>
-                    <tr>
-                      <th>Revised:</th>
-                      <td>{{ routing.revision }}</td>
-                    </tr>
-                    <tr>
-                      <th>Status:</th>
-                      <td>
-                        <span
-                          class="badge"
-                          :class="{
-                            'badge-success': routing.status === 'Active',
-                            'badge-warning': routing.status === 'Draft',
-                            'badge-secondary': routing.status === 'Obsolete'
-                          }"
-                        >
-                          {{ routing.status }}
-                        </span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+            <!-- Main Information Grid -->
+            <div class="info-grid-simple">
+              <div class="info-row">
+                <div class="info-label">Routing Code:</div>
+                <div class="info-value">{{ routing.routing_code }}</div>
+                <div class="info-label">Product:</div>
+                <div class="info-value">
+                  {{ routing.item ? `${routing.item.name} (${routing.item.item_code})` : '-' }}
+                </div>
               </div>
-              <div class="col-md-6">
-                <table class="table table-borderless detail-table">
-                  <tbody>
-                    <tr>
-                      <th width="40%">Product:</th>
-                      <td>
-                        {{ routing.item ? `${routing.item.name} (${routing.item.item_code})` : '-' }}
-                      </td>
-                    </tr>
-                    <tr>
-                      <th>Effective Date:</th>
-                      <td>{{ formatDate(routing.effective_date) }}</td>
-                    </tr>
-                    <tr>
-                      <th>Total Operation:</th>
-                      <td>{{ operations.length }}</td>
-                    </tr>
-                  </tbody>
-                </table>
+
+              <div class="info-row">
+                <div class="info-label">Revised:</div>
+                <div class="info-value">{{ routing.revision }}</div>
+                <div class="info-label">Effective Date:</div>
+                <div class="info-value">{{ formatDate(routing.effective_date) }}</div>
               </div>
-<div class="row mt-3">
-  <div class="col-12">
-    <h5 class="text-muted mb-3">Additional Information</h5>
-  </div>
-  <div class="col-md-6">
-    <table class="table table-borderless detail-table">
-      <tbody>
-        <tr>
-          <th width="40%">Cavity:</th>
-          <td>{{ routing.cavity || 'N/A' }}</td>
-        </tr>
-        <tr>
-          <th>Process:</th>
-          <td>{{ routing.process || 'N/A' }}</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-  <div class="col-md-6">
-    <table class="table table-borderless detail-table">
-      <tbody>
-        <tr>
-          <th width="40%">Set Jump:</th>
-          <td>{{ routing.set_jump || 'N/A' }}</td>
-        </tr>
-        <tr>
-          <th>Yield (%):</th>
-          <td>
-            <span v-if="routing.yield" class="badge badge-info">
-              {{ routing.yield }}%
-            </span>
-            <span v-else class="text-muted">N/A</span>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</div>
+
+              <div class="info-row">
+                <div class="info-label">Status:</div>
+                <div class="info-value">
+                  <span
+                    class="badge"
+                    :class="{
+                      'badge-success': routing.status === 'Active',
+                      'badge-warning': routing.status === 'Draft',
+                      'badge-secondary': routing.status === 'Obsolete'
+                    }"
+                  >
+                    {{ routing.status }}
+                  </span>
+                </div>
+                <div class="info-label">Total Operation:</div>
+                <div class="info-value">{{ operations.length }}</div>
+              </div>
+            </div>
+
+            <!-- Additional Information - Simple Version -->
+            <div class="additional-info-simple mt-4">
+              <div class="info-row">
+                <div class="info-label">Cavity:</div>
+                <div class="info-value">{{ routing.cavity || 'N/A' }}</div>
+                <div class="info-label">Process:</div>
+                <div class="info-value">{{ routing.process || 'N/A' }}</div>
+              </div>
+
+              <div class="info-row">
+                <div class="info-label">Set Jump:</div>
+                <div class="info-value">{{ routing.set_jump || 'N/A' }}</div>
+                <div class="info-label">Yield:</div>
+                <div class="info-value">
+                  <span v-if="routing.yield" class="badge badge-info">
+                    {{ routing.yield }}
+                  </span>
+                  <span v-else class="text-muted">N/A</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -998,13 +970,6 @@ export default {
   vertical-align: top;
 }
 
-.row {
-  display: flex;
-  flex-wrap: wrap;
-  margin-right: -0.75rem;
-  margin-left: -0.75rem;
-}
-
 .col-md-6 {
   flex: 0 0 50%;
   max-width: 50%;
@@ -1019,6 +984,58 @@ export default {
   padding-left: 0.75rem;
 }
 
+.col-md-4 {
+  flex: 0 0 33.333333%;
+  max-width: 33.333333%;
+}
+
+/* Simple Grid Layout */
+.info-grid-simple {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.info-row {
+  display: grid;
+  grid-template-columns: 150px 1fr 150px 1fr;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  font-weight: 500;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.info-value {
+  color: #334155;
+  font-size: 0.9rem;
+  font-weight: 400;
+}
+
+/* Additional Information Simple */
+.additional-info-simple {
+  padding-top: 1rem;
+  border-top: 2px solid #e2e8f0;
+}
+
+.badge-info {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.text-muted {
+  color: #9ca3af;
+}
+
 /* Loading indicator */
 .text-center {
   text-align: center;
@@ -1031,6 +1048,10 @@ export default {
 
 .mt-2 {
   margin-top: 0.5rem;
+}
+
+.mt-4 {
+  margin-top: 1.5rem;
 }
 
 .text-primary {
@@ -1162,7 +1183,7 @@ export default {
   margin-bottom: 1rem;
 }
 
-.section-title {
+.form-section .section-title {
   margin: 0 0 1.5rem 0;
   font-size: 1.125rem;
   font-weight: 600;
@@ -1173,7 +1194,7 @@ export default {
   align-items: center;
 }
 
-.section-title::before {
+.form-section .section-title::before {
   content: '';
   width: 4px;
   height: 1.25rem;
@@ -1193,19 +1214,9 @@ export default {
   padding: 0 0.75rem;
 }
 
-.col-md-3 {
-  flex: 0 0 25%;
-  max-width: 25%;
-}
-
 .col-md-4 {
   flex: 0 0 33.333333%;
   max-width: 33.333333%;
-}
-
-.col-md-6 {
-  flex: 0 0 50%;
-  max-width: 50%;
 }
 
 /* Enhanced Form Controls */
@@ -1364,14 +1375,20 @@ select.form-control:focus {
     flex: 1;
   }
 
-  .row {
-    flex-direction: column;
+  .info-row {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    padding: 1rem 0;
   }
 
-  .col-md-6, .col-md-3 {
-    flex: 0 0 100%;
-    max-width: 100%;
-    margin-bottom: 0.5rem;
+  .info-label {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+
+  .info-value {
+    margin-bottom: 1rem;
+    padding-left: 1rem;
   }
 
   .modal {
@@ -1445,6 +1462,18 @@ select.form-control:focus {
 
   .card-body {
     padding: 1rem;
+  }
+
+  .info-row {
+    padding: 0.75rem 0;
+  }
+
+  .info-label {
+    font-size: 0.85rem;
+  }
+
+  .info-value {
+    font-size: 0.85rem;
   }
 
   .modal {
