@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api\Manufacturing;
 use App\Http\Controllers\Controller;
 use App\Models\Manufacturing\ProductionOrder;
 use App\Models\Manufacturing\ProductionConsumption;
+use App\Models\Manufacturing\JobTicket; // ADDED FOR JOB TICKET
 use App\Models\Item;
 use App\Models\ItemStock;
+use App\Models\ItemPrice; // ADDED FOR CUSTOMER DETECTION
 use App\Models\Manufacturing\WorkOrder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -206,6 +208,7 @@ class ProductionOrderController extends Controller
             'workOrder.item',
             'productionConsumptions.item',
             'productionConsumptions.warehouse',
+            'jobTickets' // ADDED: Include job tickets
         ])->find($id);
 
         if (!$productionOrder) {
@@ -298,6 +301,9 @@ class ProductionOrderController extends Controller
         try {
             // Delete production consumptions first
             $productionOrder->productionConsumptions()->delete();
+
+            // ADDED: Delete related job tickets if any
+            $productionOrder->jobTickets()->delete();
 
             // Then delete the production order
             $productionOrder->delete();
@@ -526,7 +532,7 @@ class ProductionOrderController extends Controller
     }
 
     /**
-     * Complete production (Step 3: Receive finished goods)
+     * Complete production (Step 3: Receive finished goods) - UPDATED WITH JOB TICKET AUTO-TRANSFER
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  int  $id
@@ -551,6 +557,8 @@ class ProductionOrderController extends Controller
 
         $validator = Validator::make($request->all(), [
             'actual_quantity' => 'required|numeric|min:0.01',
+            'completion_date' => 'sometimes|date',
+            'customer_name' => 'sometimes|string|max:100', // ADDED: Optional customer override
             'quality_notes' => 'sometimes|string|max:500',
         ]);
 
@@ -560,6 +568,7 @@ class ProductionOrderController extends Controller
 
         $actualQuantity = floatval($request->actual_quantity);
         $plannedQuantity = $productionOrder->planned_quantity;
+        $completionDate = $request->completion_date ?? now()->toDateString(); // ADDED
 
         DB::beginTransaction();
 
@@ -676,16 +685,20 @@ class ProductionOrderController extends Controller
             }
             $workOrder->save();
 
+            // 5. ADDED: AUTO-TRANSFER TO JOB_TICKET TABLE
+            $this->createJobTicket($productionOrder, $actualQuantity, $completionDate, $request->customer_name);
+
             DB::commit();
 
             $responseData = [
-                'message' => 'Production completed successfully. Materials consumed and finished goods moved to Finished Goods warehouse.',
-                'data' => $productionOrder->fresh(['workOrder', 'productionConsumptions.item']),
+                'message' => 'Production completed successfully and job ticket created. Materials consumed and finished goods moved to Finished Goods warehouse.',
+                'data' => $productionOrder->fresh(['workOrder', 'productionConsumptions.item', 'jobTickets']), // ADDED jobTickets
                 'completion_summary' => [
                     'planned_quantity' => $plannedQuantity,
                     'actual_quantity' => $actualQuantity,
                     'efficiency_percentage' => round(($actualQuantity / $plannedQuantity) * 100, 2),
                     'quantity_variance' => $actualQuantity - $plannedQuantity,
+                    'completion_date' => $completionDate, // ADDED
                     'finished_product' => [
                         'item_id' => $finishedItem->item_id,
                         'item_code' => $finishedItem->item_code,
@@ -712,6 +725,102 @@ class ProductionOrderController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * ADDED: Create job ticket entry when production is completed
+     * Auto-transfer to job_ticket table
+     *
+     * @param ProductionOrder $productionOrder
+     * @param float $actualQuantity
+     * @param string $completionDate
+     * @param string|null $customerName
+     * @return void
+     */
+    private function createJobTicket(ProductionOrder $productionOrder, float $actualQuantity, string $completionDate, ?string $customerName = null)
+    {
+        $workOrder = $productionOrder->workOrder;
+        $item = $workOrder->item;
+
+        // Try to get customer name from various sources
+        $customer = $customerName;
+        if (!$customer) {
+            $customer = $this->findCustomerForWorkOrder($workOrder) ?? 'Unknown Customer';
+        }
+
+        // Get UOM from item relationship
+        $uom = 'PCS'; // Default UOM
+        if ($item && $item->uom) {
+            $uom = $item->uom->name;
+        }
+
+        JobTicket::create([
+            'item' => $item->item_code . ' - ' . $item->name,
+            'uom' => $uom,
+            'qty_completed' => $actualQuantity,
+            'ref_jo_no' => $workOrder->wo_number,
+            'issue_date_jo' => $workOrder->wo_date,
+            'qty_jo' => $workOrder->planned_quantity,
+            'customer' => $customer,
+            'production_id' => $productionOrder->production_id,
+        ]);
+    }
+
+    /**
+     * ADDED: Helper method to find customer for work order using ItemPrice table
+     * Customer detection via ItemPrice
+     *
+     * @param WorkOrder $workOrder
+     * @return string|null
+     */
+    private function findCustomerForWorkOrder(WorkOrder $workOrder): ?string
+    {
+        // Priority 1: Get customer from ItemPrice (sale prices with customer_id)
+        $itemPrice = ItemPrice::where('item_id', $workOrder->item_id)
+            ->where('price_type', 'sale')
+            ->whereNotNull('customer_id')
+            ->active() // Using the active scope from ItemPrice model
+            ->with('customer')
+            ->orderBy('start_date', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        if ($itemPrice && $itemPrice->customer) {
+            return $itemPrice->customer->name;
+        }
+
+        // Priority 2: If no customer-specific pricing, try to find through Sales Order
+        try {
+            $salesOrderLine = \App\Models\Sales\SOLine::where('item_id', $workOrder->item_id)
+                ->whereHas('salesOrder', function ($q) {
+                    $q->whereIn('status', ['Confirmed', 'Partially Delivered', 'Delivered'])
+                        ->where('status', '!=', 'Cancelled');
+                })
+                ->with('salesOrder.customer')
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if ($salesOrderLine && $salesOrderLine->salesOrder && $salesOrderLine->salesOrder->customer) {
+                return $salesOrderLine->salesOrder->customer->name;
+            }
+        } catch (\Exception $e) {
+            // If SOLine model doesn't exist or relationship fails, continue to next priority
+        }
+
+        // Priority 3: Try to find any customer who has bought this item before (from any item price)
+        $anyItemPrice = ItemPrice::where('item_id', $workOrder->item_id)
+            ->where('price_type', 'sale')
+            ->whereNotNull('customer_id')
+            ->with('customer')
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        if ($anyItemPrice && $anyItemPrice->customer) {
+            return $anyItemPrice->customer->name;
+        }
+
+        // Default fallback
+        return 'Unknown Customer';
     }
 
     /**

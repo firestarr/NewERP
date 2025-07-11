@@ -90,7 +90,7 @@
               <tr v-for="(line, index) in invoice.lines" :key="line.line_id">
                 <td class="center">{{ index + 1 }}</td>
                 <td>{{ line.item ? line.item.name : 'N/A' }}</td>
-                <td class="center">{{ line.item ? line.item.unitOfMeasure?.code : 'N/A' }}</td>
+                <td class="center">{{ line.item ? (line.item.unit_of_measure?.name) : 'N/A' }}</td>
                 <td class="right">{{ formatNumber(line.quantity) }}</td>
                 <td class="right">{{ formatNumber(line.unit_price) }}</td>
                 <td class="right">{{ formatNumber(line.total) }}</td>

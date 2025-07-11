@@ -43,4 +43,12 @@ class ProductionOrder extends Model
     {
         return $this->hasMany(ProductionConsumption::class, 'production_id', 'production_id');
     }
+
+    /**
+     * Get the job tickets for the production order.
+     */
+    public function jobTickets(): HasMany
+    {
+        return $this->hasMany(JobTicket::class, 'production_id', 'production_id');
+    }
 }

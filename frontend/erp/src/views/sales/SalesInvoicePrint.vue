@@ -137,7 +137,7 @@
         <!-- Invoice Summary -->
         <div class="invoice-summary page-break-avoid">
           <div class="summary-row">
-            <div class="summary-label">Harga jual</div>
+            <div class="summary-label">Selling price</div>
             <div class="summary-colon">:</div>
             <div class="summary-value">{{ formatNumberTwoDecimals(calculateSubtotal()) }}</div>
           </div>
