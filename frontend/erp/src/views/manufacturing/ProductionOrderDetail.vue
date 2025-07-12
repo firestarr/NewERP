@@ -356,8 +356,8 @@
                 <div class="stat-value">{{ calculateMaterialUtilization() }}%</div>
               </div>
               <div class="stat-item">
-                <div class="stat-label">Completion Date</div>
-                <div class="stat-value">{{ formatDate(productionOrder.updated_at) }}</div>
+              <div class="stat-label">Completion Date</div>
+              <div class="stat-value">{{ formatDate(productionOrder.job_tickets && productionOrder.job_tickets.length > 0 ? productionOrder.job_tickets[0].date : productionOrder.updated_at) }}</div>
               </div>
             </div>
           </div>

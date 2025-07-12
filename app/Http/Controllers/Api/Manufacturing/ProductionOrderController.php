@@ -533,6 +533,7 @@ class ProductionOrderController extends Controller
 
     /**
      * Complete production (Step 3: Receive finished goods) - UPDATED WITH JOB TICKET AUTO-TRANSFER
+     * INCLUDING FGRN_NO AND DATE FIELDS
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  int  $id
@@ -558,8 +559,10 @@ class ProductionOrderController extends Controller
         $validator = Validator::make($request->all(), [
             'actual_quantity' => 'required|numeric|min:0.01',
             'completion_date' => 'sometimes|date',
-            'customer_name' => 'sometimes|string|max:100', // ADDED: Optional customer override
+            'customer_name' => 'sometimes|string|max:100', // Optional customer override
             'quality_notes' => 'sometimes|string|max:500',
+            'fgrn_no' => 'sometimes|string|max:50',         // ADDED: Optional FGRN number
+            'job_ticket_date' => 'sometimes|date',          // ADDED: Optional date for job ticket
         ]);
 
         if ($validator->fails()) {
@@ -568,7 +571,7 @@ class ProductionOrderController extends Controller
 
         $actualQuantity = floatval($request->actual_quantity);
         $plannedQuantity = $productionOrder->planned_quantity;
-        $completionDate = $request->completion_date ?? now()->toDateString(); // ADDED
+        $completionDate = $request->completion_date ?? now()->toDateString();
 
         DB::beginTransaction();
 
@@ -685,20 +688,27 @@ class ProductionOrderController extends Controller
             }
             $workOrder->save();
 
-            // 5. ADDED: AUTO-TRANSFER TO JOB_TICKET TABLE
-            $this->createJobTicket($productionOrder, $actualQuantity, $completionDate, $request->customer_name);
+            // 5. UPDATED: AUTO-TRANSFER TO JOB_TICKET TABLE WITH NEW FIELDS
+            $this->createJobTicket(
+                $productionOrder,
+                $actualQuantity,
+                $completionDate,
+                $request->customer_name,
+                $request->fgrn_no,           // ADDED: Pass FGRN number
+                $request->job_ticket_date    // ADDED: Pass job ticket date
+            );
 
             DB::commit();
 
             $responseData = [
                 'message' => 'Production completed successfully and job ticket created. Materials consumed and finished goods moved to Finished Goods warehouse.',
-                'data' => $productionOrder->fresh(['workOrder', 'productionConsumptions.item', 'jobTickets']), // ADDED jobTickets
+                'data' => $productionOrder->fresh(['workOrder', 'productionConsumptions.item', 'jobTickets']),
                 'completion_summary' => [
                     'planned_quantity' => $plannedQuantity,
                     'actual_quantity' => $actualQuantity,
                     'efficiency_percentage' => round(($actualQuantity / $plannedQuantity) * 100, 2),
                     'quantity_variance' => $actualQuantity - $plannedQuantity,
-                    'completion_date' => $completionDate, // ADDED
+                    'completion_date' => $completionDate,
                     'finished_product' => [
                         'item_id' => $finishedItem->item_id,
                         'item_code' => $finishedItem->item_code,
@@ -728,17 +738,25 @@ class ProductionOrderController extends Controller
     }
 
     /**
-     * ADDED: Create job ticket entry when production is completed
-     * Auto-transfer to job_ticket table
+     * UPDATED: Create job ticket entry when production is completed
+     * Auto-transfer to job_ticket table with FGRN_NO and DATE fields
      *
      * @param ProductionOrder $productionOrder
      * @param float $actualQuantity
      * @param string $completionDate
      * @param string|null $customerName
+     * @param string|null $fgrnNo
+     * @param string|null $jobTicketDate
      * @return void
      */
-    private function createJobTicket(ProductionOrder $productionOrder, float $actualQuantity, string $completionDate, ?string $customerName = null)
-    {
+    private function createJobTicket(
+        ProductionOrder $productionOrder,
+        float $actualQuantity,
+        string $completionDate,
+        ?string $customerName = null,
+        ?string $fgrnNo = null,           // ADDED: FGRN number parameter
+        ?string $jobTicketDate = null     // ADDED: Job ticket date parameter
+    ) {
         $workOrder = $productionOrder->workOrder;
         $item = $workOrder->item;
 
@@ -747,6 +765,15 @@ class ProductionOrderController extends Controller
         if (!$customer) {
             $customer = $this->findCustomerForWorkOrder($workOrder) ?? 'Unknown Customer';
         }
+
+        // Generate FGRN number if not provided
+        $fgrnNumber = $fgrnNo;
+        if (!$fgrnNumber) {
+            $fgrnNumber = $this->generateFGRNNumber($productionOrder);
+        }
+
+        // Use job ticket date if provided, otherwise use completion date
+        $ticketDate = $jobTicketDate ?? $completionDate;
 
         // Get UOM from item relationship
         $uom = 'PCS'; // Default UOM
@@ -763,7 +790,37 @@ class ProductionOrderController extends Controller
             'qty_jo' => $workOrder->planned_quantity,
             'customer' => $customer,
             'production_id' => $productionOrder->production_id,
+            'fgrn_no' => $fgrnNumber,     // ADDED: FGRN number
+            'date' => $ticketDate,        // ADDED: Date field
         ]);
+    }
+
+    /**
+     * ADDED: Generate FGRN (Finished Goods Receipt Number) with format JT-yy-xxxxx
+     *
+     * @param ProductionOrder $productionOrder
+     * @return string
+     */
+    private function generateFGRNNumber(ProductionOrder $productionOrder): string
+    {
+        $year = now()->format('y'); // 2 digit year (25 for 2025)
+        $prefix = 'JT-' . $year . '-';
+
+        // Get the latest FGRN number for current year
+        $latestJobTicket = JobTicket::where('fgrn_no', 'like', $prefix . '%')
+            ->orderBy('fgrn_no', 'desc')
+            ->first();
+
+        if ($latestJobTicket) {
+            // Extract the sequence number and increment
+            $lastSequence = (int) substr($latestJobTicket->fgrn_no, -5); // Last 5 digits
+            $newSequence = $lastSequence + 1;
+        } else {
+            $newSequence = 1;
+        }
+
+        // Format: JT-25-00001
+        return $prefix . str_pad($newSequence, 5, '0', STR_PAD_LEFT);
     }
 
     /**

@@ -22,6 +22,8 @@ class JobTicket extends Model
         'qty_jo',
         'customer',
         'production_id',
+        'fgrn_no',
+        'date',
     ];
 
     protected $casts = [
