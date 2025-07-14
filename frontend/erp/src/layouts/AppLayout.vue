@@ -391,6 +391,10 @@
                                     <i class="fas fa-cogs"></i>
                                     <span>Job Order Process</span>
                                 </router-link>
+                                <router-link to="/manufacturing/job-tickets" class="submenu-link">
+                                    <i class="fas fa-ticket-alt"></i>
+                                    <span>Job Tickets</span>
+                                </router-link>
                             </div>
                         </div>
                     </div>

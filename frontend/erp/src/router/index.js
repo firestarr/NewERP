@@ -163,6 +163,11 @@ import PackingListDashboard from "../views/sales/PackingListDashboard.vue";
 import PackingListDetail from "../views/sales/PackingListDetail.vue";
 // import PackingList from "../views/sales/PackingList.vue";
 
+//JobTicket
+import JobTicketList from "@/views/manufacturing/JobTicketList.vue";
+import JobTicketDetail from "@/views/manufacturing/JobTicketDetail.vue";
+import JobTicketPrint from "@/views/manufacturing/JobTicketPrint.vue";
+
 // import SalesForecastFormModal from "../views/sales/SalesForecastFormModal.vue";
 // Import other components as needed
 
@@ -1645,6 +1650,26 @@ const routes = [
                 name: "PackingListDetail",
                 component: PackingListDetail,
                 props: true,
+                meta: { requiresAuth: true },
+            },
+
+            //JobTicket
+            {
+                path: "/manufacturing/job-tickets",
+                name: "JobTickets",
+                component: JobTicketList,
+                meta: { requiresAuth: true },
+            },
+            {
+                path: "/manufacturing/job-tickets/:id",
+                name: "JobTicketDetail",
+                component: JobTicketDetail,
+                meta: { requiresAuth: true },
+            },
+            {
+                path: "/manufacturing/job-tickets/:id/print",
+                name: "JobTicketPrint",
+                component: JobTicketPrint,
                 meta: { requiresAuth: true },
             },
             // {

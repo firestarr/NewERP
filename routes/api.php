@@ -72,6 +72,8 @@ use App\Http\Controllers\Api\Accounting\BudgetController;
 use App\Http\Controllers\Api\Accounting\BankAccountController;
 use App\Http\Controllers\Api\Accounting\BankReconciliationController;
 use App\Http\Controllers\Api\Accounting\FinancialReportController;
+use App\Http\Controllers\Api\Manufacturing\JobTicketController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -815,5 +817,11 @@ Route::middleware('auth:sanctum')->group(function () {
                 'count' => $packingLists->count()
             ], 200);
         });
+    });
+
+    Route::prefix('manufacturing')->group(function () {
+        Route::get('job-tickets/statistics', [JobTicketController::class, 'statistics']);
+        Route::get('job-tickets/{id}/print', [JobTicketController::class, 'print']);
+        Route::apiResource('job-tickets', JobTicketController::class);
     });
 });
