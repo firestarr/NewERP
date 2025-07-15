@@ -19,10 +19,10 @@
 
     <!-- Print Controls (hidden when printing) - Now Centered -->
     <div v-else class="print-controls no-print">
-      <button @click="printReport" class="btn btn-primary">
-        <i class="fas fa-print"></i> Print Report
+      <button @click="printDocument" class="btn btn-primary">
+        <i class="fas fa-print"></i> Print Document
       </button>
-      <button @click="saveAsPDF" class="btn btn-success ml-2">
+      <button @click="printPdf" class="btn btn-danger ml-2">
         <i class="fas fa-file-pdf"></i> Save as PDF
       </button>
       <button @click="closeReport" class="btn btn-secondary ml-2">
@@ -31,125 +31,125 @@
     </div>
 
     <!-- Report Content -->
-    <div v-if="productionOrder" class="report-container" ref="printContent">
-      <!-- Header Section -->
-      <div class="header-section">
-        <div class="header-title">
-          Job Order Process - Material Request
-        </div>
+    <div v-if="productionOrder" class="document-wrapper">
+      <div id="printDocument" class="report-container" ref="printContent">
+        <!-- Header Section -->
+        <div class="header-section">
+          <!-- <div class="header-title">
+            Job Order Process - Material Request
+          </div> -->
 
-        <div class="main-content">
-          <table class="info-table">
-            <tr>
-              <td class="info-cell">
-                <div class="info-row info-row-table">
-                  <span class="info-label info-label-table">JO No.</span>
-                  <span class="info-colon">:</span>
-                  <span class="info-value info-value-table">{{ (productionOrder && productionOrder.production_number) || 'N/A' }}</span>
-                </div>
-                <div class="info-row info-row-table">
-                  <span class="info-label info-label-table">Intern Code</span>
-                  <span class="info-colon">:</span>
-                  <span class="info-value info-value-table">{{ (productInfo && productInfo.internCode) || 'N/A' }}</span>
-                </div>
-                <div class="info-row info-row-table">
-                  <span class="info-label info-label-table">Cust Code</span>
-                  <span class="info-colon">:</span>
-                  <span class="info-value info-value-table">{{ (customerInfo && customerInfo.customer_code) || 'N/A' }}</span>
-                </div>
-                <div class="info-row info-row-table">
-                  <span class="info-label info-label-table">Part Name</span>
-                  <span class="info-colon">:</span>
-                  <span class="info-value info-value-table">{{ (productInfo && productInfo.partName) || 'N/A' }}</span>
-                </div>
-                <div class="info-row info-row-table">
-                  <span class="info-label info-label-table">Size</span>
-                  <span class="info-colon">:</span>
-                  <span class="info-value info-value-table">{{ (productInfo && productInfo.size) || 'N/A' }}</span>
-                </div>
-              </td>
-
-              <td class="info-cell info-cell-center">
-                <div class="info-row info-row-table">
-                  <span class="info-label info-label-table">Customer</span>
-                  <span class="info-colon">:</span>
-                  <span class="info-value info-value-table">{{ (customerInfo && customerInfo.customer_name) || 'N/A' }}</span>
-                </div>
-                <div class="info-row info-row-table">
-                  <span class="info-label info-label-table">Issue WH</span>
-                  <span class="info-colon">:</span>
-                  <span class="info-value info-value-table">{{ issueWarehouse || 'N/A' }}</span>
-                </div>
-                <div class="info-row info-row-table">
-                  <span class="info-label info-label-table">JO Issue Date</span>
-                  <span class="info-colon">:</span>
-                  <span class="info-value info-value-table">{{ formatDate(productionOrder && productionOrder.production_date) }}</span>
-                </div>
-                <div class="info-row info-row-table">
-                  <span class="info-label info-label-table">Print Date</span>
-                  <span class="info-colon">:</span>
-                  <span class="info-value info-value-table">{{ formatDate(new Date()) }}</span>
-                </div>
-                <div class="info-row info-row-table">
-                  <span class="info-label info-label-table">Prod Qty</span>
-                  <span class="info-colon">:</span>
-                  <span class="info-value info-value-table">{{ (productionOrder && productionOrder.planned_quantity) || 0 }} PCS</span>
-                </div>
-              </td>
-
-              <td class="info-cell">
-                <div class="info-row info-row-table">
-                  <span class="info-label info-label-table">Prod Date</span>
-                  <span class="info-colon">:</span>
-                  <span class="info-value info-value-table">{{ formatDate(productionOrder && productionOrder.production_date) }}</span>
-                </div>
-                <div class="info-row info-row-table">
-                  <span class="info-label info-label-table">JOP Number</span>
-                  <span class="info-colon">:</span>
-                  <span class="info-value info-value-table">{{ joProcessNumber || 'N/A' }}</span>
-                </div>
-                <div class="info-row info-row-table">
-                  <span class="info-label info-label-table">Partial No.</span>
-                  <span class="info-colon">:</span>
-                  <span class="info-value info-value-table">{{ partialNumber || 'N/A' }}</span>
-                </div>
-
-              </td>
-            </tr>
-          </table>
-        </div>
-
-        <!-- Material Table -->
-        <div class="material-table-section">
-          <table class="material-table">
-            <thead>
+          <div class="main-content">
+            <table class="info-table">
               <tr>
-                <th style="width: 5%">No.</th>
-                <th style="width: 18%">Material Code</th>
-                <th style="width: 22%">Material Name</th>
-                <th style="width: 25%">Description</th>
-                <th style="width: 10%">UOM</th>
-                <th style="width: 10%">Planned Qty</th>
-                <th style="width: 10%">Actual Qty</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(material, index) in materialsToShow" :key="'material-' + index">
-                <td>{{ material && material.index || '' }}</td>
-                <td>{{ material && material.code || '' }}</td>
-                <td>{{ material && material.materialName || '' }}</td>
-                <td>
-                  {{ material && material.description || '' }}<br>
-                  <span v-if="material && material.partCode" class="part-code">{{ material.partCode }}</span>
+                <td class="info-cell">
+                  <div class="info-row info-row-table">
+                    <span class="info-label info-label-table">JO No.</span>
+                    <span class="info-colon">:</span>
+                    <span class="info-value info-value-table">{{ (productionOrder && productionOrder.production_number) || 'N/A' }}</span>
+                  </div>
+                  <div class="info-row info-row-table">
+                    <span class="info-label info-label-table">Intern Code</span>
+                    <span class="info-colon">:</span>
+                    <span class="info-value info-value-table">{{ (productInfo && productInfo.internCode) || 'N/A' }}</span>
+                  </div>
+                  <div class="info-row info-row-table">
+                    <span class="info-label info-label-table">Cust Code</span>
+                    <span class="info-colon">:</span>
+                    <span class="info-value info-value-table">{{ (customerInfo && customerInfo.customer_code) || 'N/A' }}</span>
+                  </div>
+                  <div class="info-row info-row-table">
+                    <span class="info-label info-label-table">Part Name</span>
+                    <span class="info-colon">:</span>
+                    <span class="info-value info-value-table">{{ (productInfo && productInfo.partName) || 'N/A' }}</span>
+                  </div>
+                  <div class="info-row info-row-table">
+                    <span class="info-label info-label-table">Size</span>
+                    <span class="info-colon">:</span>
+                    <span class="info-value info-value-table">{{ (productInfo && productInfo.size) || 'N/A' }}</span>
+                  </div>
                 </td>
-                <td>{{ material && material.uom || '' }}</td>
-                <td>{{ formatQuantity(material && material.plannedQty) }}</td>
-                <td>{{ formatQuantity(material && material.actualQty) }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
 
+                <td class="info-cell info-cell-center">
+                  <div class="info-row info-row-table">
+                    <span class="info-label info-label-table">Customer</span>
+                    <span class="info-colon">:</span>
+                    <span class="info-value info-value-table">{{ (customerInfo && customerInfo.customer_name) || 'N/A' }}</span>
+                  </div>
+                  <div class="info-row info-row-table">
+                    <span class="info-label info-label-table">Issue WH</span>
+                    <span class="info-colon">:</span>
+                    <span class="info-value info-value-table">{{ issueWarehouse || 'N/A' }}</span>
+                  </div>
+                  <div class="info-row info-row-table">
+                    <span class="info-label info-label-table">JO Issue Date</span>
+                    <span class="info-colon">:</span>
+                    <span class="info-value info-value-table">{{ formatDate(productionOrder && productionOrder.production_date) }}</span>
+                  </div>
+                  <div class="info-row info-row-table">
+                    <span class="info-label info-label-table">Print Date</span>
+                    <span class="info-colon">:</span>
+                    <span class="info-value info-value-table">{{ formatDate(new Date()) }}</span>
+                  </div>
+                  <div class="info-row info-row-table">
+                    <span class="info-label info-label-table">Prod Qty</span>
+                    <span class="info-colon">:</span>
+                    <span class="info-value info-value-table">{{ (productionOrder && productionOrder.planned_quantity) || 0 }} PCS</span>
+                  </div>
+                </td>
+
+                <td class="info-cell">
+                  <div class="info-row info-row-table">
+                    <span class="info-label info-label-table">Prod Date</span>
+                    <span class="info-colon">:</span>
+                    <span class="info-value info-value-table">{{ formatDate(productionOrder && productionOrder.production_date) }}</span>
+                  </div>
+                  <div class="info-row info-row-table">
+                    <span class="info-label info-label-table">JOP Number</span>
+                    <span class="info-colon">:</span>
+                    <span class="info-value info-value-table">{{ joProcessNumber || 'N/A' }}</span>
+                  </div>
+                  <div class="info-row info-row-table">
+                    <span class="info-label info-label-table">Partial No.</span>
+                    <span class="info-colon">:</span>
+                    <span class="info-value info-value-table">{{ partialNumber || 'N/A' }}</span>
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- Material Table -->
+          <div class="material-table-section">
+            <table class="material-table">
+              <thead>
+                <tr>
+                  <th style="width: 5%">No.</th>
+                  <th style="width: 18%">Material Code</th>
+                  <th style="width: 22%">Material Name</th>
+                  <th style="width: 25%">Description</th>
+                  <th style="width: 10%">UOM</th>
+                  <th style="width: 10%">Planned Qty</th>
+                  <th style="width: 10%">Actual Qty</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(material, index) in materialsToShow" :key="'material-' + index">
+                  <td>{{ material && material.index || '' }}</td>
+                  <td>{{ material && material.code || '' }}</td>
+                  <td>{{ material && material.materialName || '' }}</td>
+                  <td>
+                    {{ material && material.description || '' }}<br>
+                    <span v-if="material && material.partCode" class="part-code">{{ material.partCode }}</span>
+                  </td>
+                  <td>{{ material && material.uom || '' }}</td>
+                  <td>{{ formatQuantity(material && material.plannedQty) }}</td>
+                  <td>{{ formatQuantity(material && material.actualQty) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -157,6 +157,7 @@
 
 <script>
 import axios from 'axios';
+import html2pdf from "html2pdf.js";
 
 export default {
   name: 'ProductionOrderPrint',
@@ -557,114 +558,156 @@ export default {
       }
     },
 
-    printReport() {
+    // Print document - Modified to use SalesOrderPrint.vue approach
+    printDocument() {
       try {
         if (!this.productionOrder) {
           console.error('No production order data to print');
           return;
         }
 
-        // Create print content
-        const printContent = this.$refs.printContent?.innerHTML;
-
-        if (!printContent) {
-          console.error('No print content found');
-          return;
-        }
-
-        // Create new window for printing
+        // Create a new window for printing
         const printWindow = window.open('', '_blank');
 
-        printWindow.document.write(`
+        // Get the current document content
+        const documentElement = document.getElementById('printDocument');
+        const documentHTML = documentElement.outerHTML;
+
+        // Create the print HTML with styling
+        const printHTML = `
           <!DOCTYPE html>
           <html>
           <head>
-            <title>Job Order Process - Material Request - ${this.productionOrder?.production_number || 'Unknown'}</title>
+            <meta charset="utf-8">
+            <title></title>
             <style>
               ${this.getPrintStyles()}
             </style>
           </head>
           <body>
-            ${printContent}
+            <div class="print-page">
+              ${documentHTML}
+            </div>
           </body>
           </html>
-        `);
+        `;
 
+        // Write the HTML to the new window
+        printWindow.document.write(printHTML);
         printWindow.document.close();
 
-        // Wait for content to load then print
-        setTimeout(() => {
-          printWindow.print();
-          printWindow.close();
-        }, 250);
+        // Wait for content to load, then print
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+          }, 500);
+        };
       } catch (error) {
-        console.error('Error printing report:', error);
-        alert('Error printing report. Please try again.');
+        console.error('Error printing document:', error);
+        alert('Error printing document. Please try again.');
       }
     },
 
-    async saveAsPDF() {
+    // Print PDF - Modified to use html2pdf library like SalesOrderPrint.vue
+    async printPdf() {
       try {
+        if (this.loading) {
+          console.warn("Data is still loading. Please wait before printing PDF.");
+          return;
+        }
+
         if (!this.productionOrder) {
           console.error('No production order data to save as PDF');
           return;
         }
 
-        // Create print content
-        const printContent = this.$refs.printContent?.innerHTML;
+        // Create a container for PDF generation
+        const container = document.createElement('div');
+        container.style.position = 'static';
+        container.style.width = '21cm';
+        container.style.minHeight = '9.9cm';
+        container.style.backgroundColor = 'white';
+        container.style.padding = '0';
+        container.style.margin = '0';
 
-        if (!printContent) {
-          console.error('No print content found');
-          return;
+        // Clone the document element
+        const element = document.getElementById('printDocument');
+        const clonedElement = element.cloneNode(true);
+
+        // Remove any pagination controls if they exist
+        const paginationControls = clonedElement.querySelector('.pagination-controls');
+        if (paginationControls) {
+          paginationControls.remove();
         }
 
-        // Create new window for PDF generation
-        const pdfWindow = window.open('', '_blank');
+        container.appendChild(clonedElement);
+        document.body.appendChild(container);
 
-        pdfWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <title>Job Order Process - Material Request - ${this.productionOrder?.production_number || 'Unknown'}</title>
-            <style>
-              ${this.getPrintStyles()}
-            </style>
-          </head>
-          <body>
-            ${printContent}
-          </body>
-          </html>
-        `);
+        // PDF generation options
+        const opt = {
+          margin: 0,
+          filename: `MaterialRequest_${this.productionOrder?.production_number || 'document'}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            letterRendering: true
+          },
+          jsPDF: {
+            unit: 'cm',
+            format: [21, 9.9],
+            orientation: 'landscape'
+          }
+        };
 
-        pdfWindow.document.close();
-
-        // Wait for content to load
-        setTimeout(() => {
-          // Trigger browser's print dialog with save as PDF option
-          pdfWindow.print();
-
-          // Close the window after a delay
-          setTimeout(() => {
-            pdfWindow.close();
-          }, 1000);
-        }, 250);
+        // Generate and save PDF
+        await html2pdf().set(opt).from(container).save();
 
       } catch (error) {
-        console.error('Error saving as PDF:', error);
-        alert('Error saving as PDF. Please try again.');
+        console.error("Error generating PDF:", error);
+        alert("Error generating PDF. Please try again.");
+      } finally {
+        // Clean up - remove temporary container
+        const containers = document.querySelectorAll('body > div');
+        containers.forEach(container => {
+          if (container.querySelector('#printDocument')) {
+            document.body.removeChild(container);
+          }
+        });
       }
     },
 
+    // Get print styles for both print and PDF
     getPrintStyles() {
       return `
         @page {
-          size: A4;
+          size: 21cm 9.9cm landscape;
           margin: 15mm;
         }
 
         @media print {
-          body { margin: 0; }
-          .no-print { display: none; }
+          body {
+            margin: 0;
+            padding: 0;
+          }
+          .no-print {
+            display: none !important;
+          }
+
+          /* Hide browser headers and footers */
+          @page {
+            margin: 0;
+            size: 21cm 9.9cm landscape;
+          }
+
+          html, body {
+            width: 21cm;
+            height: 9.9cm;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden;
+          }
         }
 
         * {
@@ -679,6 +722,15 @@ export default {
           line-height: 1.3;
           color: #000;
           background: white;
+        }
+
+        .print-page {
+          width: 21cm;
+          min-height: 9.9cm;
+          margin: 0 auto;
+          background: white;
+          padding: 0;
+          box-shadow: none;
         }
 
         .report-container {
@@ -770,25 +822,6 @@ export default {
           padding-left: 8px;
         }
 
-        .info-row-left {
-          display: block;
-          text-align: left;
-        }
-
-        .info-label-left {
-          display: inline;
-          min-width: auto;
-          margin-right: 5px;
-          font-weight: bold;
-          font-size: 9px;
-        }
-
-        .info-value-left {
-          display: inline;
-          padding-left: 0px;
-          font-size: 9px;
-        }
-
         .material-table-section {
           margin-top: 8px;
         }
@@ -865,42 +898,6 @@ export default {
           font-size: 10px;
           color: #666;
         }
-
-        .work-order-section {
-          margin-top: 15px;
-          padding-top: 10px;
-          border-top: 1px solid #000;
-        }
-
-        .section-title {
-          font-size: 10px;
-          font-weight: bold;
-          margin-bottom: 8px;
-        }
-
-        .work-order-info {
-          display: flex;
-          gap: 20px;
-        }
-
-        .info-column {
-          flex: 1;
-        }
-
-        .info-item {
-          display: flex;
-          margin-bottom: 4px;
-          font-size: 8px;
-        }
-
-        .info-item .label {
-          font-weight: bold;
-          min-width: 80px;
-        }
-
-        .info-item .value {
-          flex: 1;
-        }
       `;
     },
 
@@ -921,10 +918,13 @@ export default {
 <style scoped>
 /* Screen styles */
 .print-report-container {
-  padding: 20px;
-  background: #f5f5f5;
   min-height: 100vh;
-  font-size: 8px;
+  background-color: #f1f5f9;
+  padding: 2rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
 }
 
 .loading-container,
@@ -963,66 +963,76 @@ export default {
 
 /* Centered print controls */
 .print-controls {
-  margin-bottom: 20px;
-  text-align: center;
   display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
   justify-content: center;
-  align-items: center;
-  gap: 8px;
+  width: 100%;
+  max-width: 21cm;
 }
 
 .btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
   font-weight: 500;
-  text-decoration: none;
-  display: inline-flex;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  display: flex;
   align-items: center;
-  gap: 8px;
-  transition: all 0.2s;
+  gap: 0.5rem;
+  border: none;
+  transition: background-color 0.2s, color 0.2s;
 }
 
 .btn-primary {
-  background: #007bff;
+  background-color: #059669;
   color: white;
 }
 
 .btn-primary:hover {
-  background: #0056b3;
-}
-
-.btn-success {
-  background: #28a745;
-  color: white;
-}
-
-.btn-success:hover {
-  background: #1e7e34;
+  background-color: #047857;
 }
 
 .btn-secondary {
-  background: #6c757d;
-  color: white;
+  background-color: #e2e8f0;
+  color: #1e293b;
 }
 
 .btn-secondary:hover {
-  background: #545b62;
+  background-color: #cbd5e1;
+}
+
+.btn-danger {
+  background-color: #ef4444;
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #dc2626;
 }
 
 .ml-2 {
   margin-left: 0.5rem;
 }
 
+/* Document wrapper for A4 sizing - Landscape orientation */
+.document-wrapper {
+  width: 21cm;
+  min-height: 9.9cm;
+  margin: 0;
+  background-color: white;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e5e7eb;
+  position: relative;
+  display: block;
+}
+
 .report-container {
-  max-width: 21cm;
-  height: 9.9cm;
-  margin: 0 auto;
+  width: 100%;
+  min-height: 9.9cm;
   background: white;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
+  box-sizing: border-box;
+  position: relative;
 }
 
 .header-section {
@@ -1113,25 +1123,6 @@ export default {
   padding-left: 8px;
 }
 
-.info-row-left {
-  display: block;
-  text-align: left;
-}
-
-.info-label-left {
-  display: inline;
-  min-width: auto;
-  margin-right: 5px;
-  font-weight: bold;
-  font-size: 9px;
-}
-
-.info-value-left {
-  display: inline;
-  padding-left: 0px;
-  font-size: 9px;
-}
-
 .material-table {
   width: 100%;
   border-collapse: collapse;
@@ -1216,28 +1207,27 @@ export default {
     display: none !important;
   }
 
-  .report-container {
+  .document-wrapper {
     box-shadow: none;
     max-width: none;
     height: auto;
   }
 }
 
-/* Mobile adjustments for smaller print size */
+/* Mobile adjustments */
 @media (max-width: 768px) {
   .print-controls {
     flex-direction: column;
-    gap: 10px;
+    gap: 0.5rem;
   }
 
   .btn {
-    width: 200px;
+    width: 100%;
     justify-content: center;
   }
 
-  .report-container {
-    max-width: 100%;
-    height: auto;
+  .document-wrapper {
+    width: 100%;
   }
 
   .header-section {
@@ -1263,18 +1253,9 @@ export default {
     font-size: 8px;
   }
 
-  .info-label-left {
-    min-width: auto;
-    font-size: 6px;
-  }
-
   .info-value {
     font-size: 6px;
     min-height: 10px;
-  }
-
-  .info-value-left {
-    font-size: 6px;
   }
 
   .material-table th,
@@ -1285,41 +1266,6 @@ export default {
 
   .material-table th {
     font-size: 9px;
-  }
-
-  .material-table th:nth-child(1),
-  .material-table td:nth-child(1) {
-    width: 5%;
-  }
-
-  .material-table th:nth-child(2),
-  .material-table td:nth-child(2) {
-    width: 18%;
-  }
-
-  .material-table th:nth-child(3),
-  .material-table td:nth-child(3) {
-    width: 22%;
-  }
-
-  .material-table th:nth-child(4),
-  .material-table td:nth-child(4) {
-    width: 25%;
-  }
-
-  .material-table th:nth-child(5),
-  .material-table td:nth-child(5) {
-    width: 10%;
-  }
-
-  .material-table th:nth-child(6),
-  .material-table td:nth-child(6) {
-    width: 10%;
-  }
-
-  .material-table th:nth-child(7),
-  .material-table td:nth-child(7) {
-    width: 10%;
   }
 }
 </style>
