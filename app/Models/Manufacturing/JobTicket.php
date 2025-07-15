@@ -39,4 +39,12 @@ class JobTicket extends Model
     {
         return $this->belongsTo(ProductionOrder::class, 'production_id', 'production_id');
     }
+
+    /**
+     * Get the customer related to the job ticket by matching customer name.
+     */
+    public function customerRelation(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Sales\Customer::class, 'customer', 'name');
+    }
 }

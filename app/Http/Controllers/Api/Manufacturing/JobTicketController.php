@@ -110,7 +110,8 @@ class JobTicketController extends Controller
                 'productionOrder.workOrder',
                 'productionOrder.workOrder.item',
                 'productionOrder.workOrder.bom',
-                'productionOrder.workOrder.routing'
+                'productionOrder.workOrder.routing',
+                'customerRelation'
             ])->findOrFail($id);
 
             return response()->json([
@@ -195,7 +196,8 @@ class JobTicketController extends Controller
                 'productionOrder.workOrder',
                 'productionOrder.workOrder.item',
                 'productionOrder.workOrder.bom',
-                'productionOrder.workOrder.routing'
+                'productionOrder.workOrder.routing',
+                'customerRelation'
             ])->findOrFail($id);
 
             // Format data for printing

@@ -69,7 +69,7 @@
 
               <div class="job-section ml-auto">
                 <span class="label">Customer Code:</span>
-                <span class="value">{{ getCustomerCode(jobTicket.customer) }}</span>
+                <span class="value">{{ jobTicket.customer_relation?.customer_code || 'N/A' }}</span>
               </div>
             </div>
 
@@ -287,19 +287,7 @@ export default {
       return Number(value).toLocaleString();
     },
 
-    getCustomerCode(customer) {
-      if (!customer) return '';
-
-      // Try to extract customer code from customer name
-      // This might need adjustment based on your customer data format
-      const parts = customer.split(' ');
-      if (parts.length > 1 && parts[0].match(/^[A-Z0-9]+$/)) {
-        return parts[0];
-      }
-
-      // Generate code from customer name
-      return customer.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 7);
-    },
+    // Remove getCustomerCode method as customer_code will be fetched from backend directly
 
     getPartNumber(jobTicket) {
       // Try to get part number from various sources
