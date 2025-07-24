@@ -131,15 +131,19 @@
                                 id="currency_code"
                                 v-model="form.currency_code"
                                 required
+                                :disabled="isLoadingCurrencies"
                             >
-                                <option value="IDR">IDR - Indonesian Rupiah</option>
-                                <option value="USD">USD - US Dollar</option>
-                                <option value="EUR">EUR - Euro</option>
-                                <option value="SGD">SGD - Singapore Dollar</option>
-                                <option value="JPY">JPY - Japanese Yen</option>
+                                <option value="">{{ isLoadingCurrencies ? 'Loading currencies...' : 'Select Currency' }}</option>
+                                <option 
+                                    v-for="currency in activeCurrencies" 
+                                    :key="currency.code" 
+                                    :value="currency.code"
+                                >
+                                    {{ currency.code }} - {{ currency.name }} ({{ currency.symbol }})
+                                </option>
                             </select>
-                            <small class="text-muted">
-                                Currency used for the transaction
+                            <small class="text-muted" v-if="activeCurrencies.length > 0">
+                                {{ activeCurrencies.length }} currencies available
                             </small>
                         </div>
                     </div>
@@ -429,6 +433,7 @@
 import { ref, computed, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import axios from "axios";
+import { useCurrency } from '@/composables/useCurrency';
 
 export default {
     name: "SalesOrderForm",
@@ -442,6 +447,9 @@ export default {
             return isNaN(parsed) ? 0 : parsed;
         };
 
+        // Initialize currency composable
+        const currency = useCurrency();
+
         // Form data
         const form = ref({
             so_number: "",
@@ -452,7 +460,7 @@ export default {
             payment_terms: "",
             delivery_terms: "",
             expected_delivery: "",
-            currency_code: "IDR",
+            currency_code: "", // Default currency will be set from base currency
             status: "Draft",
             lines: [],
         });
@@ -468,7 +476,9 @@ export default {
         const showCustomerDropdown = ref(false);
 
         // UI state
+        const currencies = ref([]); // New: Store all currencies
         const isLoading = ref(false);
+        const isLoadingCurrencies = ref(false);
         const isSubmitting = ref(false);
         const error = ref("");
         const nextSoNumber = ref('');
@@ -480,10 +490,18 @@ export default {
             return sellable;
         });
 
+        // New: Filter active currencies and sort by sort_order
+        const activeCurrencies = computed(() => {
+            return currencies.value
+                .filter(currency => currency.is_active)
+                .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+        });
+
         // Check if we're in edit mode
         const isEditMode = computed(() => {
             return route.params.id !== undefined;
         });
+
 
         // Load next sales order number for preview
         const loadNextSalesOrderNumber = async () => {
@@ -498,11 +516,44 @@ export default {
             }
         };
 
+        // New: Load currencies from API
+        const loadCurrencies = async () => {
+            try {
+                isLoadingCurrencies.value = true;
+                console.log('🔄 Loading currencies from API...');
+                // Fallback: try the general system currencies endpoint
+                try {
+                    const fallbackResponse = await axios.get("/system-currencies");
+                    if (fallbackResponse.data && fallbackResponse.data.data) {
+                        currencies.value = fallbackResponse.data.data;
+                        console.log('✅ Currencies loaded from fallback:', currencies.value.length, 'currencies');
+                    } else {
+                        throw new Error('Fallback also failed');
+                    }
+                } catch (fallbackErr) {
+                    console.error("Error loading currencies from both endpoints:", fallbackErr);
+                    error.value = "Error loading currencies. Using default options.";
+                    
+                    // Final fallback: use hardcoded currencies
+                    currencies.value = [
+                        { code: 'IDR', name: 'Indonesian Rupiah', symbol: 'Rp', decimal_places: 0, is_active: true, sort_order: 1 },
+                        { code: 'USD', name: 'US Dollar', symbol: '$', decimal_places: 2, is_active: true, sort_order: 2 },
+                        { code: 'EUR', name: 'Euro', symbol: '€', decimal_places: 2, is_active: true, sort_order: 3 },
+                        { code: 'SGD', name: 'Singapore Dollar', symbol: 'S$', decimal_places: 2, is_active: true, sort_order: 4 },
+                        { code: 'MYR', name: 'Malaysian Ringgit', symbol: 'RM', decimal_places: 2, is_active: true, sort_order: 5 }
+                    ];
+                }
+            } finally {
+                isLoadingCurrencies.value = false;
+            }
+        };
         // FIXED: Load reference data with enhanced logging
         const loadReferenceData = async () => {
             try {
                 console.log('🔄 Loading reference data...');
 
+                // Load currencies first
+                await loadCurrencies();
                 // Load customers
                 const customersResponse = await axios.get("/customers");
                 customers.value = customersResponse.data.data || [];
@@ -981,6 +1032,15 @@ export default {
 
             try {
                 await loadReferenceData();
+
+                // Fetch currency settings from backend
+                await currency.fetchCurrencySettings();
+
+                // Set form.currency_code to base currency if not set or is "INR"
+                if (!form.value.currency_code || form.value.currency_code === "INR") {
+                    form.value.currency_code = currency.baseCurrency.value;
+                }
+
                 await loadOrder();
                 console.log('✅ Component initialization complete');
             } catch (error) {
@@ -993,7 +1053,10 @@ export default {
             customers,
             items,
             unitOfMeasures,
+            currencies, // New: Expose currencies
+            activeCurrencies, // New: Expose filtered active currencies
             isLoading,
+            isLoadingCurrencies, // New: Expose currency loading state
             isSubmitting,
             error,
             isEditMode,
@@ -1019,6 +1082,7 @@ export default {
             formatCurrency,
             goBack,
             saveOrder,
+            currency, // expose currency composable
         };
     },
 };

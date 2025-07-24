@@ -832,4 +832,5 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/all-settings', [CurrencySettingController::class, 'getAllCurrencySettings']);
         Route::put('/settings', [CurrencySettingController::class, 'updateCurrencySettings']);
     });
+    Route::get('system-currencies', [App\Http\Controllers\Api\Accounting\SystemCurrencyController::class, 'index']);
 });
