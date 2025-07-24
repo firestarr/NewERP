@@ -1588,6 +1588,16 @@ const routes = [
                 component: QualityAnalysisDashboard,
                 meta: { title: "Quality Analysis Dashboard" },
             },
+            {
+                path: '/admin/settings/currency',
+                name: 'CurrencySettings',
+                component: () => import('@/components/admin/CurrencySettings.vue'),
+                meta: { 
+                requiresAuth: true,
+                roles: ['admin'],
+                title: 'Currency Settings'
+                }
+            },
             // Inside your routes array, add this section:
             {
                 path: "/admin",

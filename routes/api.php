@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\Inventory\CycleCountingController;
 use App\Http\Controllers\Api\Inventory\ItemStockController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\MaterialPlanningController;
+use App\Http\Controllers\Api\Admin\CurrencySettingController;
 
 // purchase order
 use App\Http\Controllers\Api\VendorController;
@@ -823,5 +824,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('job-tickets/statistics', [JobTicketController::class, 'statistics']);
         Route::get('job-tickets/{id}/print', [JobTicketController::class, 'print']);
         Route::apiResource('job-tickets', JobTicketController::class);
+    });
+    Route::prefix('admin/currency')->middleware(['auth:sanctum'])->group(function () {
+        Route::get('/settings', [CurrencySettingController::class, 'getCurrencySettings']);
+        Route::post('/base-currency', [CurrencySettingController::class, 'updateBaseCurrency']);
+        Route::post('/preview', [CurrencySettingController::class, 'getCurrencyPreview']);
+        Route::get('/all-settings', [CurrencySettingController::class, 'getAllCurrencySettings']);
+        Route::put('/settings', [CurrencySettingController::class, 'updateCurrencySettings']);
     });
 });

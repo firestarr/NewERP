@@ -498,6 +498,10 @@
                                     <i class="fas fa-cogs"></i>
                                     <span>System Settings</span>
                                 </router-link>
+                                <router-link to="/admin/settings/currency" class="submenu-link">
+                                    <i class="fas fa-sliders-h"></i>
+                                    <span>Setting Currency</span>
+                                </router-link>
                             </div>
                         </div>
                     </div>
