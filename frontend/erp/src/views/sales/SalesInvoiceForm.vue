@@ -128,23 +128,32 @@
                   </div>
                 </div>
 
+                <!-- Updated Currency Dropdown -->
                 <div class="form-group">
                   <label for="currency">Currency</label>
                   <select
                     id="currency"
                     v-model="invoice.currency_code"
                     class="form-control"
-                    :disabled="isEditing"
+                    :disabled="isEditing || loadingCurrencies"
                   >
-                    <option value="IDR">IDR - Indonesian Rupiah</option>
-                    <option value="USD">USD - US Dollar</option>
-                    <option value="EUR">EUR - Euro</option>
-                    <option value="SGD">SGD - Singapore Dollar</option>
-                    <option value="MYR">MYR - Malaysian Ringgit</option>
+                    <option value="" disabled>
+                      {{ loadingCurrencies ? 'Loading currencies...' : 'Select Currency' }}
+                    </option>
+                    <option 
+                      v-for="currency in currencies" 
+                      :key="currency.code" 
+                      :value="currency.code"
+                    >
+                      {{ currency.display }}
+                    </option>
                   </select>
                   <div v-if="errors.currency_code?.length" class="error-message">
                     {{ errors.currency_code[0] }}
                   </div>
+                  <small v-if="baseCurrency && invoice.currency_code === baseCurrency" class="text-muted mt-1">
+                    This is your system's base currency
+                  </small>
                 </div>
               </div>
 
@@ -308,7 +317,7 @@
                       <td>
                         <div class="input-group">
                           <div class="input-group-prepend">
-                            <!-- <span class="input-group-text">{{ invoice.currency_code }}</span> -->
+                            <span class="input-group-text">{{ getCurrencySymbol(invoice.currency_code) || invoice.currency_code }}</span>
                           </div>
                           <input
                             type="text"
@@ -322,7 +331,7 @@
                       <td>
                         <div class="input-group">
                           <div class="input-group-prepend">
-                            <!-- <span class="input-group-text">{{ invoice.currency_code }}</span> -->
+                            <span class="input-group-text">{{ getCurrencySymbol(invoice.currency_code) || invoice.currency_code }}</span>
                           </div>
                           <input
                             type="number"
@@ -337,7 +346,7 @@
                       <td>
                         <div class="input-group">
                           <div class="input-group-prepend">
-                            <!-- <span class="input-group-text">{{ invoice.currency_code }}</span> -->
+                            <span class="input-group-text">{{ getCurrencySymbol(invoice.currency_code) || invoice.currency_code }}</span>
                           </div>
                           <input
                             type="number"
@@ -352,7 +361,7 @@
                       <td>
                         <div class="input-group">
                           <div class="input-group-prepend">
-                            <!-- <span class="input-group-text">{{ invoice.currency_code }}</span> -->
+                            <span class="input-group-text">{{ getCurrencySymbol(invoice.currency_code) || invoice.currency_code }}</span>
                           </div>
                           <input
                             type="number"
@@ -365,7 +374,7 @@
                       <td>
                         <div class="input-group">
                           <div class="input-group-prepend">
-                            <!-- <span class="input-group-text">{{ invoice.currency_code }}</span> -->
+                            <span class="input-group-text">{{ getCurrencySymbol(invoice.currency_code) || invoice.currency_code }}</span>
                           </div>
                           <input
                             type="number"
@@ -393,7 +402,7 @@
                       <td colspan="3">
                         <div class="input-group">
                           <div class="input-group-prepend">
-                            <!-- <span class="input-group-text">{{ invoice.currency_code }}</span> -->
+                            <span class="input-group-text">{{ getCurrencySymbol(invoice.currency_code) || invoice.currency_code }}</span>
                           </div>
                           <input type="number" v-model.number="subtotal" class="form-control" readonly>
                         </div>
@@ -404,7 +413,7 @@
                       <td colspan="3">
                         <div class="input-group">
                           <div class="input-group-prepend">
-                            <!-- <span class="input-group-text">{{ invoice.currency_code }}</span> -->
+                            <span class="input-group-text">{{ getCurrencySymbol(invoice.currency_code) || invoice.currency_code }}</span>
                           </div>
                           <input type="number" v-model.number="totalDiscount" class="form-control" readonly>
                         </div>
@@ -415,7 +424,7 @@
                       <td colspan="3">
                         <div class="input-group">
                           <div class="input-group-prepend">
-                            <!-- <span class="input-group-text">{{ invoice.currency_code }}</span> -->
+                            <span class="input-group-text">{{ getCurrencySymbol(invoice.currency_code) || invoice.currency_code }}</span>
                           </div>
                           <input type="number" v-model.number="invoice.tax_amount" class="form-control" readonly>
                         </div>
@@ -426,7 +435,7 @@
                       <td colspan="3">
                         <div class="input-group">
                           <div class="input-group-prepend">
-                            <!-- <span class="input-group-text">{{ invoice.currency_code }}</span> -->
+                            <span class="input-group-text">{{ getCurrencySymbol(invoice.currency_code) || invoice.currency_code }}</span>
                           </div>
                           <input type="number" v-model.number="invoice.total_amount" class="form-control" readonly>
                         </div>
@@ -491,6 +500,10 @@ export default {
       createFromDelivery: false,
       loadingDeliveries: false,
       isLoadingItems: false,
+      // NEW: Currency related data
+      currencies: [],
+      baseCurrency: 'USD',
+      loadingCurrencies: false,
       // Customer search properties
       customerSearch: '',
       showCustomerDropdown: false,
@@ -500,7 +513,7 @@ export default {
         customer_id: '',
         due_date: '',
         status: 'Draft',
-        currency_code: 'IDR',
+        currency_code: '', // Will be set dynamically to base currency
         reference_number: '',
         payment_terms: '',
         total_amount: 0,
@@ -543,6 +556,9 @@ export default {
       console.log('SalesInvoiceForm mounted with id:', this.id);
       this.isEditing = !!this.id;
 
+      // Load currencies first
+      await this.loadCurrencies();
+      
       await this.loadCustomers();
       await this.loadItems();
 
@@ -550,6 +566,7 @@ export default {
         await this.loadInvoice();
       } else {
         this.invoice.due_date = this.defaultDueDate;
+        // Currency already set in loadCurrencies()
         this.generateInvoiceNumber();
       }
 
@@ -562,9 +579,112 @@ export default {
   },
 
   methods: {
-    formatPrice(value) {
+    // NEW: Load currencies from API
+    async loadCurrencies() {
+      try {
+        console.log('Loading currencies from system...');
+        this.loadingCurrencies = true;
+        
+        // Use the currency settings API endpoint
+        const response = await axios.get('/admin/currency/settings');
+        
+        if (response.data.status === 'success') {
+          const { base_currency, available_currencies } = response.data.data;
+          
+          // Set base currency
+          this.baseCurrency = base_currency;
+          
+          // Convert available currencies to array format for dropdown
+          this.currencies = Object.entries(available_currencies).map(([code, info]) => ({
+            code: code,
+            name: info.name,
+            symbol: info.symbol,
+            decimal_places: info.decimal_places,
+            display: `${code} - ${info.name} (${info.symbol})`
+          }));
+          
+          // Set default currency to base currency if not editing
+          if (!this.isEditing && !this.invoice.currency_code) {
+            this.invoice.currency_code = this.baseCurrency;
+          }
+          
+          console.log('Currencies loaded successfully:', {
+            base_currency: this.baseCurrency,
+            available_count: this.currencies.length
+          });
+          
+        } else {
+          throw new Error(response.data.message || 'Failed to load currency settings');
+        }
+        
+      } catch (error) {
+        console.error('Error loading currencies:', error);
+        
+        // Fallback to system-currencies endpoint if main endpoint fails
+        try {
+          const fallbackResponse = await axios.get('/system-currencies');
+          const currenciesData = fallbackResponse.data.data || fallbackResponse.data || [];
+          
+          this.currencies = currenciesData
+            .filter(currency => currency.is_active)
+            .sort((a, b) => a.sort_order - b.sort_order)
+            .map(currency => ({
+              code: currency.code,
+              name: currency.name,
+              symbol: currency.symbol,
+              decimal_places: currency.decimal_places,
+              display: `${currency.code} - ${currency.name} (${currency.symbol})`
+            }));
+          
+          // Find base currency or use first active currency
+          const baseCurrencyObj = currenciesData.find(c => c.is_base_currency);
+          this.baseCurrency = baseCurrencyObj ? baseCurrencyObj.code : (this.currencies[0]?.code || 'USD');
+          
+          if (!this.isEditing && !this.invoice.currency_code) {
+            this.invoice.currency_code = this.baseCurrency;
+          }
+          
+          console.log('Currencies loaded from fallback endpoint');
+          
+        } catch (fallbackError) {
+          console.error('Fallback currency loading also failed:', fallbackError);
+          this.showMessage('Failed to load currencies: ' + (error.response?.data?.message || error.message), 'error');
+          
+          // Final fallback to minimal currency list
+          this.currencies = [
+            { code: 'USD', name: 'US Dollar', symbol: '$', decimal_places: 2, display: 'USD - US Dollar ($)' },
+            { code: 'IDR', name: 'Indonesian Rupiah', symbol: 'Rp', decimal_places: 0, display: 'IDR - Indonesian Rupiah (Rp)' }
+          ];
+          this.baseCurrency = 'USD';
+          if (!this.isEditing && !this.invoice.currency_code) {
+            this.invoice.currency_code = this.baseCurrency;
+          }
+        }
+      } finally {
+        this.loadingCurrencies = false;
+      }
+    },
+
+    // NEW: Get currency symbol
+    getCurrencySymbol(currencyCode) {
+      if (!currencyCode) return '';
+      const currency = this.currencies.find(c => c.code === currencyCode);
+      return currency ? currency.symbol : '';
+    },
+
+    // NEW: Get currency decimal places
+    getCurrencyDecimalPlaces(currencyCode) {
+      if (!currencyCode) return 2;
+      const currency = this.currencies.find(c => c.code === currencyCode);
+      return currency ? currency.decimal_places : 2;
+    },
+
+    // UPDATED: Format price with currency-specific decimal places
+    formatPrice(value, currencyCode = null) {
       if (value === null || value === undefined) return '';
-      return Number(value).toFixed(5);
+      const currency = currencyCode || this.invoice.currency_code;
+      const decimalPlaces = this.getCurrencyDecimalPlaces(currency);
+      return Number(value).toFixed(decimalPlaces);
     },
 
     onUnitPriceInput(event, index) {
@@ -572,7 +692,7 @@ export default {
       // Allow only numbers and decimal point
       const validInput = input.replace(/[^0-9.]/g, '');
 
-      // Parse to float and fix to 5 decimals
+      // Parse to float
       let parsed = parseFloat(validInput);
       if (isNaN(parsed)) {
         parsed = 0;
@@ -711,7 +831,7 @@ export default {
           due_date: dueDate,
           customer_id: invoice.customer_id || '',
           status: invoice.status || 'Draft',
-          currency_code: invoice.currency_code || 'IDR',
+          currency_code: invoice.currency_code || this.baseCurrency,
           reference_number: invoice.reference_number || '',
           payment_terms: invoice.payment_terms ||
                         (invoice.customer?.payment_term ? `Net ${invoice.customer.payment_term}` : '') || '',
@@ -1152,12 +1272,14 @@ export default {
         line.tax = this.safeParseFloat(line.tax);
         line.quantity = this.safeParseFloat(line.quantity);
 
-        line.subtotal = Number((line.quantity * line.unit_price).toFixed(5));
+        const decimalPlaces = this.getCurrencyDecimalPlaces(this.invoice.currency_code);
+
+        line.subtotal = Number((line.quantity * line.unit_price).toFixed(decimalPlaces));
         const subtotalNum = this.safeParseFloat(line.subtotal);
         const discountNum = this.safeParseFloat(line.discount);
         const taxNum = this.safeParseFloat(line.tax);
 
-        line.total = Number((subtotalNum - discountNum + taxNum).toFixed(5));
+        line.total = Number((subtotalNum - discountNum + taxNum).toFixed(decimalPlaces));
 
         this.calculateTotals();
 
@@ -1168,6 +1290,8 @@ export default {
 
     calculateTotals() {
       try {
+        const decimalPlaces = this.getCurrencyDecimalPlaces(this.invoice.currency_code);
+
         this.subtotal = 0;
         this.totalDiscount = 0;
         this.invoice.tax_amount = 0;
@@ -1180,7 +1304,7 @@ export default {
         });
 
         this.invoice.total_amount = this.safeParseFloat(
-          (this.subtotal - this.totalDiscount + this.invoice.tax_amount).toFixed(5)
+          (this.subtotal - this.totalDiscount + this.invoice.tax_amount).toFixed(decimalPlaces)
         );
 
       } catch (error) {
@@ -1375,374 +1499,399 @@ export default {
 };
 </script>
 
-  <style scoped>
-  .page-container {
-    padding: 1.5rem;
-  }
+<style scoped>
+.page-container {
+  padding: 1.5rem;
+}
 
-  .page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-  }
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
 
-  .page-header h1 {
-    margin: 0;
-  }
+.page-header h1 {
+  margin: 0;
+}
 
-  .loading-indicator {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 3rem 0;
-    color: var(--gray-500);
-    font-size: 0.875rem;
-  }
+.loading-indicator {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 3rem 0;
+  color: var(--gray-500);
+  font-size: 0.875rem;
+}
 
-  .form-container {
-    max-width: 100%;
-  }
+.form-container {
+  max-width: 100%;
+}
 
-  .card {
-    background-color: white;
-    border-radius: 0.5rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
-  }
+.card {
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
 
-  .card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem 1.5rem;
-    background-color: var(--gray-50);
-    border-bottom: 1px solid var(--gray-200);
-  }
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background-color: var(--gray-50);
+  border-bottom: 1px solid var(--gray-200);
+}
 
-  .card-header h2 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin: 0;
-    color: var(--gray-800);
-  }
+.card-header h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--gray-800);
+}
 
-  .card-body {
-    padding: 1.5rem;
-  }
+.card-body {
+  padding: 1.5rem;
+}
 
+.form-row {
+  display: flex;
+  flex-wrap: wrap;
+  margin: -0.5rem;
+  margin-bottom: 1rem;
+}
+
+.form-group {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem;
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--gray-800);
+  background-color: white;
+  border: 1px solid var(--gray-300);
+  border-radius: 0.375rem;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.form-control:focus {
+  border-color: var(--primary-color);
+  outline: 0;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+}
+
+.form-control:disabled {
+  background-color: var(--gray-100);
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.form-check {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.form-check-input {
+  margin-right: 0.5rem;
+}
+
+.form-check-label {
+  margin-bottom: 0;
+}
+
+.required {
+  color: #dc2626;
+}
+
+.error-message {
+  color: #dc2626;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.text-muted {
+  color: var(--gray-600);
+  font-size: 0.75rem;
+  display: block;
+  margin-top: 0.25rem;
+}
+
+.mt-1 {
+  margin-top: 0.25rem;
+}
+
+.mt-4 {
+  margin-top: 1.5rem;
+}
+
+.table-responsive {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.data-table th {
+  text-align: left;
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--gray-200);
+  background-color: var(--gray-50);
+  font-weight: 500;
+  color: var(--gray-600);
+}
+
+.data-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--gray-100);
+  vertical-align: middle;
+}
+
+.data-table tfoot tr td {
+  padding: 0.75rem;
+  background-color: var(--gray-50);
+}
+
+.text-right {
+  text-align: right;
+}
+
+.input-group {
+  display: flex;
+  width: 100%;
+}
+
+.input-group-prepend {
+  display: flex;
+}
+
+.input-group-text {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--gray-700);
+  text-align: center;
+  white-space: nowrap;
+  background-color: var(--gray-100);
+  border: 1px solid var(--gray-300);
+  border-top-left-radius: 0.375rem;
+  border-bottom-left-radius: 0.375rem;
+  border-right: none;
+  min-width: 45px;
+  justify-content: center;
+}
+
+.input-group .form-control {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  flex: 1;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.5;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: middle;
+  cursor: pointer;
+  user-select: none;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.btn-primary {
+  color: white;
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-dark);
+  border-color: var(--primary-dark);
+}
+
+.btn-primary:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  color: var(--gray-700);
+  background-color: var(--gray-100);
+  border-color: var(--gray-300);
+}
+
+.btn-secondary:hover {
+  background-color: var(--gray-200);
+  border-color: var(--gray-400);
+}
+
+.btn-danger {
+  color: white;
+  background-color: #dc2626;
+  border-color: #dc2626;
+}
+
+.btn-danger:hover {
+  background-color: #b91c1c;
+  border-color: #b91c1c;
+}
+
+.btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  border-radius: 0.25rem;
+}
+
+.btn i {
+  margin-right: 0.5rem;
+}
+
+.btn-sm i {
+  margin-right: 0.25rem;
+}
+
+.loading-text {
+  display: flex;
+  align-items: center;
+  color: var(--gray-500);
+  font-size: 0.875rem;
+  padding: 0.5rem 0;
+}
+
+.loading-text i {
+  margin-right: 0.5rem;
+}
+
+.empty-message {
+  color: var(--gray-500);
+  font-style: italic;
+  padding: 1rem 0;
+}
+
+.delivery-selection {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--gray-200);
+  border-radius: 0.375rem;
+  padding: 0.5rem;
+}
+
+.delivery-item {
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.delivery-item:last-child {
+  border-bottom: none;
+}
+
+/* Dropdown Styles */
+.dropdown {
+  position: relative;
+  width: 100%;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid var(--gray-300);
+  border-radius: 0.375rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  max-height: 250px;
+  overflow-y: auto;
+  z-index: 1000;
+  margin-top: 2px;
+}
+
+.dropdown-item {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--gray-100);
+  transition: background-color 0.15s ease-in-out;
+}
+
+.dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.dropdown-item:hover {
+  background-color: var(--gray-50);
+}
+
+.dropdown-item.text-muted {
+  color: var(--gray-500);
+  cursor: default;
+  font-style: italic;
+}
+
+.dropdown-item.text-muted:hover {
+  background-color: transparent;
+}
+
+.customer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.customer-info strong {
+  color: var(--gray-800);
+  font-weight: 600;
+}
+
+.customer-email, .customer-phone {
+  color: var(--gray-600);
+  font-size: 0.75rem;
+}
+
+.form-control.is-invalid {
+  border-color: #dc2626;
+}
+
+@media (max-width: 768px) {
   .form-row {
-    display: flex;
-    flex-wrap: wrap;
-    margin: -0.5rem;
-    margin-bottom: 1rem;
+    flex-direction: column;
   }
 
   .form-group {
-    flex: 1;
-    min-width: 0;
-    padding: 0.5rem;
-  }
-
-  .form-control {
-    display: block;
+    flex: none;
     width: 100%;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
-    line-height: 1.5;
-    color: var(--gray-800);
-    background-color: white;
-    border: 1px solid var(--gray-300);
-    border-radius: 0.375rem;
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-  }
-
-  .form-control:focus {
-    border-color: var(--primary-color);
-    outline: 0;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
-  }
-
-  .form-check {
-    display: flex;
-    align-items: center;
-    margin-bottom: 0.5rem;
-  }
-
-  .form-check-input {
-    margin-right: 0.5rem;
-  }
-
-  .form-check-label {
-    margin-bottom: 0;
-  }
-
-  .required {
-    color: #dc2626;
-  }
-
-  .error-message {
-    color: #dc2626;
-    font-size: 0.75rem;
-    margin-top: 0.25rem;
-  }
-
-  .mt-4 {
-    margin-top: 1.5rem;
-  }
-
-  .table-responsive {
-    overflow-x: auto;
-  }
-
-  .data-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.875rem;
-  }
-
-  .data-table th {
-    text-align: left;
-    padding: 0.75rem;
-    border-bottom: 1px solid var(--gray-200);
-    background-color: var(--gray-50);
-    font-weight: 500;
-    color: var(--gray-600);
-  }
-
-  .data-table td {
-    padding: 0.75rem;
-    border-bottom: 1px solid var(--gray-100);
-    vertical-align: middle;
-  }
-
-  .data-table tfoot tr td {
-    padding: 0.75rem;
-    background-color: var(--gray-50);
-  }
-
-  .text-right {
-    text-align: right;
-  }
-
-  .input-group {
-    display: flex;
-    width: 100%;
-  }
-
-  .input-group-prepend {
-    display: flex;
   }
 
   .input-group-text {
-    display: flex;
-    align-items: center;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
-    font-weight: 400;
-    line-height: 1.5;
-    color: var(--gray-700);
-    text-align: center;
-    white-space: nowrap;
-    background-color: var(--gray-100);
-    border: 1px solid var(--gray-300);
-    border-top-left-radius: 0.375rem;
-    border-bottom-left-radius: 0.375rem;
-    border-right: none;
-  }
-
-  .input-group .form-control {
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
-    flex: 1;
-  }
-
-  .form-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 1rem;
-    margin-top: 1.5rem;
-  }
-
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    line-height: 1.5;
-    text-align: center;
-    white-space: nowrap;
-    vertical-align: middle;
-    cursor: pointer;
-    user-select: none;
-    border: 1px solid transparent;
-    border-radius: 0.375rem;
-    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-  }
-
-  .btn-primary {
-    color: white;
-    background-color: var(--primary-color);
-    border-color: var(--primary-color);
-  }
-
-  .btn-primary:hover {
-    background-color: var(--primary-dark);
-    border-color: var(--primary-dark);
-  }
-
-  .btn-primary:disabled {
-    opacity: 0.65;
-    cursor: not-allowed;
-  }
-
-  .btn-secondary {
-    color: var(--gray-700);
-    background-color: var(--gray-100);
-    border-color: var(--gray-300);
-  }
-
-  .btn-secondary:hover {
-    background-color: var(--gray-200);
-    border-color: var(--gray-400);
-  }
-
-  .btn-danger {
-    color: white;
-    background-color: #dc2626;
-    border-color: #dc2626;
-  }
-
-  .btn-danger:hover {
-    background-color: #b91c1c;
-    border-color: #b91c1c;
-  }
-
-  .btn-sm {
-    padding: 0.25rem 0.5rem;
+    min-width: 35px;
     font-size: 0.75rem;
-    border-radius: 0.25rem;
+    padding: 0.5rem 0.5rem;
   }
-
-  .btn i {
-    margin-right: 0.5rem;
-  }
-
-  .btn-sm i {
-    margin-right: 0.25rem;
-  }
-
-  .loading-text {
-    display: flex;
-    align-items: center;
-    color: var(--gray-500);
-    font-size: 0.875rem;
-    padding: 0.5rem 0;
-  }
-
-  .loading-text i {
-    margin-right: 0.5rem;
-  }
-
-  .empty-message {
-    color: var(--gray-500);
-    font-style: italic;
-    padding: 1rem 0;
-  }
-
-  .delivery-selection {
-    max-height: 200px;
-    overflow-y: auto;
-    border: 1px solid var(--gray-200);
-    border-radius: 0.375rem;
-    padding: 0.5rem;
-  }
-
-  .delivery-item {
-    padding: 0.5rem;
-    border-bottom: 1px solid var(--gray-100);
-  }
-
-  .delivery-item:last-child {
-    border-bottom: none;
-  }
-
-  /* Dropdown Styles - Same as BOMForm */
-  .dropdown {
-    position: relative;
-    width: 100%;
-  }
-
-  .dropdown-menu {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: white;
-    border: 1px solid var(--gray-300);
-    border-radius: 0.375rem;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    max-height: 250px;
-    overflow-y: auto;
-    z-index: 1000;
-    margin-top: 2px;
-  }
-
-  .dropdown-item {
-    padding: 0.75rem 1rem;
-    cursor: pointer;
-    border-bottom: 1px solid var(--gray-100);
-    transition: background-color 0.15s ease-in-out;
-  }
-
-  .dropdown-item:last-child {
-    border-bottom: none;
-  }
-
-  .dropdown-item:hover {
-    background-color: var(--gray-50);
-  }
-
-  .dropdown-item.text-muted {
-    color: var(--gray-500);
-    cursor: default;
-    font-style: italic;
-  }
-
-  .dropdown-item.text-muted:hover {
-    background-color: transparent;
-  }
-
-  .customer-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .customer-info strong {
-    color: var(--gray-800);
-    font-weight: 600;
-  }
-
-  .customer-email, .customer-phone {
-    color: var(--gray-600);
-    font-size: 0.75rem;
-  }
-
-  .form-control.is-invalid {
-    border-color: #dc2626;
-  }
-
-  @media (max-width: 768px) {
-    .form-row {
-      flex-direction: column;
-    }
-
-    .form-group {
-      flex: none;
-      width: 100%;
-    }
-  }
-  </style>
+}
+</style>
