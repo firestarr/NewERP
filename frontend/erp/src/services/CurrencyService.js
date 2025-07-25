@@ -1,4 +1,4 @@
-// Enhanced CurrencyService.js with Bidirectional Support
+// Enhanced CurrencyService.js with Bidirectional Support and CRUD Operations
 import axios from "axios";
 
 export const CurrencyService = {
@@ -11,6 +11,109 @@ export const CurrencyService = {
       return await axios.get('/accounting/currencies');
     } catch (error) {
       console.error('Failed to fetch currencies:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Create a new currency rate
+   * @param {Object} rateData - Currency rate data
+   * @returns {Promise} Created rate
+   */
+  async createCurrencyRate(rateData) {
+    try {
+      const data = {
+        from_currency: rateData.fromCurrency?.toUpperCase(),
+        to_currency: rateData.toCurrency?.toUpperCase(),
+        rate: parseFloat(rateData.rate),
+        effective_date: rateData.effectiveDate,
+        end_date: rateData.endDate || null,
+        source: rateData.source || 'manual',
+        calculation_method: rateData.calculationMethod || 'manual',
+        confidence_level: rateData.confidenceLevel || 'medium',
+        is_active: rateData.isActive !== undefined ? rateData.isActive : true,
+        is_bidirectional: rateData.isBidirectional !== undefined ? rateData.isBidirectional : false,
+        created_by: rateData.createdBy || null,
+        metadata: rateData.metadata || {}
+      };
+
+      return await axios.post('/accounting/currency-rates', data);
+    } catch (error) {
+      console.error('Failed to create currency rate:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Update an existing currency rate
+   * @param {string|number} rateId - Rate ID
+   * @param {Object} rateData - Updated rate data
+   * @returns {Promise} Updated rate
+   */
+  async updateCurrencyRate(rateId, rateData) {
+    try {
+      const data = {};
+
+      // Only include fields that are being updated
+      if (rateData.rate !== undefined) {
+        data.rate = parseFloat(rateData.rate);
+      }
+      if (rateData.effectiveDate !== undefined) {
+        data.effective_date = rateData.effectiveDate;
+      }
+      if (rateData.endDate !== undefined) {
+        data.end_date = rateData.endDate;
+      }
+      if (rateData.source !== undefined) {
+        data.source = rateData.source;
+      }
+      if (rateData.calculationMethod !== undefined) {
+        data.calculation_method = rateData.calculationMethod;
+      }
+      if (rateData.confidenceLevel !== undefined) {
+        data.confidence_level = rateData.confidenceLevel;
+      }
+      if (rateData.isActive !== undefined) {
+        data.is_active = rateData.isActive;
+      }
+      if (rateData.updatedBy !== undefined) {
+        data.updated_by = rateData.updatedBy;
+      }
+      if (rateData.metadata !== undefined) {
+        data.metadata = rateData.metadata;
+      }
+
+      return await axios.put(`/accounting/currency-rates/${rateId}`, data);
+    } catch (error) {
+      console.error('Failed to update currency rate:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get a specific currency rate by ID
+   * @param {string|number} rateId - Rate ID
+   * @returns {Promise} Rate details
+   */
+  async getCurrencyRate(rateId) {
+    try {
+      return await axios.get(`/accounting/currency-rates/${rateId}`);
+    } catch (error) {
+      console.error('Failed to fetch currency rate:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Delete (deactivate) a currency rate
+   * @param {string|number} rateId - Rate ID
+   * @returns {Promise} Deletion result
+   */
+  async deleteCurrencyRate(rateId) {
+    try {
+      return await axios.delete(`/accounting/currency-rates/${rateId}`);
+    } catch (error) {
+      console.error('Failed to delete currency rate:', error);
       throw error;
     }
   },
@@ -205,6 +308,58 @@ export const CurrencyService = {
       console.error('Failed to fetch historical rates:', error);
       throw error;
     }
+  },
+
+  /**
+   * Validate currency rate data before submission
+   * @param {Object} rateData - Rate data to validate
+   * @returns {Object} Validation result
+   */
+  validateRateData(rateData) {
+    const errors = [];
+    const warnings = [];
+
+    // Required fields validation
+    if (!rateData.fromCurrency || rateData.fromCurrency.length !== 3) {
+      errors.push('From currency must be a valid 3-letter code');
+    }
+
+    if (!rateData.toCurrency || rateData.toCurrency.length !== 3) {
+      errors.push('To currency must be a valid 3-letter code');
+    }
+
+    if (rateData.fromCurrency && rateData.toCurrency && 
+        rateData.fromCurrency.toUpperCase() === rateData.toCurrency.toUpperCase()) {
+      errors.push('From and to currencies must be different');
+    }
+
+    if (!rateData.rate || rateData.rate <= 0) {
+      errors.push('Rate must be a positive number');
+    }
+
+    if (!rateData.effectiveDate) {
+      errors.push('Effective date is required');
+    }
+
+    // Business logic validation
+    if (rateData.rate && (rateData.rate < 0.000001 || rateData.rate > 999999999)) {
+      warnings.push('Exchange rate seems unusually high or low');
+    }
+
+    if (rateData.effectiveDate && new Date(rateData.effectiveDate) > new Date()) {
+      warnings.push('Effective date is in the future');
+    }
+
+    if (rateData.endDate && rateData.effectiveDate && 
+        new Date(rateData.endDate) <= new Date(rateData.effectiveDate)) {
+      errors.push('End date must be after effective date');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    };
   },
 
   /**
@@ -457,6 +612,32 @@ export const CurrencyService = {
     parsePairString(pairString) {
       const [from, to] = pairString.split('/');
       return { from, to };
+    },
+
+    /**
+     * Format rate display with proper precision
+     * @param {number} rate - Exchange rate
+     * @param {Object} options - Formatting options
+     * @returns {string} Formatted rate
+     */
+    formatRate(rate, options = {}) {
+      const defaults = {
+        minimumFractionDigits: 4,
+        maximumFractionDigits: 8
+      };
+      
+      const formatOptions = { ...defaults, ...options };
+      
+      return new Intl.NumberFormat('en-US', formatOptions).format(rate);
+    },
+
+    /**
+     * Calculate inverse rate
+     * @param {number} rate - Original rate
+     * @returns {number} Inverse rate
+     */
+    calculateInverseRate(rate) {
+      return rate > 0 ? 1 / rate : 0;
     }
   },
 
@@ -472,6 +653,10 @@ export const CurrencyService = {
     getUserMessage(error) {
       if (error.response?.status === 404) {
         return 'Exchange rate not found for the specified currency pair';
+      }
+      
+      if (error.response?.status === 409) {
+        return 'A rate already exists for this currency pair and date';
       }
       
       if (error.response?.status === 422) {
@@ -502,6 +687,18 @@ export const CurrencyService = {
       const retryableStatuses = [429, 500, 502, 503, 504];
       return retryableStatuses.includes(error.response?.status) || 
              error.code === 'NETWORK_ERROR';
+    },
+
+    /**
+     * Extract validation errors from response
+     * @param {Error} error - Error object
+     * @returns {Object} Validation errors
+     */
+    getValidationErrors(error) {
+      if (error.response?.status === 422 && error.response?.data?.errors) {
+        return error.response.data.errors;
+      }
+      return {};
     }
   }
 };
@@ -509,6 +706,10 @@ export const CurrencyService = {
 // Export individual methods for convenience
 export const {
   getAllCurrencies,
+  createCurrencyRate,
+  updateCurrencyRate,
+  getCurrencyRate,
+  deleteCurrencyRate,
   getBidirectionalRate,
   convertAmount,
   getMultipleRates,
@@ -516,7 +717,8 @@ export const {
   getCurrencyRates,
   bulkConvert,
   getDashboardRates,
-  getHistoricalRates
+  getHistoricalRates,
+  validateRateData
 } = CurrencyService;
 
 // Export utilities

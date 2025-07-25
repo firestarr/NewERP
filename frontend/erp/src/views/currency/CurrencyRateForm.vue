@@ -994,14 +994,25 @@ export default {
       }
       
       this.saving = true;
-      
+
+      // Helper to convert snake_case keys to camelCase
+      const toCamelCase = (obj) => {
+        const camelCaseObj = {};
+        for (const key in obj) {
+          const camelKey = key.replace(/_([a-z])/g, g => g[1].toUpperCase());
+          camelCaseObj[camelKey] = obj[key];
+        }
+        return camelCaseObj;
+      };
+
       try {
         let response;
+        const camelCaseData = toCamelCase(this.formData);
         
         if (this.isEditing) {
-          response = await CurrencyService.updateCurrencyRate(this.id, this.formData);
+          response = await CurrencyService.updateCurrencyRate(this.id, camelCaseData);
         } else {
-          response = await CurrencyService.createCurrencyRate(this.formData);
+          response = await CurrencyService.createCurrencyRate(camelCaseData);
         }
         
         if (response.data.status === 'success') {

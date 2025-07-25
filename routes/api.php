@@ -727,6 +727,24 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('accounts-payable', [FinancialReportController::class, 'accountsPayable']);
         });
         // Currency Rates Management
+        // UNCOMMENT THESE CURRENCY RATE ROUTES:
+            Route::get('currency-rates', [App\Http\Controllers\Api\CurrencyRateController::class, 'index']);
+            Route::post('currency-rates', [App\Http\Controllers\Api\CurrencyRateController::class, 'store']);
+            Route::get('currency-rates/{id}', [App\Http\Controllers\Api\CurrencyRateController::class, 'show']);
+            Route::put('currency-rates/{id}', [App\Http\Controllers\Api\CurrencyRateController::class, 'update']);
+            Route::delete('currency-rates/{id}', [App\Http\Controllers\Api\CurrencyRateController::class, 'destroy']);
+
+            // Enhanced currency rate endpoints (these should already be active)
+            Route::get('currency-rates/current-rate', [App\Http\Controllers\Api\CurrencyRateController::class, 'getCurrentRate']);
+            Route::post('currency-rates/convert', [App\Http\Controllers\Api\CurrencyRateController::class, 'convertAmount']);
+            Route::get('currency-rates/multiple', [App\Http\Controllers\Api\CurrencyRateController::class, 'getMultipleRates']);
+            Route::get('currency-rates/analyze', [App\Http\Controllers\Api\CurrencyRateController::class, 'getRateAnalysis']);
+            Route::get('currency-rates/currencies', [App\Http\Controllers\Api\CurrencyRateController::class, 'getCurrencies']);
+            
+            // Admin routes
+            Route::get('currency-rates/admin/cache/stats', [App\Http\Controllers\Api\CurrencyRateController::class, 'getCacheStats']);
+            Route::post('currency-rates/admin/cache/clear', [App\Http\Controllers\Api\CurrencyRateController::class, 'clearExpiredCache']);
+            Route::get('currency-rates/admin/health', [App\Http\Controllers\Api\CurrencyRateController::class, 'healthCheck']);
         // Enhanced endpoints for bidirectional functionality
         Route::prefix('currency-rates')->name('currency-rates.')->group(function () {
             
@@ -799,6 +817,7 @@ Route::middleware('auth:sanctum')->group(function () {
                 
                 return $controller->getMultipleRates($newRequest);
             })->name('current');
+            
         });
 
         // WebSocket route for real-time rate updates (if using broadcasting)

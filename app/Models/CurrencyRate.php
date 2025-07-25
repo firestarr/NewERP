@@ -27,6 +27,16 @@ class CurrencyRate extends Model
         'end_date' => 'date',
         'is_active' => 'boolean'
     ];
+
+    public function fromCurrencyInfo()
+    {
+        return $this->belongsTo(SystemCurrency::class, 'from_currency', 'code');
+    }
+
+    public function toCurrencyInfo()
+    {
+        return $this->belongsTo(SystemCurrency::class, 'to_currency', 'code');
+    }
     
     /**
      * Get the current rate for a currency pair.
