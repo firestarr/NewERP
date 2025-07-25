@@ -727,6 +727,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('accounts-payable', [FinancialReportController::class, 'accountsPayable']);
         });
         // Currency Rates Management
+<<<<<<< HEAD
         // UNCOMMENT THESE CURRENCY RATE ROUTES:
             Route::get('currency-rates', [App\Http\Controllers\Api\CurrencyRateController::class, 'index']);
             Route::post('currency-rates', [App\Http\Controllers\Api\CurrencyRateController::class, 'store']);
@@ -914,6 +915,16 @@ Route::middleware('auth:sanctum')->group(function () {
         // Route::get('currency-rates/{id}', [App\Http\Controllers\Api\CurrencyRateController::class, 'show']);
         // Route::put('currency-rates/{id}', [App\Http\Controllers\Api\CurrencyRateController::class, 'update']);
         // Route::delete('currency-rates/{id}', [App\Http\Controllers\Api\CurrencyRateController::class, 'destroy']);
+=======
+        Route::get('currency-rates', [App\Http\Controllers\Api\CurrencyRateController::class, 'index']);
+        Route::post('currency-rates', [App\Http\Controllers\Api\CurrencyRateController::class, 'store']);
+        Route::get('currency-rates/{id}', [App\Http\Controllers\Api\CurrencyRateController::class, 'show']);
+        Route::put('currency-rates/{id}', [App\Http\Controllers\Api\CurrencyRateController::class, 'update']);
+        Route::delete('currency-rates/{id}', [App\Http\Controllers\Api\CurrencyRateController::class, 'destroy']);
+
+        // Currency Converter utility
+        Route::get('currency-rates/current-rate', [App\Http\Controllers\Api\CurrencyRateController::class, 'getCurrentRate']);
+>>>>>>> parent of 0e17452 (update po, so, po invoice, so invoice)
     });
 
     // PDF Order Capture Routes (FIXED - Exact Match Only for Items)

@@ -111,13 +111,13 @@
                 v-model="purchaseOrder.currency_code"
                 :disabled="isEditMode && purchaseOrder.status !== 'draft'"
               >
-                <option
-                  v-for="currency in availableCurrencies"
-                  :key="currency.code"
-                  :value="currency.code"
-                >
-                  {{ currency.code }} - {{ currency.name }} ({{ currency.symbol }})
-                </option>
+                <option value="USD">USD - US Dollar</option>
+                <option value="EUR">EUR - Euro</option>
+                <option value="GBP">GBP - British Pound</option>
+                <option value="IDR">IDR - Indonesian Rupiah</option>
+                <option value="JPY">JPY - Japanese Yen</option>
+                <option value="CNY">CNY - Chinese Yuan</option>
+                <option value="SGD">SGD - Singapore Dollar</option>
               </select>
             </div>
           </div>
@@ -297,15 +297,13 @@ export default {
       vendors: [],
       items: [],
       uoms: [],
-      availableCurrencies: [],
-      baseCurrency: 'USD',
       purchaseOrder: {
         po_date: new Date().toISOString().split('T')[0],
         vendor_id: '',
         payment_terms: '',
         delivery_terms: '',
         expected_delivery: '',
-        currency_code: '', // Will be set to base currency after loading
+        currency_code: 'USD',
         tax_amount: 0,
         lines: []
       },
@@ -341,7 +339,6 @@ export default {
     this.showItemDropdown = [];
 
     // Load necessary data
-    this.loadCurrencySettings();
     this.loadVendors();
     this.loadItems();
     this.loadUoms();
@@ -354,60 +351,11 @@ export default {
     }
   },
   methods: {
-    // Load currency settings from system
-    async loadCurrencySettings() {
-      try {
-        const response = await axios.get('/admin/currency/settings');
-        if (response.data.status === 'success') {
-          const data = response.data.data;
-          this.baseCurrency = data.base_currency;
-          
-          // Convert available currencies object to array for dropdown
-          this.availableCurrencies = Object.keys(data.available_currencies).map(code => ({
-            code: code,
-            name: data.available_currencies[code].name,
-            symbol: data.available_currencies[code].symbol,
-            decimal_places: data.available_currencies[code].decimal_places
-          })).sort((a, b) => {
-            // Put base currency first, then sort alphabetically
-            if (a.code === this.baseCurrency) return -1;
-            if (b.code === this.baseCurrency) return 1;
-            return a.name.localeCompare(b.name);
-          });
-          
-          // Set default currency for new purchase orders
-          if (!this.isEditMode) {
-            this.purchaseOrder.currency_code = this.baseCurrency;
-          }
-        }
-      } catch (error) {
-        console.error('Error loading currency settings:', error);
-        // Fallback to hardcoded currencies if API fails
-        this.baseCurrency = 'USD';
-        this.availableCurrencies = [
-          { code: 'USD', name: 'US Dollar', symbol: '$', decimal_places: 2 },
-          { code: 'EUR', name: 'Euro', symbol: '€', decimal_places: 2 },
-          { code: 'GBP', name: 'British Pound', symbol: '£', decimal_places: 2 },
-          { code: 'IDR', name: 'Indonesian Rupiah', symbol: 'Rp', decimal_places: 0 },
-          { code: 'JPY', name: 'Japanese Yen', symbol: '¥', decimal_places: 0 },
-          { code: 'CNY', name: 'Chinese Yuan', symbol: '¥', decimal_places: 2 },
-          { code: 'SGD', name: 'Singapore Dollar', symbol: 'S$', decimal_places: 2 }
-        ];
-        if (!this.isEditMode) {
-          this.purchaseOrder.currency_code = this.baseCurrency;
-        }
-      }
-    },
-
     // Method to select a vendor from the dropdown
     selectVendor(vendor) {
       this.purchaseOrder.vendor_id = vendor.vendor_id;
       this.vendorSearch = `${vendor.name} (${vendor.vendor_code || 'No Code'})`;
       this.showVendorDropdown = false;
-      // If vendor has preferred currency, set it as the order currency
-      if (vendor.preferred_currency) {
-        this.purchaseOrder.currency_code = vendor.preferred_currency;
-      }
     },
 
     // Method to hide vendor dropdown
@@ -627,15 +575,10 @@ export default {
 
     formatCurrency(amount) {
       if (amount === null || amount === undefined) return '-';
-      
-      // Get current currency info
-      const currentCurrency = this.availableCurrencies.find(c => c.code === this.purchaseOrder.currency_code);
-      const decimalPlaces = currentCurrency ? currentCurrency.decimal_places : 2;
-      
       return new Intl.NumberFormat('id-ID', {
         style: 'decimal',
-        minimumFractionDigits: decimalPlaces,
-        maximumFractionDigits: decimalPlaces
+        minimumFractionDigits: 4,
+        maximumFractionDigits: 4
       }).format(amount);
     },
 

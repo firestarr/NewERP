@@ -106,14 +106,10 @@
                     required
                     @change="currencyChanged"
                   >
-                    <option value="" disabled>Select currency</option>
-                    <option 
-                      v-for="(currency, code) in availableCurrencies" 
-                      :key="code" 
-                      :value="code"
-                    >
-                      {{ code }} - {{ currency.name }}
-                    </option>
+                    <option value="USD">USD - US Dollar</option>
+                    <option value="EUR">EUR - Euro</option>
+                    <option value="IDR">IDR - Indonesian Rupiah</option>
+                    <option value="JPY">JPY - Japanese Yen</option>
                   </select>
                   <span v-if="errors.currency_code" class="error-text">{{ errors.currency_code[0] }}</span>
                 </div>
@@ -133,7 +129,7 @@
                       <i class="fas fa-sync-alt"></i>
                     </button>
                   </div>
-                  <small class="helper-text">Base currency: {{ baseCurrency }}</small>
+                  <small class="helper-text">Base currency: USD</small>
                   <span v-if="errors.exchange_rate" class="error-text">{{ errors.exchange_rate[0] }}</span>
                 </div>
               </div>
@@ -330,9 +326,6 @@
         availableReceipts: [],
         selectedVendorId: '',
         selectedReceipts: [],
-        // Currency settings
-        baseCurrency: 'USD',
-        availableCurrencies: {},
         // Vendor search state
         vendorSearch: '',
         showVendorDropdown: false,
@@ -341,7 +334,7 @@
           invoice_date: new Date().toISOString().split('T')[0],
           due_date: '',
           receipt_ids: [],
-          currency_code: '', // Will be set to base currency after loading
+          currency_code: 'USD',
           exchange_rate: 1,
           create_journal_entry: false,
           ap_account_id: 'AP001',
@@ -372,9 +365,6 @@
       this.isEditing = !!invoiceId;
 
       try {
-        // Load currency settings first
-        await this.loadCurrencySettings();
-
         // Load vendors and filter out null/undefined values
         const vendorsResponse = await axios.get('/vendors');
         console.log('Full vendors response:', vendorsResponse.data); // Debug log
@@ -417,7 +407,7 @@
             invoice_date: invoice.invoice_date,
             due_date: invoice.due_date || '',
             receipt_ids: invoice.goodsReceipts.map(receipt => receipt.receipt_id),
-            currency_code: invoice.currency_code || this.baseCurrency,
+            currency_code: invoice.currency_code || 'USD',
             exchange_rate: invoice.exchange_rate || 1,
             create_journal_entry: false, // Default for editing
             ap_account_id: 'AP001',
@@ -433,9 +423,6 @@
           if (selectedVendor) {
             this.vendorSearch = selectedVendor.name;
           }
-        } else {
-          // Set default currency for new invoices
-          this.form.currency_code = this.baseCurrency;
         }
       } catch (error) {
         console.error('Error loading initial data:', error);
@@ -447,35 +434,6 @@
       }
     },
     methods: {
-      // Load currency settings from API
-      async loadCurrencySettings() {
-        try {
-          const response = await axios.get('/admin/currency/settings');
-          
-          if (response.data.status === 'success') {
-            this.baseCurrency = response.data.data.base_currency;
-            this.availableCurrencies = response.data.data.available_currencies;
-            
-            console.log('Loaded currency settings:', {
-              baseCurrency: this.baseCurrency,
-              availableCurrencies: Object.keys(this.availableCurrencies)
-            });
-          } else {
-            throw new Error('Failed to load currency settings');
-          }
-        } catch (error) {
-          console.error('Error loading currency settings:', error);
-          // Fallback to default values
-          this.baseCurrency = 'USD';
-          this.availableCurrencies = {
-            'USD': { name: 'US Dollar', symbol: '$', decimal_places: 2 },
-            'EUR': { name: 'Euro', symbol: '€', decimal_places: 2 },
-            'IDR': { name: 'Indonesian Rupiah', symbol: 'Rp', decimal_places: 0 },
-            'JPY': { name: 'Japanese Yen', symbol: '¥', decimal_places: 0 }
-          };
-        }
-      },
-
       // Vendor selection methods
       selectVendor(vendor) {
         this.selectedVendorId = vendor.vendor_id;
@@ -505,7 +463,7 @@
         }
 
         // Set preferred currency if available
-        if (vendor && vendor.preferred_currency && this.availableCurrencies[vendor.preferred_currency]) {
+        if (vendor && vendor.preferred_currency) {
           this.form.currency_code = vendor.preferred_currency;
           await this.fetchExchangeRate();
         }
@@ -516,17 +474,16 @@
       async currencyChanged() {
         await this.fetchExchangeRate();
       },
-async fetchExchangeRate() {
-        if (this.form.currency_code === this.baseCurrency) {
+      async fetchExchangeRate() {
+        if (this.form.currency_code === 'USD') {
           this.form.exchange_rate = 1;
           return;
         }
 
         try {
-          const response = await axios.get('accounting/currency-rates/current-rate', {
+          const response = await axios.get('/currency-rates/current-rate', {
             params: {
-              from_currency: this.baseCurrency,
-              to_currency: this.form.currency_code,
+              currency_code: this.form.currency_code,
               date: this.form.invoice_date
             }
           });
@@ -620,14 +577,10 @@ async fetchExchangeRate() {
       formatCurrency(amount, currency) {
         if (amount === null || amount === undefined) return 'N/A';
 
-        const currencyInfo = this.availableCurrencies[currency];
-        const decimalPlaces = currencyInfo ? currencyInfo.decimal_places : 2;
-
         return new Intl.NumberFormat('en-US', {
           style: 'currency',
-          currency: currency || this.baseCurrency,
-          minimumFractionDigits: decimalPlaces,
-          maximumFractionDigits: decimalPlaces
+          currency: currency || 'USD',
+          minimumFractionDigits: 2
         }).format(amount);
       }
     }
