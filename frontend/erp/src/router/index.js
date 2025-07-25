@@ -1421,24 +1421,30 @@ const routes = [
             },
             // Currency Rates Module
             {
-                path: "/currency-rates",
-                name: "CurrencyRates",
-                component: () =>
-                    import("../views/accounting/CurrencyRatesList.vue"),
-                meta: { requiresAuth: true },
+                path: 'rates',
+                name: 'CurrencyRatesList',
+                component: () => import('@/views/currency/CurrencyRatesList.vue'),
+                meta: {
+                title: 'Exchange Rates',
+                description: 'Manage currency exchange rates',
+                breadcrumb: [
+                    { text: 'Currency', to: '/currency' },
+                    { text: 'Exchange Rates', active: true }
+                ]
+                }
             },
             {
                 path: "/currency-rates/create",
                 name: "CreateCurrencyRate",
                 component: () =>
-                    import("../views/accounting/CurrencyRateForm.vue"),
+                    import("../views/currency/CurrencyRateForm.vue"),
                 meta: { requiresAuth: true },
             },
             {
                 path: "/currency-rates/:id",
                 name: "CurrencyRateDetail",
                 component: () =>
-                    import("../views/accounting/CurrencyRateDetail.vue"),
+                    import("../views/currency/CurrencyRateDetail.vue"),
                 props: true,
                 meta: { requiresAuth: true },
             },
@@ -1446,16 +1452,37 @@ const routes = [
                 path: "/currency-rates/:id/edit",
                 name: "EditCurrencyRate",
                 component: () =>
-                    import("../views/accounting/CurrencyRateForm.vue"),
+                    import("../views/currency/CurrencyRateForm.vue"),
                 props: true,
                 meta: { requiresAuth: true },
             },
+            // Currency Converter Routes
             {
-                path: "/currency-converter",
-                name: "CurrencyConverter",
-                component: () =>
-                    import("../views/accounting/CurrencyConverter.vue"),
-                meta: { requiresAuth: true },
+                path: 'converter',
+                name: 'CurrencyConverter',
+                component: () => import('@/views/accounting/CurrencyConverter.vue'),
+                meta: {
+                title: 'Currency Converter',
+                description: 'Convert between currencies with real-time rates',
+                breadcrumb: [
+                    { text: 'Currency', to: '/currency' },
+                    { text: 'Converter', active: true }
+                ]
+                }
+            },
+            {
+                path: 'converter/advanced',
+                name: 'AdvancedCurrencyCalculator',
+                component: () => import('@/views/currency/AdvancedCurrencyCalculator.vue'),
+                meta: {
+                title: 'Advanced Currency Calculator',
+                description: 'Advanced multi-currency calculations and analysis',
+                breadcrumb: [
+                    { text: 'Currency', to: '/currency' },
+                    { text: 'Converter', to: '/currency/converter' },
+                    { text: 'Advanced Calculator', active: true }
+                ]
+                }
             },
             // Then add these routes within the children array of the AppLayout route
             // You can place them in the manufacturing section

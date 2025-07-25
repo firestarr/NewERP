@@ -435,7 +435,7 @@
                         <div class="submenu" v-show="activeSubmenu === 'accounting' && !sidebarCollapsed">
                             <div class="submenu-section">
                                 <h4>Financial Management</h4>
-                                <router-link to="/currency-rates" class="submenu-link">
+                                <router-link to="/rates" class="submenu-link">
                                     <i class="fas fa-money-bill-wave"></i>
                                     <span>Exchange Rates</span>
                                 </router-link>
@@ -971,10 +971,10 @@ export default {
 
             // Accounting
             'CurrencyRates': [
-                { label: 'Exchange Rates', route: '/currency-rates', icon: 'fas fa-money-bill-wave' }
+                { label: 'Exchange Rates', route: '/rates', icon: 'fas fa-money-bill-wave' }
             ],
             'CreateCurrencyRate': [
-                { label: 'Exchange Rates', route: '/currency-rates', icon: 'fas fa-money-bill-wave' },
+                { label: 'Exchange Rates', route: '/rates', icon: 'fas fa-money-bill-wave' },
                 { label: 'Create Exchange Rate', icon: 'fas fa-plus' }
             ],
 
