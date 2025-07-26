@@ -241,14 +241,11 @@ class CurrencyRateController extends Controller
     }
     
     /**
-     * Get current exchange rate for a currency pair.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * ENHANCED METHOD: Get current rate with bidirectional info
      */
     public function getCurrentRate(Request $request)
     {
-        // Map 'from' and 'to' to 'from_currency' and 'to_currency' if present
+        // Map 'from' and 'to' to 'from_currency' and 'to_currency' for backward compatibility
         $input = $request->all();
         if (!isset($input['from_currency']) && isset($input['from'])) {
             $input['from_currency'] = $input['from'];
@@ -260,7 +257,7 @@ class CurrencyRateController extends Controller
 
         $validator = Validator::make($request->all(), [
             'from_currency' => 'required|string|size:3',
-            'to_currency' => 'required|string|size:3',
+            'to_currency' => 'required|string|size:3|different:from_currency',
             'date' => 'nullable|date'
         ]);
 
@@ -273,58 +270,118 @@ class CurrencyRateController extends Controller
         
         $date = $request->date ?? now()->format('Y-m-d');
         
-        $rate = CurrencyRate::where('from_currency', $request->from_currency)
-            ->where('to_currency', $request->to_currency)
-            ->where('is_active', true)
-            ->where('effective_date', '<=', $date)
-            ->where(function($query) use ($date) {
-                $query->where('end_date', '>=', $date)
-                      ->orWhereNull('end_date');
-            })
-            ->orderBy('effective_date', 'desc')
-            ->first();
-            
+        $rate = CurrencyRate::findBidirectionalRate(
+            $request->from_currency,
+            $request->to_currency,
+            $date
+        );
+
         if (!$rate) {
-            // Try to find a reverse rate
-            $reverseRate = CurrencyRate::where('from_currency', $request->to_currency)
-                ->where('to_currency', $request->from_currency)
-                ->where('is_active', true)
-                ->where('effective_date', '<=', $date)
-                ->where(function($query) use ($date) {
-                    $query->where('end_date', '>=', $date)
-                          ->orWhereNull('end_date');
-                })
-                ->orderBy('effective_date', 'desc')
-                ->first();
-                
-            if ($reverseRate) {
-                return response()->json([
-                    'status' => 'success',
-                    'data' => [
-                        'from_currency' => $request->from_currency,
-                        'to_currency' => $request->to_currency,
-                        'rate' => 1 / $reverseRate->rate,
-                        'date' => $date,
-                        'is_reversed' => true
-                    ]
-                ]);
-            }
-            
             return response()->json([
                 'status' => 'error',
-                'message' => 'No exchange rate found for the specified currencies and date'
+                'message' => "No exchange rate found for {$request->from_currency} to {$request->to_currency}"
             ], 404);
         }
+
+        // Calculate display rate based on direction
+        $displayRate = $request->from_currency === $rate->from_currency 
+            ? (float) $rate->rate 
+            : round(1 / $rate->rate, 6);
 
         return response()->json([
             'status' => 'success',
             'data' => [
-                'from_currency' => $rate->from_currency,
-                'to_currency' => $rate->to_currency,
-                'rate' => $rate->rate,
-                'date' => $date,
-                'is_reversed' => false
+                'rate' => $displayRate,
+                'from_currency' => $request->from_currency,
+                'to_currency' => $request->to_currency,
+                'date' => $rate->effective_date,
+                'direction' => $request->from_currency === $rate->from_currency ? 'direct' : 'reverse',
+                'base_rate_info' => [
+                    'from_currency' => $rate->from_currency,
+                    'to_currency' => $rate->to_currency,
+                    'rate' => (float) $rate->rate,
+                    'rate_id' => $rate->rate_id
+                ]
             ]
+        ]);
+    }
+    /**
+     * NEW METHOD: Convert currency bidirectionally
+     */
+    public function convert(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'from_currency' => 'required|string|size:3',
+            'to_currency' => 'required|string|size:3|different:from_currency',
+            'amount' => 'required|numeric|min:0|max:999999999',
+            'date' => 'nullable|date'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $rate = CurrencyRate::findBidirectionalRate(
+            $request->from_currency,
+            $request->to_currency,
+            $request->date
+        );
+
+        if (!$rate) {
+            return response()->json([
+                'status' => 'error',
+                'message' => "No exchange rate found for {$request->from_currency} to {$request->to_currency}"
+            ], 404);
+        }
+
+        $conversion = $rate->getBidirectionalConversion(
+            $request->from_currency,
+            $request->amount
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $conversion
+        ]);
+    }
+
+    
+
+    /**
+     * NEW METHOD: Get available currency pairs
+     */
+    public function getAvailablePairs(Request $request)
+    {
+        $includeInactive = $request->boolean('include_inactive', false);
+        
+        $query = CurrencyRate::select('from_currency', 'to_currency', 'rate', 'effective_date', 'rate_id')
+                             ->distinct();
+        
+        if (!$includeInactive) {
+            $query->where('is_active', true);
+        }
+        
+        $pairs = $query->orderBy('from_currency')->orderBy('to_currency')->get();
+        
+        $bidirectionalPairs = [];
+        foreach ($pairs as $pair) {
+            $bidirectionalPairs[] = [
+                'pair_code' => $pair->from_currency . '/' . $pair->to_currency,
+                'direct' => $pair->from_currency . ' → ' . $pair->to_currency,
+                'reverse' => $pair->to_currency . ' → ' . $pair->from_currency,
+                'currencies' => [$pair->from_currency, $pair->to_currency],
+                'rate' => (float) $pair->rate,
+                'rate_id' => $pair->rate_id,
+                'effective_date' => $pair->effective_date
+            ];
+        }
+        
+        return response()->json([
+            'status' => 'success',
+            'data' => $bidirectionalPairs
         ]);
     }
 }

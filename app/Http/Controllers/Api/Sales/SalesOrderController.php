@@ -19,6 +19,7 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use Illuminate\Support\Facades\Log;
+use App\Models\SystemSetting;
 
 class SalesOrderController extends Controller
 {
@@ -201,8 +202,8 @@ class SalesOrderController extends Controller
             $customer = Customer::find($request->customer_id);
 
             // Determine currency to use
-            $currencyCode = $request->currency_code ?? $customer->preferred_currency ?? config('app.base_currency', 'USD');
-            $baseCurrency = config('app.base_currency', 'USD');
+            $currencyCode = $request->currency_code ?? $customer->preferred_currency ?? SystemSetting::getValue('base_currency', 'USD');
+            $baseCurrency = SystemSetting::getValue('base_currency', 'USD');
 
             // Get exchange rate
             $exchangeRate = 1.0;
@@ -249,6 +250,7 @@ class SalesOrderController extends Controller
                 'base_currency_tax' => 0
             ]);
 
+
             $totalAmount = 0;
             $taxAmount = 0;
 
@@ -264,6 +266,12 @@ class SalesOrderController extends Controller
                 $subtotal = $unitPrice * $quantity;
                 $lineTotal = $subtotal - $discount + $tax;
 
+                $baseCurrencyUnitPrice = $unitPrice * $exchangeRate;
+                $baseCurrencySubtotal = $subtotal * $exchangeRate;
+                $baseCurrencyDiscount = $discount * $exchangeRate;
+                $baseCurrencyTax = $tax * $exchangeRate;
+                $baseCurrencyTotal = $lineTotal * $exchangeRate;
+
                 SOLine::create([
                     'so_id' => $salesOrder->so_id,
                     'item_id' => $lineData['item_id'],
@@ -274,7 +282,12 @@ class SalesOrderController extends Controller
                     'discount' => $discount,
                     'tax' => $tax,
                     'subtotal' => $subtotal,
-                    'total' => $lineTotal
+                    'total' => $lineTotal,
+                    'base_currency_unit_price' => $baseCurrencyUnitPrice,
+                    'base_currency_subtotal' => $baseCurrencySubtotal,
+                    'base_currency_discount' => $baseCurrencyDiscount,
+                    'base_currency_tax' => $baseCurrencyTax,
+                    'base_currency_total' => $baseCurrencyTotal
                 ]);
 
                 $totalAmount += $lineTotal;
@@ -398,8 +411,8 @@ class SalesOrderController extends Controller
 
             // Get customer and currency info
             $customer = Customer::find($request->customer_id);
-            $currencyCode = $request->currency_code ?? $customer->preferred_currency ?? config('app.base_currency', 'USD');
-            $baseCurrency = config('app.base_currency', 'USD');
+            $currencyCode = $request->currency_code ?? $customer->preferred_currency ?? SystemSetting::getValue('base_currency', 'USD');
+            $baseCurrency = SystemSetting::getValue('base_currency', 'USD');
 
             // Get exchange rate
             $exchangeRate = 1.0;
@@ -454,6 +467,12 @@ class SalesOrderController extends Controller
                 $subtotal = $unitPrice * $quantity;
                 $lineTotal = $subtotal - $discount + $tax;
 
+                $baseCurrencyUnitPrice = $unitPrice * $exchangeRate;
+                $baseCurrencySubtotal = $subtotal * $exchangeRate;
+                $baseCurrencyDiscount = $discount * $exchangeRate;
+                $baseCurrencyTax = $tax * $exchangeRate;
+                $baseCurrencyTotal = $lineTotal * $exchangeRate;
+
                 SOLine::create([
                     'so_id' => $order->so_id,
                     'item_id' => $lineData['item_id'],
@@ -464,7 +483,12 @@ class SalesOrderController extends Controller
                     'discount' => $discount,
                     'tax' => $tax,
                     'subtotal' => $subtotal,
-                    'total' => $lineTotal
+                    'total' => $lineTotal,
+                    'base_currency_unit_price' => $baseCurrencyUnitPrice,
+                    'base_currency_subtotal' => $baseCurrencySubtotal,
+                    'base_currency_discount' => $baseCurrencyDiscount,
+                    'base_currency_tax' => $baseCurrencyTax,
+                    'base_currency_total' => $baseCurrencyTotal
                 ]);
 
                 $totalAmount += $lineTotal;

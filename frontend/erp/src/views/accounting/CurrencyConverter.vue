@@ -1,218 +1,196 @@
-<!-- src/views/accounting/CurrencyConverter.vue -->
+<!-- frontend/erp/src/views/accounting/CurrencyConverter.vue -->
+<!-- REPLACE COMPLETELY -->
 <template>
-  <div class="currency-converter-container">
+  <div class="bidirectional-converter-container">
+    <!-- Header -->
     <div class="page-header">
-      <h1>Currency Converter</h1>
-      <div class="header-actions">
-        <router-link to="/currency-rates" class="btn btn-secondary">
-          <i class="fas fa-list"></i> View All Rates
-        </router-link>
+      <div class="header-content">
+        <h1>Bidirectional Currency Converter</h1>
+        <p class="subtitle">Convert currencies in both directions automatically</p>
       </div>
+      <router-link to="/currency-rates" class="btn btn-secondary">
+        <i class="fas fa-cog"></i> Manage Rates
+      </router-link>
     </div>
 
+    <!-- Converter Card -->
     <div class="converter-card">
       <div class="converter-header">
-        <h2>Convert Between Currencies</h2>
-        <p class="converter-description">
-          Use this tool to convert amounts between currencies using the latest exchange rates.
-        </p>
+        <h2>Currency Conversion</h2>
+        <div class="conversion-status" v-if="conversionData">
+          <span class="status-badge">
+            <i class="fas fa-check"></i> Live Rate
+          </span>
+        </div>
       </div>
 
       <div class="converter-form">
-        <div class="form-row">
-          <div class="form-group">
-            <label for="amount">Amount</label>
-            <input
-              type="number"
-              id="amount"
-              v-model="amount"
-              class="form-control"
-              min="0"
-              step="0.01"
-              placeholder="Enter amount"
-            />
-          </div>
-        </div>
-
+        <!-- Currency Exchange Container -->
         <div class="currency-exchange-container">
+          <!-- From Currency -->
           <div class="currency-input-container">
-            <div class="form-group">
-              <label for="from-currency">From</label>
-              <div class="currency-input">
-                <select
-                  id="from-currency"
-                  v-model="fromCurrency"
-                  class="form-control"
-                  @change="fetchRate"
-                >
-                  <option value="">Select currency</option>
-                  <option v-for="currency in currencies" :key="currency" :value="currency">
-                    {{ currency }}
-                  </option>
-                </select>
+            <label class="form-label">From</label>
+            <div class="input-group">
+              <input 
+                v-model.number="amount" 
+                type="number" 
+                placeholder="Enter amount"
+                min="0"
+                step="0.01"
+                class="form-control amount-input"
+                @input="debouncedConvert"
+              >
+              <select v-model="fromCurrency" class="form-control currency-select" @change="fetchRateAndConvert">
+                <option value="">Select Currency</option>
+                <option v-for="currency in currencies" :key="currency" :value="currency">
+                  {{ currency }}
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Swap Button -->
+          <div class="swap-container">
+            <button @click="swapCurrencies" class="swap-button" :disabled="!canSwap">
+              <i class="fas fa-exchange-alt"></i>
+            </button>
+          </div>
+
+          <!-- To Currency -->
+          <div class="currency-input-container">
+            <label class="form-label">To</label>
+            <div class="input-group">
+              <input 
+                :value="formatNumber(convertedAmount)" 
+                type="text" 
+                readonly 
+                class="form-control amount-input result-input"
+                placeholder="Converted amount"
+              >
+              <select v-model="toCurrency" class="form-control currency-select" @change="fetchRateAndConvert">
+                <option value="">Select Currency</option>
+                <option v-for="currency in currencies" :key="currency" :value="currency">
+                  {{ currency }}
+                </option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Rate Information -->
+        <div v-if="conversionData" class="rate-info-card">
+          <div class="rate-header">
+            <i class="fas fa-chart-line"></i>
+            <span>Exchange Rate Information</span>
+          </div>
+          <div class="rate-content">
+            <div class="rate-display">
+              <div class="rate-main">
+                1 {{ conversionData.from_currency }} = {{ formatNumber(conversionData.rate) }} {{ conversionData.to_currency }}
+              </div>
+              <div class="rate-direction">
+                <span class="direction-badge" :class="conversionData.direction">
+                  {{ conversionData.direction === 'direct' ? 'Direct Rate' : 'Calculated Rate' }}
+                </span>
               </div>
             </div>
-          </div>
-
-          <div class="swap-button" @click="swapCurrencies">
-            <i class="fas fa-exchange-alt"></i>
-          </div>
-
-          <div class="currency-input-container">
-            <div class="form-group">
-              <label for="to-currency">To</label>
-              <div class="currency-input">
-                <select
-                  id="to-currency"
-                  v-model="toCurrency"
-                  class="form-control"
-                  @change="fetchRate"
-                >
-                  <option value="">Select currency</option>
-                  <option v-for="currency in currencies" :key="currency" :value="currency">
-                    {{ currency }}
-                  </option>
-                </select>
-              </div>
+            <div class="calculation-display">
+              <strong>Calculation:</strong> {{ conversionData.calculation }}
             </div>
           </div>
         </div>
 
-        <div v-if="loadingRate" class="rate-loading">
-          <i class="fas fa-spinner fa-spin"></i> Fetching latest rate...
+        <!-- Loading State -->
+        <div v-if="loading" class="loading-state">
+          <i class="fas fa-spinner fa-spin"></i>
+          <span>Converting currencies...</span>
         </div>
 
-        <div v-else-if="error" class="rate-error">
-          <i class="fas fa-exclamation-triangle"></i> {{ error }}
-        </div>
-
-        <div v-else-if="showRateInfo" class="rate-info">
-          <div class="rate-details">
-            <div class="conversion-rate">
-              <span>1 {{ fromCurrency }}</span>
-              <span class="equals">=</span>
-              <span class="rate-value">{{ formatNumber(exchangeRate) }} {{ toCurrency }}</span>
-            </div>
-            <div class="rate-date">
-              Rate as of {{ formatDate(rateDate) }}
-            </div>
-          </div>
-        </div>
-
-        <button
-          @click="convert"
-          class="btn btn-primary convert-btn"
-          :disabled="!canConvert || loadingRate"
-        >
-          <i v-if="loading" class="fas fa-spinner fa-spin"></i>
-          <i v-else class="fas fa-calculator"></i>
-          Convert
-        </button>
-      </div>
-
-      <div v-if="converted" class="conversion-result">
-        <div class="result-header">Conversion Result</div>
-        <div class="result-container">
-          <div class="result-amount">
-            <div class="amount-from">
-              {{ formatNumber(amount) }} {{ fromCurrency }}
-            </div>
-            <div class="amount-equals">
-              <i class="fas fa-equals"></i>
-            </div>
-            <div class="amount-to">
-              {{ formatNumber(convertedAmount) }} {{ toCurrency }}
-            </div>
-          </div>
-          <div class="result-rate">
-            Rate: {{ formatNumber(exchangeRate) }} {{ toCurrency }} per 1 {{ fromCurrency }}
-          </div>
+        <!-- Error State -->
+        <div v-if="error" class="error-state">
+          <i class="fas fa-exclamation-triangle"></i>
+          <span>{{ error }}</span>
         </div>
       </div>
     </div>
 
-    <div class="historical-rates-card">
+    <!-- Available Rates -->
+    <div class="rates-list-card">
       <div class="card-header">
-        <h2>Available Currency Pairs</h2>
-        <div class="filter-container">
-          <div class="form-group">
-            <input
-              type="text"
-              v-model="filterCurrency"
-              class="form-control"
-              placeholder="Filter by currency code"
-            />
-          </div>
+        <h2>Available Exchange Rates</h2>
+        <div class="header-actions">
+          <input 
+            v-model="filterText" 
+            placeholder="Filter currencies..." 
+            class="filter-input"
+          >
+          <button @click="fetchAllRates" class="btn btn-secondary btn-sm">
+            <i class="fas fa-sync-alt"></i> Refresh
+          </button>
         </div>
       </div>
 
       <div v-if="loadingRates" class="loading-container">
-        <i class="fas fa-spinner fa-spin"></i> Loading exchange rates...
+        <i class="fas fa-spinner fa-spin"></i> Loading rates...
       </div>
 
-      <div v-else-if="ratesError" class="alert alert-danger">
+      <div v-else-if="ratesError" class="error-container">
         <i class="fas fa-exclamation-triangle"></i> {{ ratesError }}
       </div>
 
       <div v-else-if="filteredRates.length === 0" class="empty-state">
-        <i class="fas fa-search empty-icon"></i>
-        <h3>No matching currency pairs found</h3>
-        <p>Try adjusting your filter or check if the currency rates are available.</p>
+        <i class="fas fa-exchange-alt"></i>
+        <p>No exchange rates available</p>
+        <small>Add rates to enable currency conversion</small>
       </div>
 
-      <div v-else class="table-responsive">
-        <table class="table">
+      <div v-else class="rates-table-container">
+        <table class="rates-table">
           <thead>
             <tr>
-              <th @click="sortRates('from_currency')" class="sortable">
-                From Currency
-                <i v-if="sortField === 'from_currency'" :class="sortIconClass"></i>
-              </th>
-              <th @click="sortRates('to_currency')" class="sortable">
-                To Currency
-                <i v-if="sortField === 'to_currency'" :class="sortIconClass"></i>
-              </th>
-              <th @click="sortRates('rate')" class="sortable">
-                Rate
-                <i v-if="sortField === 'rate'" :class="sortIconClass"></i>
-              </th>
-              <th @click="sortRates('effective_date')" class="sortable">
-                Effective Date
-                <i v-if="sortField === 'effective_date'" :class="sortIconClass"></i>
-              </th>
+              <th>Currency Pair</th>
+              <th>Direct Rate</th>
+              <th>Reverse Rate</th>
+              <th>Effective Date</th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="rate in filteredRates" :key="rate.rate_id">
-              <td>{{ rate.from_currency }}</td>
-              <td>{{ rate.to_currency }}</td>
-              <td>{{ formatNumber(rate.rate) }}</td>
-              <td>{{ formatDate(rate.effective_date) }}</td>
+            <tr v-for="rate in filteredRates" :key="rate.rate_id" class="rate-row">
               <td>
-                <span
-                  :class="[
-                    'status-badge',
-                    rate.is_active ? 'status-active' : 'status-inactive'
-                  ]"
-                >
+                <div class="currency-pair">
+                  <span class="currency-badge">{{ rate.from_currency }}</span>
+                  <i class="fas fa-arrows-alt-h"></i>
+                  <span class="currency-badge">{{ rate.to_currency }}</span>
+                </div>
+                <small class="pair-subtitle">Bidirectional conversion enabled</small>
+              </td>
+              <td class="rate-cell">
+                <div class="rate-value">{{ formatNumber(rate.rate) }}</div>
+                <small>{{ rate.from_currency }} → {{ rate.to_currency }}</small>
+              </td>
+              <td class="rate-cell">
+                <div class="rate-value">{{ formatNumber(1 / rate.rate) }}</div>
+                <small>{{ rate.to_currency }} → {{ rate.from_currency }}</small>
+              </td>
+              <td>
+                <div class="date-info">
+                  <div class="date-main">{{ formatDate(rate.effective_date) }}</div>
+                  <small v-if="rate.end_date">Until {{ formatDate(rate.end_date) }}</small>
+                  <small v-else class="unlimited">No expiry</small>
+                </div>
+              </td>
+              <td>
+                <span :class="['status-badge', rate.is_active ? 'status-active' : 'status-inactive']">
                   {{ rate.is_active ? 'Active' : 'Inactive' }}
                 </span>
               </td>
               <td class="actions-cell">
-                <button
-                  @click="selectRate(rate)"
-                  class="btn btn-sm btn-primary"
-                  title="Use this rate"
-                >
-                  <i class="fas fa-check"></i> Use
+                <button @click="useRate(rate)" class="btn btn-sm btn-success" title="Use this rate">
+                  <i class="fas fa-check"></i>
                 </button>
-                <router-link
-                  :to="`/currency-rates/${rate.rate_id}`"
-                  class="btn btn-sm btn-info"
-                  title="View details"
-                >
+                <router-link :to="`/currency-rates/${rate.rate_id}`" class="btn btn-sm btn-primary" title="View details">
                   <i class="fas fa-eye"></i>
                 </router-link>
               </td>
@@ -223,206 +201,146 @@
     </div>
   </div>
 </template>
+
 <script>
 import axios from 'axios';
+import { debounce } from 'lodash';
 
 export default {
-  name: 'CurrencyConverter',
+  name: 'BidirectionalCurrencyConverter',
   data() {
     return {
       amount: 100,
       fromCurrency: '',
       toCurrency: '',
-      currencies: [],
-      exchangeRate: 0,
-      rateDate: null,
-      loadingRate: false,
-      loading: false,
-      error: null,
-      converted: false,
       convertedAmount: 0,
+      conversionData: null,
+      currencies: ['USD', 'IDR', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'CNY', 'SGD', 'MYR', 'THB'],
       rates: [],
+      loading: false,
       loadingRates: true,
+      error: null,
       ratesError: null,
-      filterCurrency: '',
-      sortField: 'effective_date',
-      sortDirection: 'desc'
+      filterText: ''
     };
   },
   computed: {
     canConvert() {
-      return this.amount > 0 && this.fromCurrency && this.toCurrency && this.exchangeRate > 0;
+      return this.amount > 0 && this.fromCurrency && this.toCurrency && this.fromCurrency !== this.toCurrency;
     },
-    showRateInfo() {
-      return this.fromCurrency && this.toCurrency && this.exchangeRate > 0;
+    canSwap() {
+      return this.fromCurrency && this.toCurrency && this.fromCurrency !== this.toCurrency;
     },
     filteredRates() {
-      if (!this.filterCurrency) {
-        return this.sortedRates;
-      }
+      if (!this.filterText) return this.rates;
       
-      const filter = this.filterCurrency.toUpperCase();
-      return this.sortedRates.filter(rate => 
+      const filter = this.filterText.toUpperCase();
+      return this.rates.filter(rate => 
         rate.from_currency.includes(filter) || 
         rate.to_currency.includes(filter)
       );
-    },
-    sortedRates() {
-      return [...this.rates].sort((a, b) => {
-        let aValue = a[this.sortField];
-        let bValue = b[this.sortField];
-        
-        // Handle null values
-        if (aValue === null) return 1;
-        if (bValue === null) return -1;
-        
-        // Handle dates
-        if (this.sortField === 'effective_date' || this.sortField === 'end_date') {
-          aValue = aValue ? new Date(aValue) : new Date(0);
-          bValue = bValue ? new Date(bValue) : new Date(0);
-        }
-        
-        // Compare values
-        if (aValue < bValue) return this.sortDirection === 'asc' ? -1 : 1;
-        if (aValue > bValue) return this.sortDirection === 'asc' ? 1 : -1;
-        return 0;
-      });
-    },
-    sortIconClass() {
-      return this.sortDirection === 'asc'
-        ? 'fas fa-sort-up'
-        : 'fas fa-sort-down';
     }
   },
+  created() {
+    this.debouncedConvert = debounce(this.performConversion, 300);
+  },
   mounted() {
-    this.fetchCurrencies();
     this.fetchAllRates();
   },
   methods: {
-    async fetchCurrencies() {
-      try {
-        // For a real app, you would fetch this from your API
-        // This is a placeholder with common currencies
-        this.currencies = [
-          'USD', 'EUR', 'GBP', 'JPY', 'AUD', 
-          'CAD', 'CHF', 'CNY', 'HKD', 'NZD', 
-          'SGD', 'IDR', 'MYR', 'THB', 'VND'
-        ];
-      } catch (error) {
-        console.error('Error fetching currencies:', error);
-      }
-    },
     async fetchAllRates() {
       this.loadingRates = true;
       this.ratesError = null;
-      
       try {
-        const response = await axios.get('/accounting/currency-rates', { 
-          params: { is_active: true } 
+        const response = await axios.get('/accounting/currency-rates', {
+          params: { is_active: true }
         });
         
         if (response.data.status === 'success') {
           this.rates = response.data.data;
-        } else {
-          this.ratesError = 'Failed to fetch exchange rates';
         }
       } catch (error) {
-        console.error('Error fetching exchange rates:', error);
-        this.ratesError = error.response?.data?.message || 'An error occurred while fetching exchange rates';
+        console.error('Error fetching rates:', error);
+        this.ratesError = 'Failed to load exchange rates';
       } finally {
         this.loadingRates = false;
       }
     },
-    async fetchRate() {
-      if (!this.fromCurrency || !this.toCurrency || this.fromCurrency === this.toCurrency) {
-        this.exchangeRate = 0;
-        this.error = null;
-        return;
-      }
-      
-      this.loadingRate = true;
-      this.error = null;
-      
-      try {
-        const response = await axios.get('/accounting/currency-rates/current-rate', {
-          params: {
-            from_currency: this.fromCurrency,
-            to_currency: this.toCurrency,
-            date: new Date().toISOString().split('T')[0]
-          }
-        });
-        
-        if (response.data.status === 'success') {
-          this.exchangeRate = response.data.data.rate;
-          this.rateDate = response.data.data.date;
-        } else {
-          this.error = 'Failed to fetch current exchange rate';
-          this.exchangeRate = 0;
-        }
-      } catch (error) {
-        console.error('Error fetching exchange rate:', error);
-        if (error.response?.status === 404) {
-          this.error = `No exchange rate found for ${this.fromCurrency} to ${this.toCurrency}`;
-        } else {
-          this.error = error.response?.data?.message || 'An error occurred while fetching exchange rate';
-        }
-        this.exchangeRate = 0;
-      } finally {
-        this.loadingRate = false;
-      }
-    },
-    convert() {
+
+    async fetchRateAndConvert() {
       if (!this.canConvert) {
+        this.resetConversion();
         return;
       }
-      
+      await this.performConversion();
+    },
+
+    async performConversion() {
+      if (!this.canConvert) {
+        this.resetConversion();
+        return;
+      }
+
       this.loading = true;
-      
+      this.error = null;
+
       try {
-        this.convertedAmount = this.amount * this.exchangeRate;
-        this.converted = true;
+        const response = await axios.post('/accounting/currency-rates/convert', {
+          from_currency: this.fromCurrency,
+          to_currency: this.toCurrency,
+          amount: this.amount
+        });
+
+        if (response.data.status === 'success') {
+          this.conversionData = response.data.data;
+          this.convertedAmount = this.conversionData.converted_amount;
+        }
       } catch (error) {
-        console.error('Error during conversion:', error);
+        this.error = error.response?.data?.message || 'Conversion failed';
+        this.resetConversion();
       } finally {
         this.loading = false;
       }
     },
+
+    resetConversion() {
+      this.convertedAmount = 0;
+      this.conversionData = null;
+    },
+
     swapCurrencies() {
+      if (!this.canSwap) return;
+      
       const temp = this.fromCurrency;
       this.fromCurrency = this.toCurrency;
       this.toCurrency = temp;
       
-      if (this.fromCurrency && this.toCurrency) {
-        this.fetchRate();
+      if (this.conversionData && this.convertedAmount > 0) {
+        this.amount = this.convertedAmount;
       }
+      
+      this.performConversion();
     },
-    selectRate(rate) {
+
+    useRate(rate) {
       this.fromCurrency = rate.from_currency;
       this.toCurrency = rate.to_currency;
-      this.exchangeRate = rate.rate;
-      this.rateDate = rate.effective_date;
+      this.fetchRateAndConvert();
       
-      // Scroll to the top of the page
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      this.$el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     },
-    sortRates(field) {
-      if (this.sortField === field) {
-        this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
-      } else {
-        this.sortField = field;
-        this.sortDirection = 'asc';
-      }
-    },
+
     formatNumber(value) {
+      if (!value && value !== 0) return '';
       return new Intl.NumberFormat('en-US', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 6
       }).format(value);
     },
+
     formatDate(dateString) {
       if (!dateString) return '';
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', {
+      return new Date(dateString).toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
         day: 'numeric'
@@ -433,6 +351,12 @@ export default {
 </script>
 
 <style scoped>
+/* Add the CSS from the previous artifact - same styling */
+.bidirectional-converter-container {
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
 .currency-converter-container {
   padding: 1rem;
 }

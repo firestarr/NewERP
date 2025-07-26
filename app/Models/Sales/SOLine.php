@@ -26,7 +26,12 @@ class SOLine extends Model
         'tax',
         'subtotal',
         'total',
-        'notes'
+        'notes',
+        'base_currency_unit_price',
+        'base_currency_subtotal',
+        'base_currency_discount',
+        'base_currency_tax',
+        'base_currency_total'
     ];
 
     protected $casts = [
@@ -36,6 +41,11 @@ class SOLine extends Model
         'tax' => 'decimal:5',
         'subtotal' => 'decimal:5',
         'total' => 'decimal:5',
+        'base_currency_unit_price' => 'decimal:5',
+        'base_currency_subtotal' => 'decimal:5',
+        'base_currency_discount' => 'decimal:5',
+        'base_currency_tax' => 'decimal:5',
+        'base_currency_total' => 'decimal:5',
         'delivery_date' => 'date',
         'created_at' => 'datetime',
         'updated_at' => 'datetime'

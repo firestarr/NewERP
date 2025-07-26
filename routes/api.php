@@ -725,6 +725,9 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('accounts-receivable', [FinancialReportController::class, 'accountsReceivable']);
             Route::get('accounts-payable', [FinancialReportController::class, 'accountsPayable']);
         });
+        // NEW: Bidirectional Exchange Rate Routes
+        Route::post('currency-rates/convert', [App\Http\Controllers\Api\CurrencyRateController::class, 'convert']);
+        Route::get('currency-rates/available-pairs', [App\Http\Controllers\Api\CurrencyRateController::class, 'getAvailablePairs']);
         // Currency Rates Management
         Route::get('currency-rates/current-rate', [App\Http\Controllers\Api\CurrencyRateController::class, 'getCurrentRate']);
 

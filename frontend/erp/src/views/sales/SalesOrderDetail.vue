@@ -255,6 +255,9 @@
                                     </td>
                                     <td class="right">
                                         {{ formatCurrency(line.unitPrice) }}
+                                        <div style="font-size: 0.75rem; color: #6b7280;">
+                                            Base: {{ formatCurrency(line.baseCurrencyUnitPrice, order.baseCurrency) }}
+                                        </div>
                                     </td>
                                     <td class="right">{{ safeParseFloat(line.quantity) }}</td>
                                     <td class="right">{{ getDeliveredQuantity(line) }}</td>
@@ -273,9 +276,15 @@
                                     </td>
                                     <td class="right">
                                         {{ formatCurrency(line.subtotal) }}
+                                        <div style="font-size: 0.75rem; color: #6b7280;">
+                                            Base: {{ formatCurrency(line.baseCurrencySubtotal, order.baseCurrency) }}
+                                        </div>
                                     </td>
                                     <td class="right">
                                         {{ formatCurrency(line.total) }}
+                                        <div style="font-size: 0.75rem; color: #6b7280;">
+                                            Base: {{ formatCurrency(line.baseCurrencyTotal, order.baseCurrency) }}
+                                        </div>
                                     </td>
                                 </tr>
                             </tbody>
@@ -286,6 +295,9 @@
                                     </td>
                                     <td colspan="2" class="totals-value">
                                         {{ formatCurrency(calculateSubtotal()) }}
+                                        <div style="font-size: 0.75rem; color: #6b7280;">
+                                            Base: {{ formatCurrency(calculateBaseSubtotal(), order.baseCurrency) }}
+                                        </div>
                                     </td>
                                 </tr>
                                 <tr>
@@ -294,6 +306,9 @@
                                     </td>
                                     <td colspan="2" class="totals-value">
                                         {{ formatCurrency(calculateTotalDiscount()) }}
+                                        <div style="font-size: 0.75rem; color: #6b7280;">
+                                            Base: {{ formatCurrency(calculateBaseTotalDiscount(), order.baseCurrency) }}
+                                        </div>
                                     </td>
                                 </tr>
                                 <tr>
@@ -302,6 +317,9 @@
                                     </td>
                                     <td colspan="2" class="totals-value">
                                         {{ formatCurrency(calculateTotalTax()) }}
+                                        <div style="font-size: 0.75rem; color: #6b7280;">
+                                            Base: {{ formatCurrency(calculateBaseTotalTax(), order.baseCurrency) }}
+                                        </div>
                                     </td>
                                 </tr>
                                 <tr class="grand-total">
@@ -310,6 +328,9 @@
                                     </td>
                                     <td colspan="2" class="totals-value">
                                         {{ formatCurrency(order.totalAmount) }}
+                                        <div style="font-size: 0.75rem; color: #6b7280;">
+                                            Base: {{ formatCurrency(order.baseCurrencyTotal, order.baseCurrency) }}
+                                        </div>
                                     </td>
                                 </tr>
                             </tfoot>
@@ -507,6 +528,32 @@ export default {
         const isLoading = ref(true);
         const showConfirmModal = ref(false);
 
+        // Calculate base currency subtotal of all lines
+        const calculateBaseSubtotal = () => {
+            if (!order.value || !order.value.salesOrderLines) return 0;
+
+            return order.value.salesOrderLines.reduce((sum, line) => {
+                return sum + (parseFloat(line.baseCurrencySubtotal) || 0);
+            }, 0);
+        };
+
+        // Calculate base currency total discount of all lines
+        const calculateBaseTotalDiscount = () => {
+            if (!order.value || !order.value.salesOrderLines) return 0;
+
+            return order.value.salesOrderLines.reduce((sum, line) => {
+                return sum + (parseFloat(line.baseCurrencyDiscount) || 0);
+            }, 0);
+        };
+
+        // Calculate base currency total tax of all lines
+        const calculateBaseTotalTax = () => {
+            if (!order.value || !order.value.salesOrderLines) return 0;
+
+            return order.value.salesOrderLines.reduce((sum, line) => {
+                return sum + (parseFloat(line.baseCurrencyTax) || 0);
+            }, 0);
+        };
         // Computed properties
         const canEdit = computed(() => {
             if (!order.value) return false;
@@ -596,23 +643,23 @@ export default {
             });
         };
 
-        // FIXED: Format currency with proper error handling
-        const formatCurrency = (value) => {
+        // FIXED: Format currency with proper error handling and optional currency code
+        const formatCurrency = (value, currencyCode = null) => {
             const safeValue = safeParseFloat(value);
 
-            // Get currency from order or default to USD
-            const currencyCode = order.value?.currencyCode || "USD";
+            // Use provided currencyCode or fallback to order currency or USD
+            const currCode = currencyCode || order.value?.currencyCode || "USD";
 
             try {
                 return new Intl.NumberFormat("en-US", {
                     style: "currency",
-                    currency: currencyCode,
+                    currency: currCode,
                     minimumFractionDigits: 4,
                     maximumFractionDigits: 4,
                 }).format(safeValue);
             } catch (error) {
                 console.error('Currency formatting error:', error);
-                return `${currencyCode} ${safeValue.toFixed(2)}`;
+                return `${currCode} ${safeValue.toFixed(2)}`;
             }
         };
 
@@ -914,6 +961,9 @@ export default {
             calculateSubtotal,
             calculateTotalDiscount,
             calculateTotalTax,
+            calculateBaseSubtotal,
+            calculateBaseTotalDiscount,
+            calculateBaseTotalTax,
             getDeliveredQuantity,
             getOutstandingQuantity,
             getDeliveryStatusLabel,
@@ -935,6 +985,8 @@ export default {
             createDelivery,
             createInvoice
         };
+        
+
     },
 };
 </script>
